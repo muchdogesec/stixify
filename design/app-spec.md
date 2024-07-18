@@ -3,6 +3,7 @@
 This general app flow looks as follows;
 
 <iframe width="768" height="432" src="https://miro.com/app/live-embed/uXjVKxw0HPw=/?moveToViewport=-2590,-1380,3987,1913&embedId=951241696836" frameborder="0" scrolling="no" allow="fullscreen; clipboard-read; clipboard-write" allowfullscreen></iframe>
+
 ### Profiles
 
 A profile is created by a staff user in the Django staff interface. It consists of a:
