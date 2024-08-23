@@ -243,7 +243,7 @@ A 200 response returns
 }
 ```
 
-##### GET a Grouping by ID
+##### GET a Dossier by ID
 
 ```shell
 GET HOST/api/VERSION/dossiers/{dossier_id}
@@ -269,11 +269,17 @@ The body of the request should contain;
 
 ```json
 {
-  "name": "<value>", // REQUIRED
-  "description": "<value>", // REQUIRED
-  "tlp_level": "<value>", // txt2stix setting (value CLEAR, GREEN, AMBER, AMBER+STRICT, RED allowed) // REQUIRED, DEFAULT IS RED
-  "labels": ["<value1","value2"], // OPTIONAL
-  "report_ids": ["report--1","report--2"] // STIX REPORT URLS for FILES, MUST PASS ALL OBJECTS EACH TIME // OPTIONAL
+    "name": "<value>", // REQUIRED
+    "description": "<value>", // OPTIONAL
+    "tlp_level": "<value>", // CLEAR, GREEN, AMBER, AMBER+STRICT, RED allowed) // REQUIRED, DEFAULT IS RED
+    "labels": [ // OPTIONAL
+        "<value1>",
+        "<value2>"
+    ],
+    "report_ids": [ // STIX REPORT URLS for FILES // OPTIONA
+        "<report--1>",
+        "<report--2>"
+    ]
 }
 ```
 
@@ -303,7 +309,7 @@ The file mimetype will be validated before file is processed by the server. If m
   "labels": ["<value1","value2"], // txt2stix setting // OPTIONAL
   "identity": "{<identity.json>}", // txt2stix setting (will be validated is valid identity, else error will be returned) // OPTIONAL, DEFAULT IS STIXIFY IDENTITY
   "profile_id": "<PROFILE ID>", // REQUIRED
-  "grouping_id": "<GROUPING ID>" // OPTIONAL GROUPING OUTPUT REPORT SHOULD BE ADDED TO
+  "dossier_id": "<DOSSIER ID>" // OPTIONAL DOSSIER OUTPUT REPORT SHOULD BE ADDED TO
 }
 ```
 
@@ -414,7 +420,7 @@ Accepts URL parameters:
             "labels": ["<value1","value2"],
             "identity": "{<identity.json>}",
             "profile_id": "<PROFILE ID>",
-            "grouping_id": "<GROUPING ID>",
+            "dossier_id": "<DOSSIER ID>",
             "state": "pending",
             "run_datetime": "2024-07-18T11:36:50.368Z",
             "info": "string"
@@ -447,7 +453,7 @@ GET HOST/api/VERSION/jobs/{id}/
             "labels": ["<value1","value2"],
             "identity": "{<identity.json>}",
             "profile_id": "<PROFILE ID>",
-            "grouping_id": "<GROUPING ID>",
+            "dossier_id": "<DOSSIER ID>",
             "state": "pending",
             "run_datetime": "2024-07-18T11:36:50.368Z",
             "info": "string"
@@ -471,7 +477,7 @@ Accepts URL parameters
 * `tlp_level` (optional): either CLEAR, GREEN, AMBER+STRICT, AMBER, RED
 * `created_by_ref` (optional): one or more `identity--` refs. treated as OR
 * `confidence` (optional): between 0-100
-* `grouping_id` (optional): one or more `grouping--` refs. treated as OR
+* `dossier_id` (optional): one or more dossier id refs. treated as OR
 * `page_size` (max is 50, default is 50)
 * `page`
     * default is 0
