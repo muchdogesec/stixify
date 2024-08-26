@@ -36,14 +36,20 @@ cp .env.example .env
 ### Build the Docker Image
 
 ```shell
-sudo docker-compose build
+sudo docker compose build
 ```
 
 ### Start the server
 
 ```shell
-sudo docker-compose up
+sudo docker compose up
 ```
+
+### Access the server
+
+The webserver (Django) should now be running on: http://127.0.0.1:8001/
+
+You can access the Swagger UI for the API in a browser at: http://127.0.0.1:8001/api/schema/swagger-ui/
 
 #### ArangoDB install
 
@@ -51,7 +57,11 @@ Note, this script will not install an ArangoDB instance.
 
 If you're new to ArangoDB, [you can install the community edition quickly by following the instructions here](https://arangodb.com/community-server/).
 
-If you are running ArangoDB locally, be sure to set `ARANGODB_HOST='host.docker.internal'` in the `.env` file otherwise you will run into networking errors.
+If you are running ArangoDB locally, be sure to set `ARANGODB_HOST_URL="http://localhost:8529/"` in the `.env` file otherwise you will run into networking errors.
+
+The script will automatically create a database called `stixify_database` when the container is spun up (if it does not exist).
+
+The converted STIX objects will be stored in collections names `stixify_vertex_collection` and `stixify_edge_collection` depending on the object type.
 
 #### Running in production
 
