@@ -29,7 +29,7 @@ Django==5.1
 django-filter==24.3
 djangorestframework==3.15.2
 drf-spectacular==0.27.2
-file2txt @ https://github.com/muchdogesec/file2txt/archive/main.zip#sha256=5a7150a98da7acca458fb26f09fd3265456e89ee39bee5bfcdfd68bbe3c71baa
+file2txt @ https://github.com/muchdogesec/file2txt/archive/main.zip
 filelock==3.15.4
 filetype==1.2.0
 frozenlist==1.4.1
