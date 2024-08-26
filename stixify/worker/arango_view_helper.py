@@ -113,7 +113,7 @@ if __name__ == "__main__":
     ROOT_USERNAME = os.getenv("ARANGODB_USERNAME")
     ROOT_PASSWORD = os.getenv("ARANGODB_PASSWORD")
 
-    logging.info("setting up obstracts database")
+    logging.info("setting up stixify database")
 
     client = ArangoClient(ARANGO_HOST)
     sys_db = client.db(username=ROOT_USERNAME, password=ROOT_PASSWORD)

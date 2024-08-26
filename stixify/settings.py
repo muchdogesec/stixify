@@ -155,7 +155,7 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
-    "DEFAULT_SCHEMA_CLASS": "stixify.web.autoschema.ObstractsAutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "stixify.web.autoschema.StixifyAutoSchema",
 }
 
 STIX_NAMESPACE = uuid.UUID('e92c648d-03eb-59a5-a318-9a36e6f8057c')

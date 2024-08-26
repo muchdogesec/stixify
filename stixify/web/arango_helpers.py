@@ -269,7 +269,7 @@ class ArangoDBHelper:
         types = self.query.get('types', "")
         bind_vars = {
             "@view": self.collection,
-            "note": f"obstracts-post--{post_id}",
+            "note": f"stixify-post--{post_id}",
             "types": types.split(",") if types else None
         }
         query = """
