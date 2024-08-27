@@ -169,27 +169,6 @@ DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", 50))
 
 SPECTACULAR_SETTINGS: dict[str, Any] = {
     'COMPONENT_SPLIT_REQUEST': True
-    "TITLE": "Stixify API",
-    "DESCRIPTION": dedent(
-        """
-        Stixify extracts machine readable intelligence from unstructured data.
-    """
-    ),
-    "VERSION": "1.0.0",
-    "CONTACT": {
-        "email": "noreply@dogesec.com",
-        "url": "https://github.com/muchdogesec/stixify",
-    },
-    "TAGS": [
-        {"name": "Files", "description": "Upload files and retrieve uploaded files"},
-        {"name": "Dossiers", "description": "Group together files and retrieve those groupings"},
-        {"name": "Jobs", "description": "Check the status of data retrieval from blogs"},
-        {"name": "Objects", "description": "Search through STIX object extracted from blog posts"},
-        {"name": "Profiles", "description": "Create and search for extraction profile applied to text in blog posts"},
-        {"name": "Aliases", "description": "Search through aliases that can be used in profiles (see txt2stix for more information)"},
-        {"name": "Extractors", "description": "Search through extractors that can be used in profiles (see txt2stix for more information)"},
-        {"name": "Whitelists", "description": "Search through whitelists that can be used in profiles (see txt2stix for more information)"},
-    ]
 }
 
 
