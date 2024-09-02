@@ -19,10 +19,10 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
 from .web.more_views import txt2stix, profile
+from .web.arango_based_views import arango_views
 from .web.views import FileView, GroupingView, JobView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from django.conf.urls.static import static
-from .web import arango_views
 
 API_VERSION = "v1"
 

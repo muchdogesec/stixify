@@ -1,12 +1,32 @@
 from .arango_helpers import ArangoDBHelper
-from drf_spectacular.utils import extend_schema_view, extend_schema
+from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter
 from rest_framework import viewsets, decorators, exceptions
 import typing
-from .utils import Response
+from ..utils import Response
 
 from django.conf import settings
 if typing.TYPE_CHECKING:
-    from .. import settings
+    from stixify import settings
+
+class QueryParams:
+    value = OpenApiParameter('value', description="search by value")
+    types = OpenApiParameter('types', many=True, explode=False)
+    report_id = OpenApiParameter('report_id', description="filter by report_id")
+    SCO_PARAMS = [value, types, report_id]
+
+    hide_processing_notes = OpenApiParameter('hide_processing_notes', type=bool, description="allows results to be filtered to remove Note objects")
+    name = OpenApiParameter('name', description="allows results to be filtered on the name field. Is wildcard search.")
+    labels = OpenApiParameter('labels', description="allows results to be filtered on the labels field. Is wildcard search.")
+
+    SDO_PARAMS = [hide_processing_notes, name, labels]
+
+    source_ref = OpenApiParameter('source_ref', description="filter SROs using `source_ref`")
+    source_ref_type = OpenApiParameter('source_ref_type', description="filter source objects by type")
+    target_ref = OpenApiParameter('target_ref', description="filter SROs using `target_ref`")
+    target_ref_type = OpenApiParameter('target_ref_type', description="filter target objects by type")
+    relationship_type = OpenApiParameter('relationship_type', description="filter by `relationship_type` field")
+
+    SRO_PARAMS = [source_ref, source_ref_type, target_ref, target_ref_type, relationship_type]
 
 @extend_schema_view(
     scos=extend_schema(
@@ -32,15 +52,18 @@ class ObjectsView(viewsets.ViewSet):
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + QueryParams.SCO_PARAMS,
     )
     @decorators.action(detail=False, methods=["GET"])
     def scos(self, request, *args, **kwargs):
-        return ArangoDBHelper(settings.VIEW_NAME, request).get_scos()
+        matcher = {}
+        if report_id := request.query_params.dict().get('report_id'):
+            matcher['_stixify_report_id'] = report_id
+        return ArangoDBHelper(settings.VIEW_NAME, request).get_scos(matcher=matcher)
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + QueryParams.SDO_PARAMS,
     )
     @decorators.action(detail=False, methods=["GET"])
     def sdos(self, request, *args, **kwargs):
@@ -48,7 +71,7 @@ class ObjectsView(viewsets.ViewSet):
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + QueryParams.SRO_PARAMS,
     )
     @decorators.action(detail=False, methods=["GET"])
     def sros(self, request, *args, **kwargs):

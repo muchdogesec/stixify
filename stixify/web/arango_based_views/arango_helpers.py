@@ -1,15 +1,29 @@
-import logging
+import typing
 from arango import ArangoClient
-from arango.job import AsyncJob
-from arango.cursor import Cursor as ArangoCursor
 from django.conf import settings
-from .utils import Pagination, Response
+from ..utils import Pagination, Response
 from drf_spectacular.utils import OpenApiParameter
+
+if typing.TYPE_CHECKING:
+    from stixify import settings
 
 
 class ArangoDBHelper:
-    max_page_size = 500
-    page_size = 100
+    max_page_size = settings.MAXIMUM_PAGE_SIZE
+    page_size = settings.DEFAULT_PAGE_SIZE
+
+
+    def query_as_array(self, key):
+        query = self.query.get(key)
+        if not query:
+            return []
+        return query.split(',')
+    
+    def query_as_bool(self, key, default=True):
+        query_str = self.query.get(key)
+        if not query_str:
+            return default
+        return query_str.lower() == 'true'
 
     @classmethod
     def get_page_params(cls, request):
@@ -19,12 +33,13 @@ class ArangoDBHelper:
         return page_number, page_limit
 
     @classmethod
-    def get_paginated_response(cls, data, page_number, page_size=page_size):
+    def get_paginated_response(cls, data, page_number, page_size=page_size, full_count=0):
         return Response(
             {
                 "page_size": page_size or cls.page_size,
                 "page_number": page_number,
                 "page_results_count": len(data),
+                "total_results_count": full_count,
                 "objects": data,
             }
         )
@@ -105,9 +120,10 @@ class ArangoDBHelper:
     def execute_query(self, query, bind_vars={}, paginate=True):
         if paginate:
             bind_vars['offset'], bind_vars['count'] = self.get_offset_and_count(self.count, self.page)
-        cursor = self.db.aql.execute(query, bind_vars=bind_vars, count=True)
+        cursor = self.db.aql.execute(query, bind_vars=bind_vars, count=True, full_count=True)
         if paginate:
-            return self.get_paginated_response(cursor, self.page, self.page_size)
+            print(cursor.statistics())
+            return self.get_paginated_response(cursor, self.page, self.page_size, cursor.statistics()["fullCount"])
         return list(cursor)
 
     def get_offset_and_count(self, count, page) -> tuple[int, int]:
@@ -172,7 +188,7 @@ class ArangoDBHelper:
             }
             self.execute_query(deletion_query, bind_vars, paginate=False)
         
-    def get_scos(self):
+    def get_scos(self, matcher={}):
         types = set([
             "ipv4-addr",
             "network-traffic",
@@ -192,13 +208,51 @@ class ArangoDBHelper:
             "bank-account",
             "phone-number",
         ])
+        other_filters = []
+
+        if new_types := self.query_as_array('types'):
+            types = set(new_types)
         bind_vars = {
                 "@collection": self.collection,
                 "types": list(types),
         }
-        query = """
+        if value := self.query.get('value'):
+            bind_vars['search_value'] = value
+            other_filters.append(
+                """
+                (
+                    CONTAINS(doc.value, @search_value) OR
+                    CONTAINS(doc.name, @search_value) OR
+                    CONTAINS(doc.path, @search_value) OR
+                    CONTAINS(doc.key, @search_value) OR
+                    CONTAINS(doc.number, @search_value) OR
+                    CONTAINS(doc.string, @search_value) OR
+                    CONTAINS(doc.hash, @search_value) OR
+                    CONTAINS(doc.symbol, @search_value) OR
+                    CONTAINS(doc.address, @search_value) OR
+                    (doc.type == 'file' AND @search_value IN doc.hashes)
+                )
+                """.strip()
+            )
+
+        # if post_id := self.query.get('post_id'):
+        #     matcher["_obstracts_post_id"] = post_id
+
+        # if report_id := self.query.get('report_id'):
+        #     matcher["_stixify_report_id"] = report_id
+
+        if matcher:
+            bind_vars['matcher'] = matcher
+            other_filters.insert(0, "MATCHES(doc, @matcher)")
+
+
+        if other_filters:
+            other_filters = "FILTER " + " AND ".join(other_filters)
+
+        query = f"""
             FOR doc in @@collection
             FILTER CONTAINS(@types, doc.type) AND doc._is_latest
+            {other_filters or ""}
 
 
             LIMIT @offset, @count
@@ -209,7 +263,7 @@ class ArangoDBHelper:
     def get_sdos(self):
         types = set([
             "report",
-            "notes",
+            "note",
             "indicator",
             "attack-pattern",
             "weakness",
@@ -223,17 +277,36 @@ class ArangoDBHelper:
             "identity",
             "location",
         ])
+        # if new_types := self.query_as_array('types'):
+        #     types = set(new_types)
+        
+        if self.query_as_bool('hide_processing_notes', False):
+            types.remove('note')
+
         bind_vars = {
             "@collection": self.collection,
             "types": list(types),
         }
-        query = """
+        other_filters = []
+        if term := self.query.get('labels'):
+            bind_vars['labels'] = term
+            other_filters.append("COUNT(doc.labels[* CONTAINS(CURRENT, @labels)]) != 0")
+
+        if term := self.query.get('name'):
+            bind_vars['name'] = term
+            other_filters.append("CONTAINS(doc.name, @name)")
+
+        if other_filters:
+            other_filters = "FILTER " + " AND ".join(other_filters)
+
+        query = f"""
             FOR doc in @@collection
-            FILTER CONTAINS(@types, doc.type) AND doc._is_latest
+            FILTER doc.type IN @types AND doc._is_latest
+            {other_filters or ""}
 
 
             LIMIT @offset, @count
-            RETURN KEEP(doc, KEYS(doc, true))
+            RETURN  KEEP(doc, KEYS(doc, true))
         """
         return self.execute_query(query, bind_vars=bind_vars)
     
@@ -254,15 +327,44 @@ class ArangoDBHelper:
         bind_vars = {
             "@collection": self.collection,
         }
-        query = """
+
+        other_filters = []
+
+        if term := self.query.get('source_ref'):
+            bind_vars['source_ref'] = term
+            other_filters.append('doc.source_ref == @source_ref')
+        
+        if term := self.query.get('source_ref_type'):
+            bind_vars['source_ref_type'] = term
+            other_filters.append('STARTS_WITH(doc.source_ref, CONCAT(@source_ref_type, "--"))')
+        
+        if term := self.query.get('target_ref'):
+            bind_vars['target_ref'] = term
+            other_filters.append('doc.target_ref == @target_ref')
+            
+        if term := self.query.get('target_ref_type'):
+            bind_vars['target_ref_type'] = term
+            other_filters.append('STARTS_WITH(doc.target_ref, CONCAT(@target_ref_type, "--"))')
+
+        if term := self.query.get('relationship_type'):
+            bind_vars['relationship_type'] = term
+            other_filters.append("CONTAINS(doc.relationship_type, @relationship_type)")
+    
+        if other_filters:
+            other_filters = "FILTER " + " AND ".join(other_filters)
+        else:
+            other_filters = ""
+
+        query = f"""
             FOR doc in @@collection
             FILTER doc.type == 'relationship' AND doc._is_latest
-
+            {other_filters}
 
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, true))
 
         """
+        print(query, bind_vars)
         return self.execute_query(query, bind_vars=bind_vars)
     
     def get_post_objects(self, post_id):
