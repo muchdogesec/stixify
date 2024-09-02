@@ -20,7 +20,7 @@ from django.urls import path, include
 from rest_framework import routers
 from .web.more_views import txt2stix, profile
 from .web.arango_based_views import arango_views
-from .web.views import FileView, GroupingView, JobView
+from .web.views import FileView, DossierView, JobView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from django.conf.urls.static import static
 
@@ -30,7 +30,7 @@ router = routers.SimpleRouter(use_regex_path=False)
 # profile view
 router.register('profiles', profile.ProfileView, 'profile-view')
 router.register('files', FileView, 'files-view')
-router.register('grouping', GroupingView, 'grouping-view')
+router.register('dossier', DossierView, 'dossier-view')
 router.register('jobs/reports', arango_views.ReportView, 'report-view')
 router.register('jobs', JobView, 'job-view')
 router.register('objects', arango_views.ObjectsView, 'object-view')

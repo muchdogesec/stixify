@@ -1,8 +1,8 @@
 from rest_framework import viewsets, parsers, mixins
 
 
-from .models import File, Grouping, Job
-from .serializers import FileSerializer, GroupingSerializer, JobSerializer
+from .models import File, Dossier, Job
+from .serializers import FileSerializer, DossierSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter, BaseCSVFilter, ChoiceFilter
 from stixify.worker.tasks import new_task
@@ -18,6 +18,7 @@ class FileView(
     pagination_class = Pagination("files")
     serializer_class = FileSerializer
     parser_classes = [parsers.MultiPartParser]
+    openapi_tags = ["Files"]
 
     ordering_fields = ["name", "created"]
     ordering = "created_descending"
@@ -47,12 +48,13 @@ class FileView(
         new_task(job_instance, temp_file)
         return Response(job_serializer.data)
 
-class GroupingView(
+class DossierView(
     mixins.CreateModelMixin, mixins.DestroyModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
     viewsets.GenericViewSet
 ):
-    pagination_class = Pagination("groups")
-    serializer_class = GroupingSerializer
+    pagination_class = Pagination("dossiers")
+    serializer_class = DossierSerializer
+    openapi_tags = ["Dossiers"]
 
     ordering_fields = ["name", "created", "modified"]
     ordering = "modified_descending"
@@ -65,13 +67,14 @@ class GroupingView(
         context = Filter(label="filter by context")
 
     def get_queryset(self):
-        return Grouping.objects.all()
+        return Dossier.objects.all()
 
 class JobView(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
     viewsets.GenericViewSet,
 ):
+    openapi_tags = ["Jobs"]
     pagination_class = Pagination("jobs")
     serializer_class = JobSerializer
 

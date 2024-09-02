@@ -2,7 +2,7 @@ import logging
 from rest_framework import serializers
 
 from stixify.web.more_views.profile import ProfileSerializer
-from .models import File, Grouping, Job
+from .models import File, Dossier, Job
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 import stix2
@@ -45,7 +45,7 @@ class RelatedObjectField(serializers.RelatedField):
     def to_representation(self, value):
         return self.internal_serializer.to_representation(value)
 
-class GroupReportsRelatedField(RelatedObjectField):
+class DossierReportsRelatedField(RelatedObjectField):
     lookup_key = 'report_id'
     def __init__(self, /, **kwargs):
         super().__init__(serializers.CharField(), **kwargs)
@@ -54,11 +54,11 @@ class GroupReportsRelatedField(RelatedObjectField):
     def to_representation(self, value):
         return value.report_id
 
-class GroupingSerializer(serializers.ModelSerializer):
+class DossierSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_ids = GroupReportsRelatedField(source='files', required=False, many=True)
+    report_ids = DossierReportsRelatedField(source='files', required=False, many=True)
     class Meta:
-        model = Grouping
+        model = Dossier
         fields = "__all__"
 
 @extend_schema_field(field=FileSerializer)

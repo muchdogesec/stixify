@@ -54,7 +54,7 @@ class TLP_Levels(models.TextChoices):
     GREEN = "green"
     CLEAR = "clear"
 
-class Grouping_CONTEXT(models.TextChoices):
+class DossierContextType(models.TextChoices):
     SUSPICIOUS_ACTIVITY = "suspicious-activity"
     MALWARE_ANALYSIS =  "malware-analysis"
     UNSPECIFIED = "unspecified"
@@ -84,10 +84,10 @@ class CommonSTIXProps(models.Model):
 
 
 
-class Grouping(CommonSTIXProps):
-    id = models.CharField(primary_key=True)
+class Dossier(CommonSTIXProps):
+    id = models.UUIDField(primary_key=True)
     desciption = models.CharField(max_length=65536)
-    context = models.CharField(choices=Grouping_CONTEXT.choices, max_length=64)
+    context = models.CharField(choices=DossierContextType.choices, max_length=64)
     created_by_ref = models.CharField(max_length=64)
 
     def save(self, *args, **kwargs):
@@ -95,7 +95,7 @@ class Grouping(CommonSTIXProps):
         if not self.id:
             created = self.created or self._meta.get_field('created').pre_save(self, True)
             created = created.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-            self.id = "grouping--" + str(uuid.uuid5(settings.STIX_NAMESPACE, f"{created}+{self.created_by_ref}"))
+            self.id = uuid.uuid5(settings.STIX_NAMESPACE, f"{created}+{self.created_by_ref}")
         return super().save(*args, **kwargs)
 
 def upload_to_func(instance: 'File', filename):
@@ -113,7 +113,7 @@ class File(CommonSTIXProps):
     report_id = models.CharField(unique=True, max_length=64, null=True)
     file = models.FileField(upload_to=upload_to_func)
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
-    grouping = models.ForeignKey(Grouping, on_delete=models.SET_NULL, null=True, related_name="files")
+    dossier = models.ForeignKey(Dossier, on_delete=models.SET_NULL, null=True, related_name="files")
     mimetype = models.CharField(max_length=64)
     mode = models.CharField(max_length=256)
     defang = models.BooleanField(default=True)
