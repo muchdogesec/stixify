@@ -9,7 +9,22 @@ from stixify.worker.tasks import new_task
 from drf_spectacular.utils import extend_schema, extend_schema_view
 # Create your views here.
 @extend_schema_view(
-
+    list=extend_schema(
+        summary="Search and retrieve a list of uploaded Files",
+        description="This endpoint allows you to search for Files you've uploaded. This endpoint is paticularly useful if you want to download the original File uploaded or find the Report object created for the uploaded File so you can retrieve the objects created for it.",
+    ),
+    retrieve=extend_schema(
+        summary="Get a File by ID",
+        description="This endpoint will return information for a specific File using its ID.",
+    ),
+    destroy=extend_schema(
+        summary="Delete a File by ID",
+        description="This endpoint will delete a File using its ID. BEWARE: this request will also delete all SROs and SDOs created for this file. SCOs will remain because they often have relationships to other objects.",
+    ),
+    create=extend_schema(
+        summary="Upload a new File to be processed into STIX object",
+        description="Upload a file to be processed by Stixify. IMPORTANT: files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again."
+    ),
 )
 class FileView(
     mixins.CreateModelMixin, mixins.DestroyModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
@@ -48,6 +63,28 @@ class FileView(
         new_task(job_instance, temp_file)
         return Response(job_serializer.data)
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="Search and retrieve a list of created Dossiers",
+        description="This endpoint will return a list of all Dossiers created and information about them.",
+    ),
+    create=extend_schema(
+        summary="Create a New Dossier",
+        description="This endpoint allows you create a Dossier you can use to group Reports together.",
+    ),
+    partial_update=extend_schema(
+        summary="Update a Dossier",
+        description="This endpoint allows you update a Dossier. Use this endpoint to add or remove reports from a Dossier",
+    ),
+    retrieve=extend_schema(
+        summary="Get a Dossier by ID",
+        description="This endpoint will return information for a specific Dossier using its ID.",
+    ),
+    destroy=extend_schema(
+        summary="Delete a Dossier by ID",
+        description="This endpoint will delete a Dossier using its ID. This request will not affect any Report objects linked to it, except for removing any link to this Dossier from them.",
+    ),
+)
 class DossierView(
     mixins.CreateModelMixin, mixins.DestroyModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
     viewsets.GenericViewSet
@@ -69,6 +106,17 @@ class DossierView(
     def get_queryset(self):
         return Dossier.objects.all()
 
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="Search and retrieve a list of jobs",
+        description="",
+    ),
+    retrieve=extend_schema(
+        summary="Get a job by ID",
+        description="",
+    ),
+)
 class JobView(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
