@@ -1,6 +1,8 @@
-from rest_framework import viewsets, parsers, mixins
+from django.shortcuts import redirect
+from rest_framework import viewsets, parsers, mixins, decorators, status
 
-
+from drf_spectacular.utils import OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from .models import File, Dossier, Job
 from .serializers import FileSerializer, DossierSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
@@ -62,6 +64,27 @@ class FileView(
         job_serializer = JobSerializer(job_instance)
         new_task(job_instance, temp_file)
         return Response(job_serializer.data)
+    
+    @extend_schema(
+        responses=None,
+        summary="Get Markdown for specific post",
+        description="This endpoint will return Markdown extracted for a post.",
+        parameters=[
+            OpenApiParameter(
+                name="Location",
+                type=OpenApiTypes.URI,
+                location=OpenApiParameter.HEADER,
+                description="redirect location of markdown file",
+                response=[301],
+            )
+        ],
+    )
+    @decorators.action(detail=True, methods=["GET"])
+    def markdown(self, request, *args, **kwargs):
+        obj: File = self.get_object()
+        if not obj.markdown_file:
+            return Response("No markdown file", status=status.HTTP_404_NOT_FOUND)
+        return redirect(obj.markdown_file.url, permanent=True)
 
 @extend_schema_view(
     list=extend_schema(

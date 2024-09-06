@@ -117,6 +117,8 @@ class File(CommonSTIXProps):
     mimetype = models.CharField(max_length=64)
     mode = models.CharField(max_length=256)
     defang = models.BooleanField(default=True)
+    markdown_file = models.FileField(upload_to=upload_to_func, null=True)
+
 
     def clean(self) -> None:
         validate_file(self.file, self.mode)

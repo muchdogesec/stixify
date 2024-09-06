@@ -42,6 +42,8 @@ def process_post(filename, job_id, *args):
         )
         processor.setup(report_prop=report_props, extra=dict(_stixify_file_id=str(job.file.id)))
         job.file.report_id = processor.process()
+        
+        job.file.markdown_file.save('markdown.md', processor.md_file.open(), save=True)
         job.file.save()
     except Exception as e:
         job.error = f"report failed to process with: {e}"
