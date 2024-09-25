@@ -1,5 +1,9 @@
 # Stixify
 
+## Before you begin...
+
+We offer a fully web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
+
 ## Overview
 
 Stixify takes a file and converts into structured threat intelligence.
@@ -67,11 +71,10 @@ The converted STIX objects will be stored in collections names `stixify_vertex_c
 
 Note, if you intend on using this in production, you should also modify the variables in the `.env` file for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASS`, `DJANGO_SECRET` and `DEBUG` (to `False`)
 
-
 ## Support
 
 [Minimal support provided via the DOGESEC community](https://community.dogesec.com/).
 
 ## License
 
-[AGPLv3](/LICENSE).
+[Apache 2.0](/LICENSE).
