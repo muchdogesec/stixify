@@ -1,0 +1,62 @@
+services:
+    django_env:
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
+        environment:
+            - POSTGRES_HOST=pgdb
+            - DEBUG=1
+            - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1] django
+            - CELERY_BROKER_URL=redis://redis:6379/0
+            - result_backend=redis://redis:6379/1
+        env_file:
+            - ./.env
+        build: .
+        image: django-stixify
+        # volumes:
+        #     - ./tmp:/tmp/
+    django:
+        extends: django_env
+        command: >
+                bash -c "
+                    python stixify/worker/arango_view_helper.py &&
+                    python manage.py collectstatic --no-input &&
+                        python manage.py makemigrations &&
+                                python manage.py migrate &&
+                                    gunicorn stixify.wsgi:application --bind 0.0.0.0:8004 --reload
+                        "
+        volumes:
+            - .:/usr/src/app/
+        ports:
+            - 8004:8004
+        depends_on:
+            pgdb:
+                condition: service_healthy
+            redis:
+                condition: service_started
+    celery:
+        extends: django_env
+        command: >
+                bash -c "
+                  celery -A stixify.worker worker -l INFO
+                  "
+        volumes:
+            - .:/usr/src/app
+        depends_on:
+            - django
+            - redis
+    pgdb:
+        image: postgres
+        env_file:
+          - ./.env
+        volumes:
+            - pgdata:/var/lib/postgresql/data/
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+            interval: 10s
+            retries: 5
+            start_period: 30s
+            timeout: 10s
+    redis:
+        image: "redis:alpine"
+volumes:
+    pgdata:
