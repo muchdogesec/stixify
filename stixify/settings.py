@@ -166,14 +166,13 @@ TXT2STIX_INCLUDE_URL = "https://github.com/muchdogesec/txt2stix/blob/main/includ
 MAXIMUM_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", 50))
 DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", 50))
 
-
-
 SPECTACULAR_SETTINGS: dict[str, Any] = {
     "COMPONENT_SPLIT_REQUEST": True,
     "TITLE": "Stixify API",
     "DESCRIPTION": dedent(
         """
-        Stixify extracts machine readable intelligence from unstructured data.
+        Stixify extracts machine readable intelligence from unstructured data.\n\n
+        [DOGESEC](https://www.dogesec.com/) offer a fully hosted web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
     """
     ),
     "VERSION": "1.0.0",

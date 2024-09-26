@@ -2,7 +2,7 @@
 
 ## Before you begin...
 
-We offer a fully web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
+We offer a fully hosted web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
 
 ## Overview
 
