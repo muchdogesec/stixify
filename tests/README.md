@@ -16,3 +16,10 @@ This will add profiles used by tests (and also delete all existing profiles)
 ```shell
 python3 tests/setup_profiles.py
 ```
+
+Download the files used for tests:
+
+```shell
+python3 tests/download_test_files.py
+```
+

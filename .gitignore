@@ -177,3 +177,4 @@ Pipfile
 Pipfile.lock
 
 stixify-venv/
+tests/files
