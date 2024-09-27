@@ -158,5 +158,5 @@ class JobView(
 
     class filterset_class(FilterSet):
         # report_ids = BaseCSVFilter(label="search by report IDs", field_name="report_id")
-        report_id = Filter('file__report_id', label="search by report ID")
-        file_id = Filter('file_id', label="search by File ID")
+        report_id = Filter('file__report_id', label="Filter Jobs by Report `id`")
+        file_id = Filter('file_id', label="Filter Jobs by File `id`")

@@ -120,7 +120,7 @@ class WhitelistsView(txt2stixView):
 @extend_schema_view(
     list=extend_schema(
         summary="Search for aliases",
-        description="Aliases replace strings in the blog post with values defined in the Alias. Aliases are applied before extractions. For example, an alias of `USA` with a value `United States` will change all records of `USA` in the blog post with `United States`. To see the values used in this Alias, visit the URL shown as the value for the `file` key",
+        description="Aliases replace strings in the text of a File with values defined in the Alias. Aliases are applied before extractions. For example, an alias of `USA` with a value `United States` will change all records of `USA` in the text with `United States`. To see the values used in this Alias, visit the URL shown as the value for the `file` key",
         responses={400: DEFAULT_400_ERROR, 200: Txt2stixExtractorSerializer},
     ),
     retrieve=extend_schema(
