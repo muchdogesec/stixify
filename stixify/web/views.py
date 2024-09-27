@@ -25,7 +25,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
     ),
     create=extend_schema(
         summary="Upload a new File to be processed into STIX object",
-        description="Upload a file to be processed by Stixify. IMPORTANT: files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again."
+        description="Upload a file to be processed by Stixify. IMPORTANT: files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.\n\nThe response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job."
     ),
 )
 class FileView(
