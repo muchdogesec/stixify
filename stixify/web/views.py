@@ -21,7 +21,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
     ),
     destroy=extend_schema(
         summary="Delete a File by ID",
-        description="This endpoint will delete a File using its ID. BEWARE: this request will also delete all SROs and SDOs created for this file. SCOs will remain because they often have relationships to other objects.",
+        description="This endpoint will delete a File using its ID. IMPORTANT: this request will also delete the Report SDO, and all other SROs and SDOs created during processing for this File. SCOs will remain because they often have relationships to other objects.",
     ),
     create=extend_schema(
         summary="Upload a new File to be processed into STIX object",
@@ -67,8 +67,8 @@ class FileView(
     
     @extend_schema(
         responses=None,
-        summary="Get Markdown for specific post",
-        description="This endpoint will return Markdown extracted for a post.",
+        summary="Get the processed markdown for a File",
+        description="This endpoint will return `.markdown` content created for the processed file that is used to make the extractions from. This endpoint is useful for debugging issues in extractions when you think there could be an issue with the content being passed to the extractors.",
         parameters=[
             OpenApiParameter(
                 name="Location",
