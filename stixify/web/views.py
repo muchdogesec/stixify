@@ -93,7 +93,7 @@ class FileView(
     ),
     create=extend_schema(
         summary="Create a New Dossier",
-        description="This endpoint allows you create a Dossier you can use to group Reports together.",
+        description="This endpoint allows you create a Dossier you can use to group Reports together.\n\n *`name`: up to 128 characters\n\n*`description`: up to 512 characters",
     ),
     partial_update=extend_schema(
         summary="Update a Dossier",
@@ -105,7 +105,7 @@ class FileView(
     ),
     destroy=extend_schema(
         summary="Delete a Dossier by ID",
-        description="This endpoint will delete a Dossier using its ID. This request will not affect any Report objects linked to it, except for removing any link to this Dossier from them.",
+        description="This endpoint will delete a Dossier using its ID. This request will not affect any Reports or the data linked to the Reports attached to the deleted Dossier.",
     ),
 )
 class DossierView(
@@ -132,12 +132,12 @@ class DossierView(
 
 @extend_schema_view(
     list=extend_schema(
-        summary="Search and retrieve a list of jobs",
-        description="",
+        summary="Search and retrieve a list of Jobs",
+        description="Jobs track the status of File upload, conversion of the File into markdown and the extraction of the data from the text. For every new File added a job will be created. The `id` of a Job is printed in the POST responses, but you can use this endpoint to search for the `id` again, if required.",
     ),
     retrieve=extend_schema(
         summary="Get a job by ID",
-        description="",
+        description="Using a Job ID you can retrieve information about its state via this endpoint. This is useful to see if a Job is still processing, if an error has occurred (and at what stage), or if it has completed.",
     ),
 )
 class JobView(
