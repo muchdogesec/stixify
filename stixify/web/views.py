@@ -4,9 +4,10 @@ from rest_framework import viewsets, parsers, mixins, decorators, status
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from .models import File, Dossier, Job
-from .serializers import FileSerializer, DossierSerializer, JobSerializer
+from .serializers import FileCreateSerializer, FileSerializer, DossierSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter, BaseCSVFilter, ChoiceFilter
+import django_filters.rest_framework as filters
 from stixify.worker.tasks import new_task
 from drf_spectacular.utils import extend_schema, extend_schema_view
 # Create your views here.
@@ -18,6 +19,9 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
     retrieve=extend_schema(
         summary="Get a File by ID",
         description="This endpoint will return information for a specific File using its ID.",
+        parameters=[
+            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File."),
+        ],
     ),
     destroy=extend_schema(
         summary="Delete a File by ID",
@@ -36,6 +40,7 @@ class FileView(
     serializer_class = FileSerializer
     parser_classes = [parsers.MultiPartParser]
     openapi_tags = ["Files"]
+    lookup_url_kwarg = "file_id"
 
     ordering_fields = ["name", "created"]
     ordering = "created_descending"
@@ -46,23 +51,24 @@ class FileView(
 
 
     class filterset_class(FilterSet):
+        id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file", lookup_expr="in")
         # report_ids = BaseCSVFilter(label="search by report IDs", field_name="report_id")
-        report_id = Filter(label="search by Report ID")
-        name = Filter(lookup_expr='search')
-        mode = Filter()
+        report_id = filters.BaseInFilter(help_text="Filter results by the STIX Report object ID generated when processing the File")
+        name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
+        mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)
         
-    @extend_schema(responses={200: JobSerializer})
+    @extend_schema(responses={200: JobSerializer}, request=FileCreateSerializer)
     def create(self, request, *args, **kwargs):
-        serializer = FileSerializer(data=request.data)
+        serializer = FileCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         temp_file = request.FILES['file']
         file_instance = serializer.save(mimetype=temp_file.content_type)
         job_instance =  Job.objects.create(file=file_instance)
         job_serializer = JobSerializer(job_instance)
-        new_task(job_instance, temp_file)
+        new_task(job_instance, file_instance)
         return Response(job_serializer.data)
     
     @extend_schema(
@@ -102,10 +108,16 @@ class FileView(
     retrieve=extend_schema(
         summary="Get a Dossier by ID",
         description="This endpoint will return information for a specific Dossier using its ID.",
+        parameters=[
+            OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
+        ],
     ),
     destroy=extend_schema(
         summary="Delete a Dossier by ID",
         description="This endpoint will delete a Dossier using its ID. This request will not affect any Reports or the data linked to the Reports attached to the deleted Dossier.",
+        parameters=[
+            OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
+        ],
     ),
 )
 class DossierView(
@@ -115,16 +127,17 @@ class DossierView(
     pagination_class = Pagination("dossiers")
     serializer_class = DossierSerializer
     openapi_tags = ["Dossiers"]
+    lookup_url_kwarg = "dossier_id"
 
     ordering_fields = ["name", "created", "modified"]
     ordering = "modified_descending"
     filter_backends = [DjangoFilterBackend, Ordering]
 
     class filterset_class(FilterSet):
-        name = Filter(lookup_expr='search', label="search by name")
-        labels = Filter(lookup_expr='search', label="search by labels")
-        created_by_ref = Filter(label="filter by identity id")
-        context = Filter(label="filter by context")
+        name = Filter(lookup_expr='search', label="Filter results by the `name` of the Dossier. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
+        labels = Filter(lookup_expr='search', label="Filter results by the `labels` of the Dossier.")
+        description = Filter(lookup_expr='search', label="Filter results by the `description` of the Dossier. Search is a wildcard so `threat` will match any description that contains the string `threat`. ")
+        created_by_ref = filters.MultipleChoiceFilter(label="Filter results by the Identity `id` that created the Dossier. e.g. `identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5`. (FIELD IS MULTI STRING).")
 
     def get_queryset(self):
         return Dossier.objects.all()
@@ -138,6 +151,9 @@ class DossierView(
     retrieve=extend_schema(
         summary="Get a job by ID",
         description="Using a Job ID you can retrieve information about its state via this endpoint. This is useful to see if a Job is still processing, if an error has occurred (and at what stage), or if it has completed.",
+        parameters=[
+            OpenApiParameter('job_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Job."),
+        ],
     ),
 )
 class JobView(
@@ -148,6 +164,7 @@ class JobView(
     openapi_tags = ["Jobs"]
     pagination_class = Pagination("jobs")
     serializer_class = JobSerializer
+    lookup_url_kwarg = "job_id"
 
     ordering_fields = ["state", "run_datetime", "completion_time"]
     ordering = "run_datetime_ascending"

@@ -11,12 +11,16 @@ from stixify.worker import arango_view_helper
 from ..web import models
 from ..web.more_views.profile import ProfileSerializer
 import tempfile
-from file2txt.converter import convert_file
+from file2txt.converter import convert_file, get_parser_class
 from txt2stix import txt2stix
 from txt2stix.stix import txt2stixBundler
 from txt2stix.ai_session import GenericAIExtractor
 from stix2arango.stix2arango import Stix2Arango
 from django.conf import settings
+
+
+from file2txt.converter import convert_file, Fanger, get_parser_class
+from file2txt.parsers.core import BaseParser
 
 
 def all_extractors(names, _all=False):
@@ -48,28 +52,31 @@ class StixifyProcessor:
         self.collection_name = "stixify"
         self.tmpdir = Path(tempfile.mkdtemp(prefix='stixify-'))
         self.file2txt_mode = file2txt_mode
+        self.md_images = []
+        self.processed_image_base_url = ""
 
         self.filename = self.tmpdir/Path(file.name).name
         self.filename.write_bytes(file.read())
 
         self.task_name = f"{self.job.profile.name}/{self.job.id}/{self.report_id}"
         
-        self.visions_keyfile = os.path.abspath(os.path.join(os.curdir, 'google_vision_key/key.json'))
-
     def setup(self, /, report_prop: ReportProperties, extra={}):
         self.extra_data.update(extra)
         self.report_prop = report_prop
 
     def file2txt(self):
-        openai_cleaner = None
-        self.output_md = convert_file(
-            self.file2txt_mode,
-            self.filename,
-            image_processor_key=self.visions_keyfile,
-            process_raw_image_urls=self.job.profile.extract_text_from_image,
-            md_cleaner=openai_cleaner
-        )
-        self.md_file = self.tmpdir/f"post_md_{self.report_id}.md"
+        parser_class = get_parser_class(self.file2txt_mode, self.filename.name)
+        converter: BaseParser = parser_class(self.filename, self.file2txt_mode, self.job.profile.extract_text_from_image, settings.GOOGLE_VISION_API_KEY)
+        output = converter.convert(processed_image_base_url=self.processed_image_base_url)
+        output = Fanger(output).defang()
+        for name, img in converter.images.items():
+            img_file = io.BytesIO()
+            img_file.name = name
+            img.save(img_file, format='png')
+            self.md_images.append(img_file)
+            
+        self.output_md = output
+        self.md_file = self.tmpdir/f"post_md_{self.report_id or 'file'}.md"
         self.md_file.write_text(self.output_md)
 
     def txt2stix(self):

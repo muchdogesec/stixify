@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import logging
 import os
 from pathlib import Path
 from textwrap import dedent
@@ -199,3 +200,7 @@ VIEW_NAME = "stixify_view"
 ARANGODB_USERNAME   = os.getenv('ARANGODB_USERNAME')
 ARANGODB_PASSWORD   = os.getenv('ARANGODB_PASSWORD')
 ARANGODB_HOST_URL   = os.getenv("ARANGODB_HOST_URL")
+
+GOOGLE_VISION_API_KEY = os.getenv("GOOGLE_VISION_API_KEY")
+if not GOOGLE_VISION_API_KEY:
+    logging.warning("GOOGLE_VISION_API_KEY not set")

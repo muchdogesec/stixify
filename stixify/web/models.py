@@ -46,6 +46,11 @@ class Profile(models.Model):
     relationship_mode = models.CharField(choices=RelationshipMode.choices, max_length=20, default=RelationshipMode.STANDARD)
     extract_text_from_image = models.BooleanField(default=False)
 
+    def save(self, *args, **kwargs) -> None:
+        if not self.id:
+            self.id = uuid.uuid5(settings.STIX_NAMESPACE, self.name)
+        return super().save(*args, **kwargs)
+
 
 class TLP_Levels(models.TextChoices):
     RED = "red"
@@ -71,11 +76,11 @@ def validate_identity(value):
     return True
 
 class CommonSTIXProps(models.Model):
-    name = models.CharField(max_length=256)
-    tlp_level = models.CharField(choices=TLP_Levels.choices, default=TLP_Levels.RED)
-    confidence = models.IntegerField(default=0)
-    labels = ArrayField(base_field=models.CharField(max_length=256), default=list)
-    identity = models.JSONField(validators=[validate_identity])
+    name = models.CharField(max_length=256, help_text="This will be used as the `name` value of the STIX Report object generated")
+    tlp_level = models.CharField(choices=TLP_Levels.choices, default=TLP_Levels.RED, help_text="This will be assigned to all SDOs and SROs created. Stixify uses TLPv2.")
+    confidence = models.IntegerField(default=0, help_text="A value between `0`-`100`. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.")
+    labels = ArrayField(base_field=models.CharField(max_length=256), default=list, help_text="These will be added to the `labels` property of the STIX Report object generated")
+    identity = models.JSONField(validators=[validate_identity], help_text="""This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"dogesec","description":"https://github.com/muchdogsec/","identity_class":"organization","sectors":["technology"],"contact_information":"https://www.dogesec.com/contact/","object_marking_refs":["marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487","marking-definition--97ba4e8b-04f6-57e8-8f6e-3a0f0a7dc0fb"]}`""")
     created = models.DateTimeField(auto_now_add=True)
     modified = models.DateTimeField(auto_now=True)
 
@@ -86,9 +91,12 @@ class CommonSTIXProps(models.Model):
 
 class Dossier(CommonSTIXProps):
     id = models.UUIDField(primary_key=True)
-    desciption = models.CharField(max_length=65536)
+    description = models.CharField(max_length=65536)
     context = models.CharField(choices=DossierContextType.choices, max_length=64)
     created_by_ref = models.CharField(max_length=64)
+    tlp_level = None
+    confidence = None
+    context = None
 
     def save(self, *args, **kwargs):
         self.created_by_ref = self.identity['id']
@@ -111,11 +119,11 @@ def validate_file(file: InMemoryUploadedFile, mode: str):
 class File(CommonSTIXProps):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     report_id = models.CharField(unique=True, max_length=64, null=True)
-    file = models.FileField(upload_to=upload_to_func)
+    file = models.FileField(upload_to=upload_to_func, help_text="Full path to the file to be converted. Must match a supported file type: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `text/html`, `text/csv`, `image/jpg`, `image/jpeg`, `image/png`, `image/webp`. The filetype must be supported by the `mode` used or you will receive an error.")
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
-    dossier = models.ForeignKey(Dossier, on_delete=models.SET_NULL, null=True, related_name="files")
+    dossiers = models.ManyToManyField(Dossier, related_name="files", help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
     mimetype = models.CharField(max_length=64)
-    mode = models.CharField(max_length=256)
+    mode = models.CharField(max_length=256, help_text="How the File should be processed. Generally the `mode` should match the filetype of `file` selected. Except for HTML documents where you can use `html` mode (processes entirety of HTML page) and `html_article` mode (where only the article on the page will be processed).")
     defang = models.BooleanField(default=True)
     markdown_file = models.FileField(upload_to=upload_to_func, null=True)
 

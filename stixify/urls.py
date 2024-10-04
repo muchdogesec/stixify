@@ -31,7 +31,7 @@ router = routers.SimpleRouter(use_regex_path=False)
 router.register('profiles', profile.ProfileView, 'profile-view')
 router.register('files', FileView, 'files-view')
 router.register('dossier', DossierView, 'dossier-view')
-router.register('jobs/reports', arango_views.ReportView, 'report-view')
+router.register('reports', arango_views.ReportView, 'report-view')
 router.register('jobs', JobView, 'job-view')
 router.register('objects', arango_views.ObjectsView, 'object-view')
 # txt2stix views

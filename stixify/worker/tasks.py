@@ -1,7 +1,7 @@
 import logging
 import os
 from pathlib import Path
-from stixify.web.models import Job, Profile
+from stixify.web.models import Job, Profile, File
 from stixify.web import models
 from celery import shared_task
 from .stixifier import StixifyProcessor, ReportProperties
@@ -13,8 +13,8 @@ import stix2
 POLL_INTERVAL = 1
 
 
-def new_task(job: Job, file):
-    ( process_post.s(file.name, job.id) | job_completed_with_error.si(job.id)).apply_async(
+def new_task(job: Job, file: File):
+    ( process_post.s(file.file.name, job.id) | job_completed_with_error.si(job.id)).apply_async(
         countdown=POLL_INTERVAL, root_id=str(job.id), task_id=str(job.id)
     )
 

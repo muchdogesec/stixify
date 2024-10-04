@@ -107,12 +107,12 @@ class ReportView(viewsets.ViewSet):
     def list(self, request, *args, **kwargs):
         return ArangoDBHelper(settings.VIEW_NAME, request).get_reports()
     
-    @extend_schema(
+    # @extend_schema(
             
-    )
-    def destroy(self, request, *args, **kwargs):
-        report_id = kwargs.get(self.lookup_url_kwarg)
-        ArangoDBHelper(settings.VIEW_NAME, request).remove_report(
-            report_id
-        )
-        return Response()
+    # )
+    # def destroy(self, request, *args, **kwargs):
+    #     report_id = kwargs.get(self.lookup_url_kwarg)
+    #     ArangoDBHelper(settings.VIEW_NAME, request).remove_report(
+    #         report_id
+    #     )
+    #     return Response()

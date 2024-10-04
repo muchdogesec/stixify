@@ -29,7 +29,7 @@ Django==5.1
 django-filter==24.3
 djangorestframework==3.15.2
 drf-spectacular==0.27.2
-file2txt @ https://github.com/muchdogesec/file2txt/archive/main.zip
+file2txt @ https://github.com/muchdogesec/file2txt/archive/vision-use-key-env.zip?b=3
 filelock==3.15.4
 filetype==1.2.0
 frozenlist==1.4.1
