@@ -263,7 +263,6 @@ class ArangoDBHelper:
     def get_sdos(self):
         types = set([
             "report",
-            "note",
             "indicator",
             "attack-pattern",
             "weakness",
@@ -280,8 +279,8 @@ class ArangoDBHelper:
         # if new_types := self.query_as_array('types'):
         #     types = set(new_types)
         
-        if self.query_as_bool('hide_processing_notes', False):
-            types.remove('note')
+        if self.query_as_bool('include_txt2stix_notes', False):
+            types.add('note')
 
         bind_vars = {
             "@collection": self.collection,

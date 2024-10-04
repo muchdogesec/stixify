@@ -14,11 +14,11 @@ class QueryParams:
     report_id = OpenApiParameter('report_id', description="filter by report_id")
     SCO_PARAMS = [value, types, report_id]
 
-    hide_processing_notes = OpenApiParameter('hide_processing_notes', type=bool, description="allows results to be filtered to remove Note objects")
+    include_txt2stix_notes = OpenApiParameter('include_txt2stix_notes', type=bool, description="txt2stix creates 3 STIX note Objects that provide information about the processing job. This data is only really helpful for debugging issues, but not for intelligence sharing. Setting this parameters value to true will include these STIX note Objects in the response. Most of the time you want to set this parameter to false (the default value).", default=False)
     name = OpenApiParameter('name', description="allows results to be filtered on the name field. Is wildcard search.")
     labels = OpenApiParameter('labels', description="allows results to be filtered on the labels field. Is wildcard search.")
 
-    SDO_PARAMS = [hide_processing_notes, name, labels]
+    SDO_PARAMS = [include_txt2stix_notes, name, labels]
 
     source_ref = OpenApiParameter('source_ref', description="filter SROs using `source_ref`")
     source_ref_type = OpenApiParameter('source_ref_type', description="filter source objects by type")
