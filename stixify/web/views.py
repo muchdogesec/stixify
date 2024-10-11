@@ -20,6 +20,9 @@ from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
 import django_filters.rest_framework as filters
 from stixify.worker.tasks import new_task
 from drf_spectacular.utils import extend_schema, extend_schema_view
+
+import textwrap
+
 # Create your views here.
 @extend_schema_view(
     list=extend_schema(
@@ -84,7 +87,12 @@ class FileView(
     @extend_schema(
         responses=None,
         summary="Get the processed markdown for a File",
-        description="This endpoint will return `.markdown` content created for the processed file that is used to make the extractions from. This endpoint is useful for debugging issues in extractions when you think there could be an issue with the content being passed to the extractors.",
+        description=textwrap.dedent(
+            """
+            Whan a file is uploaded it is converted to markdown using [file2txt](https://github.com/muchdogesec/file2txt/) which is subsequently used to make extractions from. This endpoint will return that output.\n\n
+            This endpoint is useful for debugging issues in extractions when you think there could be an issue with the content being passed to the extractors.
+            """
+        ),
         parameters=[
             OpenApiParameter(
                 name="Location",
@@ -105,8 +113,12 @@ class FileView(
     @extend_schema(
             responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},
             filters=False,
-            summary="Retrieve images found in a Post",
-            description="A local copy of all images is stored on the server. This endpoint lists the image files found in the Post selected.",
+            summary="Retrieve images found in a File",
+            description=textwrap.dedent(
+            """
+            When [file2txt](https://github.com/muchdogesec/file2txt/) processes a file it will extract all images from the file and store them locally. You can see these images referenced in the markdown produced (see File markdown endpoint). This endpoint lists the image files found in the File selected.
+            """
+        ),
     )
     @decorators.action(detail=True, pagination_class=Pagination("images"))
     def images(self, request, file_id=None, image=None):
@@ -129,7 +141,18 @@ class FileView(
     ),
     create=extend_schema(
         summary="Create a New Dossier",
-        description="This endpoint allows you create a Dossier you can use to group Reports together.\n\n *`name`: up to 128 characters\n\n*`description`: up to 512 characters",
+        description=textwrap.dedent(
+            """
+            This endpoint allows you create a Dossier you can use to group Reports together.\n\n
+            \n\n
+            The following key/values are accepted in the body of the request:\n\n
+            * `name` (required, string): up to 128 characters
+            * `description` (optional, string): up to 512 characters
+            * `created_by_ref` (required, STIX Identity Object): This is a full STIX Identity JSON. e.g. {"type":"identity","spec_version":"2.1","id":"identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"dogesec","description":"https://github.com/muchdogsec/","identity_class":"organization","sectors":["technology"],"contact_information":"https://www.dogesec.com/contact/","object_marking_refs":["marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487","marking-definition--97ba4e8b-04f6-57e8-8f6e-3a0f0a7dc0fb"]}
+            * `tlp_level` (required, TLP level): options are; `clear`, `green`, `amber`, `amber+strict`, or `red`
+            * `labels` (required, array of string): a list of labels for the Dossier. Useful to find it in search. e.g. `["label1","label2"]`
+            """
+        ),
     ),
     partial_update=extend_schema(
         summary="Update a Dossier",
