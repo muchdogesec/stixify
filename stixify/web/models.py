@@ -37,7 +37,7 @@ def validate_extractor(types, name):
 
 
 class Profile(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    id = models.UUIDField(primary_key=True)
     created = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=250, unique=True)
     extractions = ArrayField(base_field=models.CharField(max_length=256, validators=[partial(validate_extractor, ["ai", "pattern", "lookup"])]), help_text="extraction id(s)")
@@ -45,6 +45,8 @@ class Profile(models.Model):
     aliases     = ArrayField(base_field=models.CharField(max_length=256, validators=[partial(validate_extractor, ["alias"])]), help_text="alias id(s)", default=list)
     relationship_mode = models.CharField(choices=RelationshipMode.choices, max_length=20, default=RelationshipMode.STANDARD)
     extract_text_from_image = models.BooleanField(default=False)
+    defang = models.BooleanField(default=True)
+
 
     def save(self, *args, **kwargs) -> None:
         if not self.id:

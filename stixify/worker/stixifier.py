@@ -68,7 +68,8 @@ class StixifyProcessor:
         parser_class = get_parser_class(self.file2txt_mode, self.filename.name)
         converter: BaseParser = parser_class(self.filename, self.file2txt_mode, self.job.profile.extract_text_from_image, settings.GOOGLE_VISION_API_KEY)
         output = converter.convert(processed_image_base_url=self.processed_image_base_url)
-        output = Fanger(output).defang()
+        if self.profile.defang:
+            output = Fanger(output).defang()
         for name, img in converter.images.items():
             img_file = io.BytesIO()
             img_file.name = name
