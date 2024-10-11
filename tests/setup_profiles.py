@@ -93,7 +93,8 @@ if __name__ == "__main__":
                 "pattern_cve_id"
             ],
             "relationship_mode": "standard",
-            "extract_text_from_image": False
+            "extract_text_from_image": False,
+            "defang": False
         },
         #24debd60-1774-5587-a6ce-e2e24879b7b4
         {
@@ -123,7 +124,8 @@ if __name__ == "__main__":
                 "pattern_cve_id"
             ],
             "relationship_mode": "standard",
-            "extract_text_from_image": True
+            "extract_text_from_image": True,
+            "defang": True
         }
     ]
 
