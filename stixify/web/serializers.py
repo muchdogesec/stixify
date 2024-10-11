@@ -2,7 +2,7 @@ import logging
 from rest_framework import serializers
 
 from stixify.web.more_views.profile import ProfileSerializer, Profile
-from .models import File, Dossier, Job
+from .models import File, Dossier, FileImage, Job
 from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 import stix2
@@ -62,6 +62,20 @@ class FileSerializer(serializers.ModelSerializer):
 
 class FileCreateSerializer(FileSerializer):
     dossiers = CharacterSeparatedField(child=RelatedObjectField(serializer=serializers.UUIDField(), queryset=Dossier.objects.all()), required=False, write_only=True)
+
+class ImageSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+    class Meta:
+        model = FileImage
+        fields = ["name", "url"]
+
+    @extend_schema_field(serializers.CharField())
+    def get_url(self, instance):
+        request = self.context.get('request')
+        if instance.file and hasattr(instance.file, 'url'):
+            photo_url = instance.file.url
+            return request.build_absolute_uri(photo_url)
+        return None
 
 
 class DossierReportsRelatedField(RelatedObjectField):

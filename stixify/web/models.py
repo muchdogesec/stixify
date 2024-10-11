@@ -18,6 +18,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 import stix2
 from file2txt.parsers.core import BaseParser
 
+
 if typing.TYPE_CHECKING:
     from .. import settings
 # Create your models here.
@@ -108,8 +109,12 @@ class Dossier(CommonSTIXProps):
             self.id = uuid.uuid5(settings.STIX_NAMESPACE, f"{created}+{self.created_by_ref}")
         return super().save(*args, **kwargs)
 
-def upload_to_func(instance: 'File', filename):
-    return os.path.join(str(instance.id), 'files', filename)
+def upload_to_func(instance: 'File'|'FileImage', filename):
+    if isinstance(instance, FileImage):
+        id = instance.report.id
+    else:
+        id = instance.id
+    return os.path.join(str(id), 'files', filename)
 
 def validate_file(file: InMemoryUploadedFile, mode: str):
     _, ext = os.path.splitext(file.name)
@@ -133,6 +138,15 @@ class File(CommonSTIXProps):
     def clean(self) -> None:
         validate_file(self.file, self.mode)
         return super().clean()
+    
+    
+
+
+class FileImage(models.Model):
+    report = models.ForeignKey(File, related_name='images', on_delete=models.CASCADE)
+    file = models.ImageField(upload_to=upload_to_func)
+    name = models.CharField(max_length=256)
+
 
 class JobState(models.TextChoices):
     PENDING = "pending"

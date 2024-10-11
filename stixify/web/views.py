@@ -8,10 +8,13 @@ import typing
 from django.conf import settings
 
 from stixify.web.arango_based_views.arango_helpers import ArangoDBHelper
+
+from stixify.web import serializers
+from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
-from .models import File, Dossier, Job
-from .serializers import FileCreateSerializer, FileSerializer, DossierSerializer, JobSerializer
+from .models import File, Dossier, FileImage, Job
+from .serializers import FileCreateSerializer, FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter, BaseCSVFilter, ChoiceFilter
 import django_filters.rest_framework as filters
@@ -98,6 +101,26 @@ class FileView(
         if not obj.markdown_file:
             return Response("No markdown file", status=status.HTTP_404_NOT_FOUND)
         return redirect(obj.markdown_file.url, permanent=True)
+    
+    @extend_schema(
+            responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},
+            filters=False,
+            summary="Retrieve images found in a Post",
+            description="A local copy of all images is stored on the server. This endpoint lists the image files found in the Post selected.",
+    )
+    @decorators.action(detail=True, pagination_class=Pagination("images"))
+    def images(self, request, file_id=None, image=None):
+        queryset = FileImage.objects.filter(report__id=file_id).order_by('name')
+        paginator = Pagination('images')
+
+        page = paginator.paginate_queryset(queryset, request, self)
+
+        if page is not None:
+            serializer = ImageSerializer(page, many=True, context=dict(request=request))
+            return paginator.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 @extend_schema_view(
     list=extend_schema(
