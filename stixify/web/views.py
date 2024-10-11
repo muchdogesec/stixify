@@ -187,7 +187,20 @@ class JobView(
 
 
 
-
+@extend_schema_view(
+    list=extend_schema(
+        summary="Search for Report objects created from Files",
+        description="Search for Report objects created from Files",
+    ),
+    retrieve=extend_schema(
+        summary="Get a Report object using its ID",
+        description="Get a Report object using its ID",
+    ),
+    objects=extend_schema(
+        summary="Get all objects linked to a Report ID",
+        description="This endpoint returns all objects that were extracted and created for the File linked to this report.",
+    ),
+)
 class ReportView(viewsets.ViewSet):
     openapi_tags = ["Objects"]
     lookup_url_kwarg = "report_id"
@@ -210,13 +223,22 @@ class ReportView(viewsets.ViewSet):
     )
     def list(self, request, *args, **kwargs):
         return ArangoDBHelper(settings.VIEW_NAME, request).get_reports()
+    
+    @extend_schema(
+        responses=ArangoDBHelper.get_paginated_response_schema(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+    )
+    @decorators.action(methods=["GET"], detail=True)
+    def objects(self, request, *args, report_id=..., **kwargs):
+        return self.get_report_objects(report_id)
+    
 
-    @extend_schema()
-    def destroy(self, request, *args, **kwargs):
-        report_id = kwargs.get(self.lookup_url_kwarg)
-        self.remove_report(report_id)
-        File.objects.filter(report_id=report_id).delete()
-        return Response()
+    # @extend_schema()
+    # def destroy(self, request, *args, **kwargs):
+    #     report_id = kwargs.get(self.lookup_url_kwarg)
+    #     self.remove_report(report_id)
+    #     File.objects.filter(report_id=report_id).delete()
+    #     return Response(status=status.HTTP_204_NO_CONTENT)
     
     def remove_report(self, report_id):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
@@ -249,3 +271,17 @@ class ReportView(viewsets.ViewSet):
                 "objects": objects,
             }
             helper.execute_query(deletion_query, bind_vars, paginate=False)
+
+    def get_report_objects(self, report_id):
+        bind_vars = {
+                "@collection": settings.VIEW_NAME,
+                'report_id': report_id,
+        }
+        query = """
+            FOR doc in @@collection
+            FILTER doc._stixify_report_id == @report_id
+            
+            LIMIT @offset, @count
+            RETURN KEEP(doc, KEYS(doc, TRUE))
+        """
+        return ArangoDBHelper(settings.VIEW_NAME, self.request).execute_query(query, bind_vars=bind_vars)
