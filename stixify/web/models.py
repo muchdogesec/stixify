@@ -109,7 +109,7 @@ class Dossier(CommonSTIXProps):
             self.id = uuid.uuid5(settings.STIX_NAMESPACE, f"{created}+{self.created_by_ref}")
         return super().save(*args, **kwargs)
 
-def upload_to_func(instance: 'File'|'FileImage', filename):
+def upload_to_func(instance: 'File|FileImage', filename):
     if isinstance(instance, FileImage):
         id = instance.report.id
     else:

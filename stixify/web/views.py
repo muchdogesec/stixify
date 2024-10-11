@@ -225,7 +225,7 @@ class JobView(
     ),
 )
 class ReportView(viewsets.ViewSet):
-    openapi_tags = ["Objects"]
+    openapi_tags = ["Reports"]
     lookup_url_kwarg = "report_id"
 
     @extend_schema()
