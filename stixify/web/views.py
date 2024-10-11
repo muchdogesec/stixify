@@ -1,8 +1,15 @@
 from django.shortcuts import redirect
-from rest_framework import viewsets, parsers, mixins, decorators, status
+from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+
+import typing
+from django.conf import settings
+
+from stixify.web.arango_based_views.arango_helpers import ArangoDBHelper
+if typing.TYPE_CHECKING:
+    from stixify import settings
 from .models import File, Dossier, Job
 from .serializers import FileCreateSerializer, FileSerializer, DossierSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
@@ -177,3 +184,68 @@ class JobView(
         # report_ids = BaseCSVFilter(label="search by report IDs", field_name="report_id")
         report_id = Filter('file__report_id', label="Filter Jobs by Report `id`")
         file_id = Filter('file_id', label="Filter Jobs by File `id`")
+
+
+
+
+class ReportView(viewsets.ViewSet):
+    openapi_tags = ["Objects"]
+    lookup_url_kwarg = "report_id"
+
+    @extend_schema()
+    def retrieve(self, request, *args, **kwargs):
+        report_id = kwargs.get(self.lookup_url_kwarg)
+        reports = ArangoDBHelper(settings.VIEW_NAME, request).get_report_by_id(
+            report_id
+        )
+        if not reports:
+            raise exceptions.NotFound(
+                detail=f"report object with id `{report_id}` - not found"
+            )
+        return Response(reports[-1])
+
+    @extend_schema(
+        responses=ArangoDBHelper.get_paginated_response_schema(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+    )
+    def list(self, request, *args, **kwargs):
+        return ArangoDBHelper(settings.VIEW_NAME, request).get_reports()
+
+    @extend_schema()
+    def destroy(self, request, *args, **kwargs):
+        report_id = kwargs.get(self.lookup_url_kwarg)
+        self.remove_report(report_id)
+        File.objects.filter(report_id=report_id).delete()
+        return Response()
+    
+    def remove_report(self, report_id):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+
+        bind_vars = {
+                "@collection": helper.collection,
+                'report_id': report_id,
+        }
+        query = """
+            FOR doc in @@collection
+            FILTER doc._stixify_report_id == @report_id
+            RETURN doc._id
+        """
+        collections: dict[str, list] = {}
+        out = helper.execute_query(query, bind_vars=bind_vars, paginate=False)
+        for key in out:
+            collection, key = key.split('/', 2)
+            collections[collection] = collections.get(collection, [])
+            collections[collection].append(key)
+
+        deletion_query = """
+            FOR _key in @objects
+            REMOVE {_key} IN @@collection
+            RETURN _key
+        """
+
+        for collection, objects in collections.items():
+            bind_vars = {
+                "@collection": collection,
+                "objects": objects,
+            }
+            helper.execute_query(deletion_query, bind_vars, paginate=False)
