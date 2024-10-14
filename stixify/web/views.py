@@ -272,7 +272,14 @@ class ReportView(viewsets.ViewSet):
     
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters()+[
+            OpenApiParameter(
+                "include_txt2stix_notes",
+                type=bool,
+                default=False,
+                description="txt2stix creates 3 STIX note Objects that provide information about the processing job. This data is only really helpful for debugging issues, but not for intelligence sharing. Setting this parameters value to `true` will include these STIX note Objects in the response. Most of the time you want to set this parameter to `false` (the default value).",
+            )
+        ],
     )
     @decorators.action(methods=["GET"], detail=True)
     def objects(self, request, *args, report_id=..., **kwargs):
@@ -319,15 +326,18 @@ class ReportView(viewsets.ViewSet):
             helper.execute_query(deletion_query, bind_vars, paginate=False)
 
     def get_report_objects(self, report_id):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
         bind_vars = {
                 "@collection": settings.VIEW_NAME,
                 'report_id': report_id,
+                'include_txt2stix_notes': helper.query_as_bool('include_txt2stix_notes', False)
+                
         }
         query = """
             FOR doc in @@collection
-            FILTER doc._stixify_report_id == @report_id
+            FILTER doc._stixify_report_id == @report_id AND (doc.type != "note" OR @include_txt2stix_notes)
             
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, TRUE))
         """
-        return ArangoDBHelper(settings.VIEW_NAME, self.request).execute_query(query, bind_vars=bind_vars)
+        return helper.execute_query(query, bind_vars=bind_vars)
