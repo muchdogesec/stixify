@@ -54,6 +54,11 @@ class FileView(
     parser_classes = [parsers.MultiPartParser]
     openapi_tags = ["Files"]
     lookup_url_kwarg = "file_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File."
+        )
+    ]
 
     ordering_fields = ["name", "created"]
     ordering = "created_descending"
@@ -182,6 +187,11 @@ class DossierView(
     serializer_class = DossierSerializer
     openapi_tags = ["Dossiers"]
     lookup_url_kwarg = "dossier_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."
+        )
+    ]
 
     ordering_fields = ["name", "created", "modified"]
     ordering = "modified_descending"
@@ -251,6 +261,11 @@ class JobView(
 class ReportView(viewsets.ViewSet):
     openapi_tags = ["Reports"]
     lookup_url_kwarg = "report_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report."
+        )
+    ]
 
     @extend_schema()
     def retrieve(self, request, *args, **kwargs):

@@ -1,5 +1,6 @@
 from .arango_helpers import OBJECT_TYPES, ArangoDBHelper, SCO_TYPES, SDO_TYPES, SMO_TYPES, SRO_SORT_FIELDS, SMO_SORT_FIELDS, SCO_SORT_FIELDS, SDO_SORT_FIELDS
 from drf_spectacular.utils import extend_schema_view, extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 from rest_framework import viewsets, decorators, exceptions
 import typing
 from ..utils import Response
@@ -114,6 +115,11 @@ class QueryParams:
     
 class SingleObjectView(viewsets.ViewSet):
     lookup_url_kwarg = "object_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The STIX `id` of the Object."
+        )
+    ]
     openapi_tags = ["Objects"]
 
     @extend_schema(

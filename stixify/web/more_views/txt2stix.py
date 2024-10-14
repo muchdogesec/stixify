@@ -7,13 +7,14 @@ from ..utils import Response, ErrorResp, Pagination
 
 
 from ..utils import ErrorSerializer
-from drf_spectacular.utils import OpenApiResponse, OpenApiExample, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiResponse, OpenApiExample, extend_schema, extend_schema_view, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 from ..autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 
 
 class Txt2stixExtractorSerializer(serializers.Serializer):
-    id = serializers.CharField()
+    id = serializers.CharField(label='The `id` of the extractor')
     name = serializers.CharField()
     type = serializers.CharField()
     description = serializers.CharField()
@@ -92,6 +93,11 @@ class txt2stixView(mixins.RetrieveModelMixin,
 class ExtractorsView(txt2stixView):
     openapi_tags = ["Extractors"]
     lookup_url_kwarg = "extractor_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Extractor."
+        )
+    ]
     pagination_class = Pagination("extractors")
 
     def get_all(self):
@@ -111,6 +117,11 @@ class ExtractorsView(txt2stixView):
 )
 class WhitelistsView(txt2stixView):
     lookup_url_kwarg = "whitelist_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Whitelist."
+        )
+    ]
     openapi_tags = ["Whitelists"]
     pagination_class = Pagination("whitelists")
 
@@ -134,6 +145,12 @@ class AliasesView(txt2stixView):
     pagination_class = Pagination("aliases")
 
     lookup_url_kwarg = "alias_id"
+
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Alias."
+        )
+    ]
 
     def get_all(self):
         return self.all_extractors(["alias"])
