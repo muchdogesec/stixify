@@ -46,7 +46,7 @@ class Profile(models.Model):
     aliases     = ArrayField(base_field=models.CharField(max_length=256, validators=[partial(validate_extractor, ["alias"])]), help_text="alias id(s)", default=list)
     relationship_mode = models.CharField(choices=RelationshipMode.choices, max_length=20, default=RelationshipMode.STANDARD)
     extract_text_from_image = models.BooleanField(default=False)
-    defang = models.BooleanField(default=True)
+    defang = models.BooleanField(help_text='If the text should be defanged before processing')
 
 
     def save(self, *args, **kwargs) -> None:
@@ -131,7 +131,7 @@ class File(CommonSTIXProps):
     dossiers = models.ManyToManyField(Dossier, related_name="files", help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
     mimetype = models.CharField(max_length=64)
     mode = models.CharField(max_length=256, help_text="How the File should be processed. Generally the `mode` should match the filetype of `file` selected. Except for HTML documents where you can use `html` mode (processes entirety of HTML page) and `html_article` mode (where only the article on the page will be processed).")
-    defang = models.BooleanField(default=True, help_text="If the text should be defanged before processing")
+    defang = models.BooleanField(help_text="If the text should be defanged before processing")
     markdown_file = models.FileField(upload_to=upload_to_func, null=True)
 
 
