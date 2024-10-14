@@ -29,8 +29,8 @@ API_VERSION = "v1"
 router = routers.SimpleRouter(use_regex_path=False)
 # profile view
 router.register('profiles', profile.ProfileView, 'profile-view')
-router.register('files', FileView, 'files-view')
-router.register('dossier', DossierView, 'dossier-view')
+router.register('files', FileView, 'file-view')
+router.register('dossiers', DossierView, 'dossier-view')
 router.register('jobs', JobView, 'job-view')
 router.register('reports', ReportView, 'report-view')
 # objects
