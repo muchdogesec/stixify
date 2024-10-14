@@ -27,7 +27,7 @@ import textwrap
 @extend_schema_view(
     list=extend_schema(
         summary="Search and retrieve a list of uploaded Files",
-        description="This endpoint allows you to search for Files you've uploaded. This endpoint is paticularly useful if you want to download the original File uploaded or find the Report object created for the uploaded File so you can retrieve the objects created for it.",
+        description="This endpoint allows you to search for Files you've uploaded. This endpoint is particularly useful if you want to download the original File uploaded or find the Report object created for the uploaded File so you can retrieve the objects created for it.",
     ),
     retrieve=extend_schema(
         summary="Get a File by ID",
