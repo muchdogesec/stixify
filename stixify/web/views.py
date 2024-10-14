@@ -69,6 +69,7 @@ class FileView(
         report_id = filters.BaseInFilter(help_text="Filter results by the STIX Report object ID generated when processing the File")
         name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
+        # dossier_id = filters.BaseInFilter(field_name='dossiers', help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)

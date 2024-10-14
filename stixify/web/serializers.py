@@ -52,8 +52,8 @@ class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     report_id = serializers.CharField(read_only=True)
     mimetype = serializers.CharField(read_only=True)
-    profile_id =  RelatedObjectField(serializer=serializers.UUIDField(), use_raw_value=True, queryset=Profile.objects)
-    mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()))
+    profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
+    mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
     markdown_file = serializers.FileField(read_only=True)
 
     class Meta:
@@ -61,7 +61,7 @@ class FileSerializer(serializers.ModelSerializer):
         exclude = ['profile']
 
 class FileCreateSerializer(FileSerializer):
-    dossiers = CharacterSeparatedField(child=RelatedObjectField(serializer=serializers.UUIDField(), queryset=Dossier.objects.all()), required=False, write_only=True)
+    dossiers = CharacterSeparatedField(child=RelatedObjectField(serializer=serializers.UUIDField(), queryset=Dossier.objects.all()), required=False, write_only=True, help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
