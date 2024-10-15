@@ -75,7 +75,7 @@ def validate_identity(value):
         identity = stix2.Identity(**value)
         value["id"] = identity.id
     except BaseException as e:
-        raise ValidationError(f"{e}")
+        raise ValidationError(f"Invalid Identity: {e}")
     return True
 
 class CommonSTIXProps(models.Model):
@@ -92,21 +92,22 @@ class CommonSTIXProps(models.Model):
 
 
 
-class Dossier(CommonSTIXProps):
+class Dossier(models.Model):
     id = models.UUIDField(primary_key=True)
-    description = models.CharField(max_length=65536)
-    context = models.CharField(choices=DossierContextType.choices, max_length=64)
-    created_by_ref = models.CharField(max_length=64)
-    tlp_level = None
-    confidence = None
-    context = None
+    name = models.CharField(max_length=128)
+    tlp_level = models.CharField(choices=TLP_Levels.choices, default=TLP_Levels.RED, help_text="This will be assigned to all SDOs and SROs created. Stixify uses TLPv2.")
+    description = models.CharField(max_length=512, blank=True)
+    created_by_ref = models.JSONField(validators=[validate_identity])
+    labels = ArrayField(base_field=models.CharField(max_length=256), default=list, help_text="These will be added to the `labels` property of the STIX Report object generated")
+    created = models.DateTimeField(auto_now_add=True)
+    modified = models.DateTimeField(auto_now=True)
+
 
     def save(self, *args, **kwargs):
-        self.created_by_ref = self.identity['id']
         if not self.id:
             created = self.created or self._meta.get_field('created').pre_save(self, True)
             created = created.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-            self.id = uuid.uuid5(settings.STIX_NAMESPACE, f"{created}+{self.created_by_ref}")
+            self.id = uuid.uuid5(settings.STIX_NAMESPACE, f"{created}+{self.created_by_ref['id']}")
         return super().save(*args, **kwargs)
 
 def upload_to_func(instance: 'File|FileImage', filename):

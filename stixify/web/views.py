@@ -201,7 +201,7 @@ class DossierView(
         name = Filter(lookup_expr='search', label="Filter results by the `name` of the Dossier. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         labels = Filter(lookup_expr='search', label="Filter results by the `labels` of the Dossier.")
         description = Filter(lookup_expr='search', label="Filter results by the `description` of the Dossier. Search is a wildcard so `threat` will match any description that contains the string `threat`. ")
-        created_by_ref = filters.MultipleChoiceFilter(label="Filter results by the Identity `id` that created the Dossier. e.g. `identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5`. (FIELD IS MULTI STRING).")
+        created_by_ref = filters.BaseInFilter(field_name='created_by_ref__id', label="Filter results by the Identity `id` that created the Dossier. e.g. `identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5`. (FIELD IS MULTI STRING).")
 
     def get_queryset(self):
         return Dossier.objects.all()
