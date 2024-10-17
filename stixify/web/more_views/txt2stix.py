@@ -12,6 +12,7 @@ from drf_spectacular.types import OpenApiTypes
 
 from ..autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 
+import textwrap
 
 class Txt2stixExtractorSerializer(serializers.Serializer):
     id = serializers.CharField(label='The `id` of the extractor')
@@ -81,7 +82,12 @@ class txt2stixView(mixins.RetrieveModelMixin,
 @extend_schema_view(
     list=extend_schema(
         summary="Search Extractors",
-        description="Extractors are what extract the data from the text which is then converted into STIX objects.",
+        description=textwrap.dedent(
+            """
+            Extractors are what extract the data from the text which is then converted into STIX objects.\n\n
+            For more information see [txt2stix](https://github.com/muchdogesec/txt2stix/).
+            """
+        ),
         responses={400: DEFAULT_400_ERROR, 200: Txt2stixExtractorSerializer},
     ),
     retrieve=extend_schema(
@@ -106,7 +112,12 @@ class ExtractorsView(txt2stixView):
 @extend_schema_view(
     list=extend_schema(
         summary="Search for Whitelists",
-        description="In many cases files will have IoC extractions that are not malicious. e.g. `google.com` (and thus they don't want them to be extracted). Whitelists provide a list of values to be compared to extractions. If a whitelist value matches an extraction, that extraction is removed. To see the values used in this Whitelist, visit the URL shown as the value for the `file` key",
+        description=textwrap.dedent(
+            """
+            In many cases files will have IoC extractions that are not malicious. e.g. `google.com` (and thus they don't want them to be extracted). Whitelists provide a list of values to be compared to extractions. If a whitelist value matches an extraction, that extraction is removed. To see the values used in this Whitelist, visit the URL shown as the value for the `file` key.\n\n
+            For more information see [txt2stix](https://github.com/muchdogesec/txt2stix/).
+            """
+        ),
         responses={400: DEFAULT_400_ERROR, 200: Txt2stixExtractorSerializer},
     ),
     retrieve=extend_schema(
@@ -131,7 +142,12 @@ class WhitelistsView(txt2stixView):
 @extend_schema_view(
     list=extend_schema(
         summary="Search for aliases",
-        description="Aliases replace strings in the text of a File with values defined in the Alias. Aliases are applied before extractions. For example, an alias of `USA` with a value `United States` will change all records of `USA` in the text with `United States`. To see the values used in this Alias, visit the URL shown as the value for the `file` key",
+        description=textwrap.dedent(
+            """
+            Aliases replace strings in the blog post with values defined in the Alias. Aliases are applied before extractions. For example, an alias of `USA` with a value `United States` will change all records of `USA` in the blog post with `United States`. To see the values used in this Alias, visit the URL shown as the value for the `file` key\n\n
+            For more information see [txt2stix](https://github.com/muchdogesec/txt2stix/).
+            """
+        ),
         responses={400: DEFAULT_400_ERROR, 200: Txt2stixExtractorSerializer},
     ),
     retrieve=extend_schema(

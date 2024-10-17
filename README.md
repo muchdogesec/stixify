@@ -6,6 +6,8 @@ We offer a fully hosted web version of Stixify which includes many additional fe
 
 ## Overview
 
+![](docs/stixify.png)
+
 Stixify takes a file and converts into structured threat intelligence.
 
 Lots of intelligence is shared in PDFs, Word docs, Powerpoints, emails, Slack messages, etc.

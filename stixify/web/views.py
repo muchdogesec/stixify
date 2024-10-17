@@ -27,22 +27,62 @@ import textwrap
 @extend_schema_view(
     list=extend_schema(
         summary="Search and retrieve a list of uploaded Files",
-        description="This endpoint allows you to search for Files you've uploaded. This endpoint is particularly useful if you want to download the original File uploaded or find the Report object created for the uploaded File so you can retrieve the objects created for it.",
+        description=textwrap.dedent(
+            """
+            This endpoint allows you to search for Files you've uploaded. This endpoint is particularly useful if you want to download the original File uploaded or find the Report object created for the uploaded File so you can retrieve the objects created for it.
+            """
+        ),
     ),
     retrieve=extend_schema(
         summary="Get a File by ID",
-        description="This endpoint will return information for a specific File using its ID.",
+        description=textwrap.dedent(
+            """
+            This endpoint will return information for a specific File using its ID.
+            """
+        ),
         parameters=[
             OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File."),
         ],
     ),
     destroy=extend_schema(
         summary="Delete a File by ID",
-        description="This endpoint will delete a File using its ID. IMPORTANT: this request will also delete the Report SDO, and all other SROs and SDOs created during processing for this File. SCOs will remain because they often have relationships to other objects.",
+        description=textwrap.dedent(
+            """
+            This endpoint will delete a File using its ID. IMPORTANT: this request will also delete the Report SDO, and all other SROs and SDOs created during processing for this File. SCOs will remain because they often have relationships to other objects.
+            """
+        ),
     ),
     create=extend_schema(
-        summary="Upload a new File to be processed into STIX object",
-        description="Upload a file to be processed by Stixify. IMPORTANT: files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.\n\nThe response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job."
+        summary="Upload a new File",
+        description=textwrap.dedent(
+            """
+            Upload a file to be processed by Stixify. During processing a file is turned into markdown by [file2txt](https://github.com/muchdogesec/file2txt/), which is then passed to [txt2stix](https://github.com/muchdogesec/txt2stix/) to .\n\n
+            The following key/values are accepted in the body of the request:\n\n
+            * `file` (required): Full path to the file to be converted. The mimetype of the file uploaded must match that expected by the `mode` selected.
+            * `profile_id` (required): a valid profile ID to define how the post should be processed. You can add a profile using the POST Profile endpoint.
+            * `mode` (required): How the File should be processed. Options are:
+                * `txt`: Filetypes supported (mime-type): `txt` (`text/plain`)
+                * `image`: Filetypes supported (mime-type): `jpg` (`image/jpg`), `.jpeg` (`image/jpeg`), `.png` (`image/png`), `.webp` (`image/webp`)
+                * `csv`: Filetypes supported (mime-type): `csv` (`text/csv`)
+                * `html`: Filetypes supported (mime-type): `html` (`text/html`)
+                * `html_article`: same as `html` but only considers the article on the page, good for blog posts. Filetypes supported (mime-type): `html` (`text/html`)
+                * `word`: Filetypes supported (mime-type): `docx` (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`), `doc` (`application/msword`)
+                * `pdf`: Filetypes supported (mime-type): `pdf` (`application/pdf`)
+                * `powerpoint`: Filetypes supported (mime-type): `ppt` (`application/vnd.ms-powerpoint`), `.jpeg` (`application/vnd.openxmlformats-officedocument.presentationml.presentation`)
+            * `name` (required): This will be used as the name value of the STIX Report object generated
+            * `identity` (required): This will be used as the `created_by_ref` for all created SDOs and SROs. This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"dogesec","description":"https://github.com/muchdogsec/","identity_class":"organization","sectors":["technology"],"contact_information":"https://www.dogesec.com/contact/","object_marking_refs":["marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487","marking-definition--97ba4e8b-04f6-57e8-8f6e-3a0f0a7dc0fb"]}`
+            * `tlp_level` (optional): This will be assigned to all SDOs and SROs created. Stixify uses TLPv2. Options are:
+                * `red`
+                * `amber+strict`
+                * `amber`
+                * `green`
+                * `clear`
+            * `confidence` (optional): Will be added to the `confidence` value of the Report SDO created. A value between 0-100. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.
+            * `labels` (optional): Will be added to the `labels` of the Report SDO created. 
+            Files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.\n\n
+            The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
+            """
+        ),
     ),
 )
 class FileView(
