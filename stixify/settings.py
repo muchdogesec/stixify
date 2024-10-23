@@ -114,6 +114,18 @@ STORAGES = {
     },
 }
 
+if os.getenv("USE_S3_STORAGE") == "1":
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": os.environ["R2_BUCKET_NAME"],
+            "endpoint_url": os.environ["R2_ENDPOINT_URL"],
+            "access_key": os.environ["R2_ACCESS_KEY"],
+            "secret_key": os.environ["R2_SECRET_KEY"],
+            'custom_domain': os.environ["R2_CUSTOM_DOMAIN"],
+            'location': 'stixify/media',
+        },
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

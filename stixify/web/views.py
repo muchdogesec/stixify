@@ -1,5 +1,6 @@
 from django.shortcuts import redirect
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions
+from django.http import HttpResponse, FileResponse
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -22,7 +23,26 @@ from stixify.worker.tasks import new_task
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
 import textwrap
-
+import mistune, hyperlink
+from mistune.renderers.markdown import MarkdownRenderer
+from mistune.util import unescape
+class MarkdownImageReplacer(MarkdownRenderer):
+    def __init__(self, request, queryset):
+        self.request = request
+        self.queryset = queryset
+        super().__init__()
+    def image(self, token: dict[str, dict], state: mistune.BlockState) -> str:
+        src = token['attrs']['url']
+        if not hyperlink.parse(src).absolute:
+            try:
+                token['attrs']['url'] = self.request.build_absolute_uri(self.queryset.get(name=src).file.url)
+            except Exception as e:
+                pass
+        return super().image(token, state)
+    
+    def codespan(self, token: dict[str, dict], state: mistune.BlockState) -> str:
+        token['raw'] = unescape(token['raw'])
+        return super().codespan(token, state)
 # Create your views here.
 @extend_schema_view(
     list=extend_schema(
@@ -150,11 +170,12 @@ class FileView(
         ],
     )
     @decorators.action(detail=True, methods=["GET"])
-    def markdown(self, request, *args, **kwargs):
+    def markdown(self, request, *args, file_id=None, **kwargs):
         obj: File = self.get_object()
         if not obj.markdown_file:
             return Response("No markdown file", status=status.HTTP_404_NOT_FOUND)
-        return redirect(obj.markdown_file.url, permanent=True)
+        modify_links = mistune.create_markdown(escape=False, renderer=MarkdownImageReplacer(self.request, FileImage.objects.filter(report__id=file_id)))
+        return FileResponse(streaming_content=modify_links(obj.markdown_file.read().decode()), content_type='text/markdown', filename=f'{obj.name}-markdown.md')
     
     @extend_schema(
             responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},
