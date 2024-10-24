@@ -362,9 +362,6 @@ class ArangoDBHelper:
         types = SDO_TYPES
         if new_types := self.query_as_array('types'):
             types = types.intersection(new_types)
-        
-        if not self.query_as_bool('include_txt2stix_notes', False):
-            types.remove('note')
 
         bind_vars = {
             "@collection": self.collection,
@@ -442,9 +439,6 @@ class ArangoDBHelper:
         if terms := self.query_as_array('target_ref_type'):
             bind_vars['target_ref_type'] = terms
             other_filters.append('SPLIT(doc.target_ref, "--")[0] IN @target_ref_type')
-
-        if not self.query_as_bool('include_txt2stix_notes', False):
-            other_filters.append('"note" NOT IN [SPLIT(doc.target_ref, "--")[0], SPLIT(doc.source_ref, "--")[0]]')
 
 
         if term := self.query.get('relationship_type'):
