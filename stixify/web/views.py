@@ -15,7 +15,7 @@ from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import File, Dossier, FileImage, Job
-from .serializers import FileCreateSerializer, FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
+from .serializers import FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter, BaseCSVFilter, ChoiceFilter
 import django_filters.rest_framework as filters
@@ -139,9 +139,9 @@ class FileView(
     def perform_create(self, serializer):
         return super().perform_create(serializer)
         
-    @extend_schema(responses={200: JobSerializer}, request=FileCreateSerializer)
+    @extend_schema(responses={200: JobSerializer}, request=FileSerializer)
     def create(self, request, *args, **kwargs):
-        serializer = FileCreateSerializer(data=request.data)
+        serializer = FileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         temp_file = request.FILES['file']
         file_instance = serializer.save(mimetype=temp_file.content_type)

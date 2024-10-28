@@ -59,10 +59,8 @@ class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
         exclude = ['profile']
+        read_only_fields = ["dossiers"]
 
-class FileCreateSerializer(FileSerializer):
-    dossiers = CharacterSeparatedField(child=RelatedObjectField(serializer=serializers.UUIDField(), queryset=Dossier.objects.all()), required=False, write_only=True, help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
-    
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     class Meta:
