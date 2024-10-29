@@ -39,6 +39,26 @@ To create one using the default settings:
 cp .env.example .env
 ```
 
+#### A note on ArangoDB secrets
+
+Note, this script will not install an ArangoDB instance.
+
+If you're new to ArangoDB, [you can install the community edition quickly by following the instructions here](https://arangodb.com/community-server/).
+
+If you are running ArangoDB locally, be sure to set `ARANGODB_HOST_URL='http://host.docker.internal:8529'` in the `.env` file otherwise you will run into networking errors.
+
+The script will automatically create a database called `stixify_database` when the container is spun up (if it does not exist).
+
+The converted STIX objects will be stored in collections names `stixify_vertex_collection` and `stixify_edge_collection` depending on the object type.
+
+#### A note on Django and Postgres secrets
+
+Note, if you intend on using this for testing, you can leave the variables in the `.env` as is. However, these need to be changed in a production install for security.
+
+#### A note Cloudflare R2 storage
+
+By default, all images will be stored locally on the server. This is fine if you're using Obstracts on your own machine. If running on a remote server, Obstracts support the storage of images on Cloudflare R2. This can be set in the `.env` file/
+
 ### Build the Docker Image
 
 ```shell
@@ -57,17 +77,7 @@ The webserver (Django) should now be running on: http://127.0.0.1:8004/
 
 You can access the Swagger UI for the API in a browser at: http://127.0.0.1:8004/api/schema/swagger-ui/
 
-#### ArangoDB install
 
-Note, this script will not install an ArangoDB instance.
-
-If you're new to ArangoDB, [you can install the community edition quickly by following the instructions here](https://arangodb.com/community-server/).
-
-If you are running ArangoDB locally, be sure to set `ARANGODB_HOST_URL="http://localhost:8529/"` in the `.env` file otherwise you will run into networking errors.
-
-The script will automatically create a database called `stixify_database` when the container is spun up (if it does not exist).
-
-The converted STIX objects will be stored in collections names `stixify_vertex_collection` and `stixify_edge_collection` depending on the object type.
 
 #### Running in production
 

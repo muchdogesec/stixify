@@ -23,3 +23,8 @@ Download the files used for tests:
 python3 tests/download_test_files.py
 ```
 
+Upload the files used for tests:
+
+```shell
+python3 tests/add_files.py
+```

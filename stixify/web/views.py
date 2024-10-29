@@ -76,8 +76,10 @@ class MarkdownImageReplacer(MarkdownRenderer):
         summary="Upload a new File",
         description=textwrap.dedent(
             """
-            Upload a file to be processed by Stixify. During processing a file is turned into markdown by [file2txt](https://github.com/muchdogesec/file2txt/), which is then passed to [txt2stix](https://github.com/muchdogesec/txt2stix/) to .\n\n
-            The following key/values are accepted in the body of the request:\n\n
+            Upload a file to be processed by Stixify. During processing a file is turned into markdown by [file2txt](https://github.com/muchdogesec/file2txt/), which is then passed to [txt2stix](https://github.com/muchdogesec/txt2stix/) to .
+
+            The following key/values are accepted in the body of the request:
+
             * `file` (required): Full path to the file to be converted. The mimetype of the file uploaded must match that expected by the `mode` selected.
             * `profile_id` (required): a valid profile ID to define how the post should be processed. You can add a profile using the POST Profile endpoint.
             * `mode` (required): How the File should be processed. Options are:
@@ -90,7 +92,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
                 * `pdf`: Filetypes supported (mime-type): `pdf` (`application/pdf`)
                 * `powerpoint`: Filetypes supported (mime-type): `ppt` (`application/vnd.ms-powerpoint`), `.jpeg` (`application/vnd.openxmlformats-officedocument.presentationml.presentation`)
             * `name` (required): This will be used as the name value of the STIX Report object generated
-            * `identity` (required): This will be used as the `created_by_ref` for all created SDOs and SROs. This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"dogesec","description":"https://github.com/muchdogsec/","identity_class":"organization","sectors":["technology"],"contact_information":"https://www.dogesec.com/contact/","object_marking_refs":["marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487","marking-definition--97ba4e8b-04f6-57e8-8f6e-3a0f0a7dc0fb"]}`
+            * `identity` (required): This will be used as the `created_by_ref` for all created SDOs and SROs. This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15","name":"Dummy Identity"}`. If no value is passed, [the Stixify identity object will be used](https://raw.githubusercontent.com/muchdogesec/stix4doge/refs/heads/main/objects/identity/stixify.json).
             * `tlp_level` (optional): This will be assigned to all SDOs and SROs created. Stixify uses TLPv2. Options are:
                 * `red`
                 * `amber+strict`
@@ -98,8 +100,10 @@ class MarkdownImageReplacer(MarkdownRenderer):
                 * `green`
                 * `clear`
             * `confidence` (optional): Will be added to the `confidence` value of the Report SDO created. A value between 0-100. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.
-            * `labels` (optional): Will be added to the `labels` of the Report SDO created. 
-            Files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.\n\n
+            * `labels` (optional): Will be added to the `labels` of the Report SDO created.
+
+            Files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.
+
             The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
             """
         ),
@@ -204,18 +208,22 @@ class FileView(
 @extend_schema_view(
     list=extend_schema(
         summary="Search and retrieve a list of created Dossiers",
-        description="This endpoint will return a list of all Dossiers created and information about them.",
+        description=textwrap.dedent(
+            """
+            This endpoint will return a list of all Dossiers created and information about them.
+            """
+        ),
     ),
     create=extend_schema(
         summary="Create a New Dossier",
         description=textwrap.dedent(
             """
-            This endpoint allows you create a Dossier you can use to group Reports together.\n\n
-            \n\n
-            The following key/values are accepted in the body of the request:\n\n
+            This endpoint allows you create a Dossier you can use to group Reports together.
+
+            The following key/values are accepted in the body of the request:
             * `name` (required, string): up to 128 characters
             * `description` (optional, string): up to 512 characters
-            * `created_by_ref` (required, STIX Identity Object): This is a full STIX Identity JSON. e.g. {"type":"identity","spec_version":"2.1","id":"identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5","created":"2020-01-01T00:00:00.000Z","modified":"2020-01-01T00:00:00.000Z","name":"dogesec","description":"https://github.com/muchdogsec/","identity_class":"organization","sectors":["technology"],"contact_information":"https://www.dogesec.com/contact/","object_marking_refs":["marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487","marking-definition--97ba4e8b-04f6-57e8-8f6e-3a0f0a7dc0fb"]}
+            * `created_by_ref` (required, STIX Identity Object): This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15","name":"Dummy Identity"}`. If no value is passed, [the Stixify identity object will be used](https://raw.githubusercontent.com/muchdogesec/stix4doge/refs/heads/main/objects/identity/stixify.json).
             * `tlp_level` (required, TLP level): options are; `clear`, `green`, `amber`, `amber+strict`, or `red`
             * `labels` (required, array of string): a list of labels for the Dossier. Useful to find it in search. e.g. `["label1","label2"]`
             """
@@ -223,18 +231,30 @@ class FileView(
     ),
     partial_update=extend_schema(
         summary="Update a Dossier",
-        description="This endpoint allows you update a Dossier. Use this endpoint to add or remove reports from a Dossier",
+        description=textwrap.dedent(
+            """
+            This endpoint allows you update a Dossier. Use this endpoint to add or remove reports from a Dossier
+            """
+        ),
     ),
     retrieve=extend_schema(
         summary="Get a Dossier by ID",
-        description="This endpoint will return information for a specific Dossier using its ID.",
+       description=textwrap.dedent(
+            """
+            This endpoint will return information for a specific Dossier using its ID.
+            """
+        ),
         parameters=[
             OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
         ],
     ),
     destroy=extend_schema(
         summary="Delete a Dossier by ID",
-        description="This endpoint will delete a Dossier using its ID. This request will not affect any Reports or the data linked to the Reports attached to the deleted Dossier.",
+        description=textwrap.dedent(
+            """
+            This endpoint will delete a Dossier using its ID. This request will not affect any Reports or the data linked to the Reports attached to the deleted Dossier.
+            """
+        ),
         parameters=[
             OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
         ],
