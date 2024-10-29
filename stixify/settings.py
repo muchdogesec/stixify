@@ -177,6 +177,26 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [],
 }
 
+STIX_IDENTITY = {
+    "type": "identity",
+    "spec_version": "2.1",
+    "id": "identity--e92c648d-03eb-59a5-a318-9a36e6f8057c",
+    "created_by_ref": "identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5",
+    "created": "2020-01-01T00:00:00.000Z",
+    "modified": "2020-01-01T00:00:00.000Z",
+    "name": "stixify",
+    "description": "https://github.com/muchdogesec/stixify",
+    "identity_class": "system",
+    "sectors": [
+        "technology"
+    ],
+    "contact_information": "https://www.dogesec.com/contact/",
+    "object_marking_refs": [
+        "marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487",
+        "marking-definition--97ba4e8b-04f6-57e8-8f6e-3a0f0a7dc0fb"
+    ]
+}
+
 STIX_NAMESPACE = uuid.UUID('e92c648d-03eb-59a5-a318-9a36e6f8057c')
 
 TXT2STIX_INCLUDE_URL = "https://github.com/muchdogesec/txt2stix/blob/main/includes/"
