@@ -105,7 +105,6 @@ class StixifyProcessor:
         self.extra_data['_stixify_report_id'] = str(bundler.report.id)
         input_text = txt2stix.remove_data_images(self.output_md)
         aliased_input = txt2stix.aliases.transform_all(aliases.values(), input_text)
-        bundler.add_note(json.dumps(ProfileSerializer(self.profile).data), "Stixify Profile")
         bundler.whitelisted_values = txt2stix.lookups.merge_whitelists(whitelists.values())
 
         ai_extractor_session = GenericAIExtractor.openai()
