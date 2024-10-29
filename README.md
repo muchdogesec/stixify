@@ -77,11 +77,19 @@ The webserver (Django) should now be running on: http://127.0.0.1:8004/
 
 You can access the Swagger UI for the API in a browser at: http://127.0.0.1:8004/api/schema/swagger-ui/
 
+## Contributing notes
 
+Stixify is made up of different core external components that support most of its functionality.
 
-#### Running in production
+At a high-level the Stixify  pipeline looks like this: https://miro.com/app/board/uXjVKxw0HPw=/
 
-Note, if you intend on using this in production, you should also modify the variables in the `.env` file for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASS`, `DJANGO_SECRET` and `DEBUG` (to `False`)
+Generally if you want to improve how Stixify performs functionality, you should address the changes in;
+
+* [file2txt](https://github.com/muchdogesec/file2txt/): converts the file into a markdown file (which is used to extract data from)
+* [txt2stix](https://github.com/muchdogesec/txt2stix): turns the markdown file into STIX objects
+* [stix2arango](https://github.com/muchdogesec/stix2arango): manages the logic to insert the STIX objects into the database
+
+For anything else, then the Obstracts codebase is where you need to be :)
 
 ## Support
 
