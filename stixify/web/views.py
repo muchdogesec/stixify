@@ -132,8 +132,6 @@ class FileView(
 
     class filterset_class(FilterSet):
         id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file", lookup_expr="in")
-        # report_ids = BaseCSVFilter(label="search by report IDs", field_name="report_id")
-        report_id = filters.BaseInFilter(help_text="Filter results by the STIX Report object ID generated when processing the File")
         name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
         # dossier_id = filters.BaseInFilter(field_name='dossiers', help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
@@ -317,8 +315,6 @@ class JobView(
         return Job.objects.all()
 
     class filterset_class(FilterSet):
-        # report_ids = BaseCSVFilter(label="search by report IDs", field_name="report_id")
-        report_id = Filter('file__report_id', label="Filter Jobs by Report `id`")
         file_id = Filter('file_id', label="Filter Jobs by File `id`")
 
 
@@ -349,14 +345,14 @@ class ReportView(viewsets.ViewSet):
     @extend_schema()
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
-        reports = ArangoDBHelper(settings.VIEW_NAME, request).get_report_by_id(
-            report_id
+        reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
+            "report--"+report_id
         )
-        if not reports:
+        if not reports.data:
             raise exceptions.NotFound(
                 detail=f"report object with id `{report_id}` - not found"
             )
-        return Response(reports[-1])
+        return reports
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
@@ -371,14 +367,14 @@ class ReportView(viewsets.ViewSet):
     )
     @decorators.action(methods=["GET"], detail=True)
     def objects(self, request, *args, report_id=..., **kwargs):
-        return self.get_report_objects(report_id)
+        return self.get_report_objects("report--"+report_id)
     
 
     # @extend_schema()
     # def destroy(self, request, *args, **kwargs):
     #     report_id = kwargs.get(self.lookup_url_kwarg)
-    #     self.remove_report(report_id)
-    #     File.objects.filter(report_id=report_id).delete()
+    #     self.remove_report("report--"+report_id)
+    #     File.objects.filter(id=report_id).delete()
     #     return Response(status=status.HTTP_204_NO_CONTENT)
     
     def remove_report(self, report_id):

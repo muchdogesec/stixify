@@ -31,7 +31,7 @@ def save_file(file: InMemoryUploadedFile):
 def process_post(filename, job_id, *args):
     job = Job.objects.get(id=job_id)
     try:
-        processor = StixifyProcessor(default_storage.open(filename), job.profile, job_id=job.id, file2txt_mode=job.file.mode, report_id=job.file.report_id)
+        processor = StixifyProcessor(default_storage.open(filename), job.profile, job_id=job.id, file2txt_mode=job.file.mode, report_id=job.file.id)
         report_props = ReportProperties(
             name=job.file.name,
             identity=stix2.Identity(**job.file.identity),
@@ -41,7 +41,7 @@ def process_post(filename, job_id, *args):
             created=job.file.created,
         )
         processor.setup(report_prop=report_props, extra=dict(_stixify_file_id=str(job.file.id)))
-        job.file.report_id = processor.process()
+        processor.process()
         
         job.file.markdown_file.save('markdown.md', processor.md_file.open(), save=True)
         models.FileImage.objects.filter(report=job.file).delete() # remove old references

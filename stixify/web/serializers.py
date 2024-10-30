@@ -1,5 +1,5 @@
 import logging
-from rest_framework import serializers
+from rest_framework import serializers, validators
 
 from dogesec_commons.stixifier.serializers import ProfileSerializer
 from dogesec_commons.stixifier.models import Profile
@@ -50,7 +50,9 @@ class CharacterSeparatedField(serializers.ListField):
 
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_id = serializers.CharField(read_only=True)
+    report_id = serializers.UUIDField(source='id', validators=[
+        validators.UniqueValidator(queryset=File.objects.all())
+    ])
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
@@ -60,6 +62,7 @@ class FileSerializer(serializers.ModelSerializer):
         model = File
         exclude = ['profile', "dossiers"]
         read_only_fields = ["dossiers"]
+
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -83,7 +86,7 @@ class DossierReportsRelatedField(RelatedObjectField):
     def get_queryset(self):
         return File.objects.all()
     def to_representation(self, value):
-        return value.report_id
+        return value.id
 
 class DossierSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
