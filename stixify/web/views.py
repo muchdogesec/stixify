@@ -68,7 +68,9 @@ class MarkdownImageReplacer(MarkdownRenderer):
         summary="Delete a File by ID",
         description=textwrap.dedent(
             """
-            This endpoint will delete a File using its ID. IMPORTANT: this request will also delete the Report SDO, and all other SROs and SDOs created during processing for this File. SCOs will remain because they often have relationships to other objects.
+            This endpoint will delete a File using its ID. It will also delete the markdown, images and original file stored for this File.
+
+            IMPORTANT: this request does NOT delete the Report SDO created from the file, or any other STIX objects created from this file during extractions. To delete these, use the delete report endpoint.
             """
         ),
     ),
@@ -159,7 +161,8 @@ class FileView(
         summary="Get the processed markdown for a File",
         description=textwrap.dedent(
             """
-            Whan a file is uploaded it is converted to markdown using [file2txt](https://github.com/muchdogesec/file2txt/) which is subsequently used to make extractions from. This endpoint will return that output.\n\n
+            Whan a file is uploaded it is converted to markdown using [file2txt](https://github.com/muchdogesec/file2txt/) which is subsequently used to make extractions from. This endpoint will return that output.
+            
             This endpoint is useful for debugging issues in extractions when you think there could be an issue with the content being passed to the extractors.
             """
         ),
