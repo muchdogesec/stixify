@@ -58,7 +58,7 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        exclude = ['profile']
+        exclude = ['profile', "dossiers"]
         read_only_fields = ["dossiers"]
 
 class ImageSerializer(serializers.ModelSerializer):
