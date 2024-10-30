@@ -112,7 +112,14 @@ if __name__ == "__main__":
                 "pattern_bank_card_jcb",
                 "pattern_bank_card_discover",
                 "pattern_iban_number",
-                "pattern_phone_number"
+                "pattern_phone_number",
+                "lookup_mitre_attack_enterprise_id",
+                "lookup_mitre_attack_mobile_id",
+                "lookup_mitre_attack_ics_id",
+                "lookup_mitre_capec_id",
+                "lookup_mitre_cwe_id",
+                "lookup_mitre_atlas_id",
+                "lookup_country_alpha2"
             ],
             "relationship_mode": "standard",
             "extract_text_from_image": False,
@@ -165,7 +172,14 @@ if __name__ == "__main__":
                 "pattern_bank_card_jcb",
                 "pattern_bank_card_discover",
                 "pattern_iban_number",
-                "pattern_phone_number"
+                "pattern_phone_number",
+                "lookup_mitre_attack_enterprise_id",
+                "lookup_mitre_attack_mobile_id",
+                "lookup_mitre_attack_ics_id",
+                "lookup_mitre_capec_id",
+                "lookup_mitre_cwe_id",
+                "lookup_mitre_atlas_id",
+                "lookup_country_alpha2"
             ],
             "relationship_mode": "standard",
             "extract_text_from_image": True,
