@@ -7,13 +7,15 @@ from ..utils import Response, ErrorResp, Pagination
 
 
 from ..utils import ErrorSerializer
-from drf_spectacular.utils import OpenApiResponse, OpenApiExample, extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiResponse, OpenApiExample, extend_schema, extend_schema_view, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
 
 from ..autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 
+import textwrap
 
 class Txt2stixExtractorSerializer(serializers.Serializer):
-    id = serializers.CharField()
+    id = serializers.CharField(label='The `id` of the extractor')
     name = serializers.CharField()
     type = serializers.CharField()
     description = serializers.CharField()
@@ -80,7 +82,12 @@ class txt2stixView(mixins.RetrieveModelMixin,
 @extend_schema_view(
     list=extend_schema(
         summary="Search Extractors",
-        description="Extractors are what extract the data from the text which is then converted into STIX objects.",
+        description=textwrap.dedent(
+            """
+            Extractors are what extract the data from the text which is then converted into STIX objects.\n\n
+            For more information see [txt2stix](https://github.com/muchdogesec/txt2stix/).
+            """
+        ),
         responses={400: DEFAULT_400_ERROR, 200: Txt2stixExtractorSerializer},
     ),
     retrieve=extend_schema(
@@ -92,6 +99,11 @@ class txt2stixView(mixins.RetrieveModelMixin,
 class ExtractorsView(txt2stixView):
     openapi_tags = ["Extractors"]
     lookup_url_kwarg = "extractor_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Extractor."
+        )
+    ]
     pagination_class = Pagination("extractors")
 
     def get_all(self):
@@ -100,7 +112,12 @@ class ExtractorsView(txt2stixView):
 @extend_schema_view(
     list=extend_schema(
         summary="Search for Whitelists",
-        description="In many cases files will have IoC extractions that are not malicious. e.g. `google.com` (and thus they don't want them to be extracted). Whitelists provide a list of values to be compared to extractions. If a whitelist value matches an extraction, that extraction is removed. To see the values used in this Whitelist, visit the URL shown as the value for the `file` key",
+        description=textwrap.dedent(
+            """
+            In many cases files will have IoC extractions that are not malicious. e.g. `google.com` (and thus they don't want them to be extracted). Whitelists provide a list of values to be compared to extractions. If a whitelist value matches an extraction, that extraction is removed. To see the values used in this Whitelist, visit the URL shown as the value for the `file` key.\n\n
+            For more information see [txt2stix](https://github.com/muchdogesec/txt2stix/).
+            """
+        ),
         responses={400: DEFAULT_400_ERROR, 200: Txt2stixExtractorSerializer},
     ),
     retrieve=extend_schema(
@@ -111,6 +128,11 @@ class ExtractorsView(txt2stixView):
 )
 class WhitelistsView(txt2stixView):
     lookup_url_kwarg = "whitelist_id"
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Whitelist."
+        )
+    ]
     openapi_tags = ["Whitelists"]
     pagination_class = Pagination("whitelists")
 
@@ -120,7 +142,12 @@ class WhitelistsView(txt2stixView):
 @extend_schema_view(
     list=extend_schema(
         summary="Search for aliases",
-        description="Aliases replace strings in the blog post with values defined in the Alias. Aliases are applied before extractions. For example, an alias of `USA` with a value `United States` will change all records of `USA` in the blog post with `United States`. To see the values used in this Alias, visit the URL shown as the value for the `file` key",
+        description=textwrap.dedent(
+            """
+            Aliases replace strings in the blog post with values defined in the Alias. Aliases are applied before extractions. For example, an alias of `USA` with a value `United States` will change all records of `USA` in the blog post with `United States`. To see the values used in this Alias, visit the URL shown as the value for the `file` key\n\n
+            For more information see [txt2stix](https://github.com/muchdogesec/txt2stix/).
+            """
+        ),
         responses={400: DEFAULT_400_ERROR, 200: Txt2stixExtractorSerializer},
     ),
     retrieve=extend_schema(
@@ -134,6 +161,12 @@ class AliasesView(txt2stixView):
     pagination_class = Pagination("aliases")
 
     lookup_url_kwarg = "alias_id"
+
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Alias."
+        )
+    ]
 
     def get_all(self):
         return self.all_extractors(["alias"])

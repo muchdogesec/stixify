@@ -175,3 +175,6 @@ media/
 *.env
 Pipfile
 Pipfile.lock
+
+stixify-venv/
+tests/files

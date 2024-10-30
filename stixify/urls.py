@@ -20,7 +20,7 @@ from django.urls import path, include
 from rest_framework import routers
 from .web.more_views import txt2stix, profile
 from .web.arango_based_views import arango_views
-from .web.views import FileView, DossierView, JobView
+from .web.views import FileView, DossierView, JobView, ReportView
 from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
 from django.conf.urls.static import static
 
@@ -29,11 +29,15 @@ API_VERSION = "v1"
 router = routers.SimpleRouter(use_regex_path=False)
 # profile view
 router.register('profiles', profile.ProfileView, 'profile-view')
-router.register('files', FileView, 'files-view')
-router.register('dossier', DossierView, 'dossier-view')
-router.register('jobs/reports', arango_views.ReportView, 'report-view')
+router.register('files', FileView, 'file-view')
+router.register('dossiers', DossierView, 'dossier-view')
 router.register('jobs', JobView, 'job-view')
-router.register('objects', arango_views.ObjectsView, 'object-view')
+router.register('reports', ReportView, 'report-view')
+# objects
+router.register('objects/smos', arango_views.SMOView, "object-view-smo")
+router.register('objects/scos', arango_views.SCOView, "object-view-sco")
+router.register('objects/sros', arango_views.SROView, "object-view-sro")
+router.register('objects/sdos', arango_views.SDOView, "object-view-sdo")
 # txt2stix views
 router.register('extractors', txt2stix.ExtractorsView, "extractors-view")
 router.register('whitelists', txt2stix.WhitelistsView, "whitelists-view")

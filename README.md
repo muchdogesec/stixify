@@ -2,9 +2,11 @@
 
 ## Before you begin...
 
-We offer a fully web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
+We offer a fully hosted web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
 
 ## Overview
+
+![](docs/stixify.png)
 
 Stixify takes a file and converts into structured threat intelligence.
 
@@ -37,6 +39,26 @@ To create one using the default settings:
 cp .env.example .env
 ```
 
+#### A note on ArangoDB secrets
+
+Note, this script will not install an ArangoDB instance.
+
+If you're new to ArangoDB, [you can install the community edition quickly by following the instructions here](https://arangodb.com/community-server/).
+
+If you are running ArangoDB locally, be sure to set `ARANGODB_HOST_URL='http://host.docker.internal:8529'` in the `.env` file otherwise you will run into networking errors.
+
+The script will automatically create a database called `stixify_database` when the container is spun up (if it does not exist).
+
+The converted STIX objects will be stored in collections names `stixify_vertex_collection` and `stixify_edge_collection` depending on the object type.
+
+#### A note on Django and Postgres secrets
+
+Note, if you intend on using this for testing, you can leave the variables in the `.env` as is. However, these need to be changed in a production install for security.
+
+#### A note Cloudflare R2 storage
+
+By default, all images will be stored locally on the server. This is fine if you're using Obstracts on your own machine. If running on a remote server, Obstracts support the storage of images on Cloudflare R2. This can be set in the `.env` file/
+
 ### Build the Docker Image
 
 ```shell
@@ -55,21 +77,19 @@ The webserver (Django) should now be running on: http://127.0.0.1:8004/
 
 You can access the Swagger UI for the API in a browser at: http://127.0.0.1:8004/api/schema/swagger-ui/
 
-#### ArangoDB install
+## Contributing notes
 
-Note, this script will not install an ArangoDB instance.
+Stixify is made up of different core external components that support most of its functionality.
 
-If you're new to ArangoDB, [you can install the community edition quickly by following the instructions here](https://arangodb.com/community-server/).
+At a high-level the Stixify  pipeline looks like this: https://miro.com/app/board/uXjVKxw0HPw=/
 
-If you are running ArangoDB locally, be sure to set `ARANGODB_HOST_URL="http://localhost:8529/"` in the `.env` file otherwise you will run into networking errors.
+Generally if you want to improve how Stixify performs functionality, you should address the changes in;
 
-The script will automatically create a database called `stixify_database` when the container is spun up (if it does not exist).
+* [file2txt](https://github.com/muchdogesec/file2txt/): converts the file into a markdown file (which is used to extract data from)
+* [txt2stix](https://github.com/muchdogesec/txt2stix): turns the markdown file into STIX objects
+* [stix2arango](https://github.com/muchdogesec/stix2arango): manages the logic to insert the STIX objects into the database
 
-The converted STIX objects will be stored in collections names `stixify_vertex_collection` and `stixify_edge_collection` depending on the object type.
-
-#### Running in production
-
-Note, if you intend on using this in production, you should also modify the variables in the `.env` file for `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASS`, `DJANGO_SECRET` and `DEBUG` (to `False`)
+For anything else, then the Obstracts codebase is where you need to be :)
 
 ## Support
 

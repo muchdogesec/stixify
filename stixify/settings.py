@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import logging
 import os
 from pathlib import Path
 from textwrap import dedent
@@ -24,12 +25,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ['DJANGO_SECRET']
+SECRET_KEY = os.environ.get('DJANGO_SECRET', "insecure_django_secret")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv("DEBUG", False)
+DEBUG = os.getenv("DJANGO_DEBUG", False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', "localhost 127.0.0.1 [::1]").split()
+
+CORS_ALLOW_ALL_ORIGINS = os.environ.get('DJANGO_CORS_ALLOW_ALL_ORIGINS', True)
+CORS_ALLOWED_ORIGINS = [os.environ.get('DJANGO_CORS_ALLOWED_ORIGINS', "http://127.0.0.1:8004")]
 
 MEDIA_ROOT = Path("media/uploads")
 
@@ -90,8 +94,8 @@ DATABASES = {
         'NAME': os.getenv('POSTGRES_DB'),            # Database name
         'USER': os.getenv('POSTGRES_USER'),          # Database user
         'PASSWORD': os.getenv('POSTGRES_PASSWORD'),  # Database password
-        'HOST': os.getenv('POSTGRES_HOST'),                              # PostgreSQL service name in Docker Compose
-        'PORT': '5432',                              # PostgreSQL default port
+        'HOST': os.getenv('POSTGRES_HOST'),          # PostgreSQL service name in Docker Compose
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),  # PostgreSQL default port
     },
     'sqlite': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -113,6 +117,18 @@ STORAGES = {
     },
 }
 
+if os.getenv("USE_S3_STORAGE") == "1":
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": os.environ["R2_BUCKET_NAME"],
+            "endpoint_url": os.environ["R2_ENDPOINT_URL"],
+            "access_key": os.environ["R2_ACCESS_KEY"],
+            "secret_key": os.environ["R2_SECRET_KEY"],
+            'custom_domain': os.environ["R2_CUSTOM_DOMAIN"],
+            'location': 'stixify/media',
+        },
+    }
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
@@ -157,6 +173,28 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "stixify.web.autoschema.StixifyAutoSchema",
+    'DEFAULT_AUTHENTICATION_CLASSES': [],
+    'DEFAULT_PERMISSION_CLASSES': [],
+}
+
+STIX_IDENTITY = {
+    "type": "identity",
+    "spec_version": "2.1",
+    "id": "identity--e92c648d-03eb-59a5-a318-9a36e6f8057c",
+    "created_by_ref": "identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5",
+    "created": "2020-01-01T00:00:00.000Z",
+    "modified": "2020-01-01T00:00:00.000Z",
+    "name": "stixify",
+    "description": "https://github.com/muchdogesec/stixify",
+    "identity_class": "system",
+    "sectors": [
+        "technology"
+    ],
+    "contact_information": "https://www.dogesec.com/contact/",
+    "object_marking_refs": [
+        "marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487",
+        "marking-definition--97ba4e8b-04f6-57e8-8f6e-3a0f0a7dc0fb"
+    ]
 }
 
 STIX_NAMESPACE = uuid.UUID('e92c648d-03eb-59a5-a318-9a36e6f8057c')
@@ -166,14 +204,13 @@ TXT2STIX_INCLUDE_URL = "https://github.com/muchdogesec/txt2stix/blob/main/includ
 MAXIMUM_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", 50))
 DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", 50))
 
-
-
 SPECTACULAR_SETTINGS: dict[str, Any] = {
     "COMPONENT_SPLIT_REQUEST": True,
     "TITLE": "Stixify API",
     "DESCRIPTION": dedent(
         """
-        Stixify extracts machine readable intelligence from unstructured data.
+        Stixify extracts machine readable intelligence from unstructured data.\n\n
+        [DOGESEC](https://www.dogesec.com/) offer a fully hosted web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
     """
     ),
     "VERSION": "1.0.0",
@@ -183,13 +220,14 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
     },
     "TAGS": [
         {"name": "Files", "description": "Upload files and retrieve uploaded files"},
-        {"name": "Dossiers", "description": "Group together files and retrieve those groupings"},
-        {"name": "Jobs", "description": "Check the status of data retrieval from blogs"},
-        {"name": "Objects", "description": "Search through STIX object extracted from blog posts"},
-        {"name": "Profiles", "description": "Create and search for extraction profile applied to text in blog posts"},
+        {"name": "Reports", "description": "Files are processed into Reports. Search and view created Reports."},
+        {"name": "Dossiers", "description": "Group together Reports as Dossiers around a theme."},
+        {"name": "Objects", "description": "Search through STIX object extracted from Files in Reports."},
+        {"name": "Profiles", "description": "Create and search for extraction profile applied to text Files."},
         {"name": "Aliases", "description": "Search through aliases that can be used in profiles (see txt2stix for more information)"},
         {"name": "Extractors", "description": "Search through extractors that can be used in profiles (see txt2stix for more information)"},
         {"name": "Whitelists", "description": "Search through whitelists that can be used in profiles (see txt2stix for more information)"},
+        {"name": "Jobs", "description": "Check the status of data retrieval from Files uploaded."},
     ]
 }
 
@@ -199,3 +237,7 @@ VIEW_NAME = "stixify_view"
 ARANGODB_USERNAME   = os.getenv('ARANGODB_USERNAME')
 ARANGODB_PASSWORD   = os.getenv('ARANGODB_PASSWORD')
 ARANGODB_HOST_URL   = os.getenv("ARANGODB_HOST_URL")
+
+GOOGLE_VISION_API_KEY = os.getenv("GOOGLE_VISION_API_KEY")
+if not GOOGLE_VISION_API_KEY:
+    logging.warning("GOOGLE_VISION_API_KEY not set")
