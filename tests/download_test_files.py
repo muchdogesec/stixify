@@ -6,6 +6,7 @@ file_paths = [
     "csv/csv-test.csv",
     "doc/fanged_data.doc",
     "doc/fanged_data.docx",
+    "doc/txt2stix-all-cases.docx",
     "html-real/bitdefender-fragments-of-cross-platform-backdoor-hint-at-larger-mac-os-attack.html",
     "html-real/group-ib-0ktapus.html",
     "html-real/unit42-Fighting-Ursa-Luring-Targets-With-Car-for-Sale.html",
@@ -32,6 +33,7 @@ file_paths = [
     "pdf-real/thai-cert-threat-actors.pdf",
     "pdf/fanged_data_good.pdf",
     "pdf/pdf-example.pdf",
+    "pdf/txt2stix-all-cases.pdf",
     "ppt/fanged_data.ppt",
     "ppt/fanged_data.pptx",
 ]
