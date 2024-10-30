@@ -1,6 +1,5 @@
-from django.shortcuts import redirect
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions
-from django.http import HttpResponse, FileResponse
+from django.http import FileResponse
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -8,16 +7,15 @@ from drf_spectacular.types import OpenApiTypes
 import typing
 from django.conf import settings
 
-from stixify.web.arango_based_views.arango_helpers import ArangoDBHelper
+from dogesec_commons.objects.helpers import ArangoDBHelper
 
-from stixify.web import serializers
 from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import File, Dossier, FileImage, Job
 from .serializers import FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
-from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter, BaseCSVFilter, ChoiceFilter
+from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
 import django_filters.rest_framework as filters
 from stixify.worker.tasks import new_task
 from drf_spectacular.utils import extend_schema, extend_schema_view

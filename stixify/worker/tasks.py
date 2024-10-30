@@ -1,11 +1,10 @@
 import logging
 import os
 from pathlib import Path
-from stixify.web.models import Job, Profile, File
+from stixify.web.models import Job, File
 from stixify.web import models
 from celery import shared_task
-from .stixifier import StixifyProcessor, ReportProperties
-from tempfile import NamedTemporaryFile
+from dogesec_commons.stixifier.stixifier import StixifyProcessor, ReportProperties
 import tempfile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.storage import default_storage
@@ -32,7 +31,7 @@ def save_file(file: InMemoryUploadedFile):
 def process_post(filename, job_id, *args):
     job = Job.objects.get(id=job_id)
     try:
-        processor = StixifyProcessor(default_storage.open(filename), job, file2txt_mode=job.file.mode)
+        processor = StixifyProcessor(default_storage.open(filename), job.profile, job_id=job.id, file2txt_mode=job.file.mode, report_id=job.file.report_id)
         report_props = ReportProperties(
             name=job.file.name,
             identity=stix2.Identity(**job.file.identity),

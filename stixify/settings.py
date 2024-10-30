@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'drf_spectacular',
+    'dogesec_commons.objects.app.ArangoObjectsViewApp',
     'django.contrib.postgres',
     'stixify.web',
 ]
@@ -200,6 +201,7 @@ STIX_IDENTITY = {
 STIX_NAMESPACE = uuid.UUID('e92c648d-03eb-59a5-a318-9a36e6f8057c')
 
 TXT2STIX_INCLUDE_URL = "https://github.com/muchdogesec/txt2stix/blob/main/includes/"
+APP_LABEL = "web"
 
 MAXIMUM_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", 50))
 DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", 50))
@@ -234,6 +236,7 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
 
 ARANGODB_DATABASE   = "stixify"
 VIEW_NAME = "stixify_view"
+VIEW_NAME = "stixify_view2"
 ARANGODB_USERNAME   = os.getenv('ARANGODB_USERNAME')
 ARANGODB_PASSWORD   = os.getenv('ARANGODB_PASSWORD')
 ARANGODB_HOST_URL   = os.getenv("ARANGODB_HOST_URL")

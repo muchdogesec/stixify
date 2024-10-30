@@ -1,11 +1,11 @@
 import logging
 from rest_framework import serializers
 
-from stixify.web.more_views.profile import ProfileSerializer, Profile
+from dogesec_commons.stixifier.serializers import ProfileSerializer
+from dogesec_commons.stixifier.models import Profile
 from .models import File, Dossier, FileImage, Job
-from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
-import stix2
 from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
 

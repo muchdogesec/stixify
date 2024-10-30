@@ -17,42 +17,15 @@ from datetime import datetime, timezone
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import stix2
 from file2txt.parsers.core import BaseParser
+from dogesec_commons.stixifier.models import Profile
 
 
 if typing.TYPE_CHECKING:
     from .. import settings
 # Create your models here.
 
-class RelationshipMode(models.TextChoices):
-    AI = "ai", "AI Relationship"
-    STANDARD = "standard", "Standard Relationship"
-
 def validate_extractor(types, name):
-    extractors = txt2stix.extractions.parse_extraction_config(
-            txt2stix.txt2stix.INCLUDES_PATH
-        ).values()
-    for extractor in extractors:
-        if name == extractor.slug and extractor.type in types:
-            return True
-    raise ValidationError(f"{name} does not exist", 400)
-
-
-class Profile(models.Model):
-    id = models.UUIDField(primary_key=True)
-    created = models.DateTimeField(auto_now_add=True)
-    name = models.CharField(max_length=250, unique=True)
-    extractions = ArrayField(base_field=models.CharField(max_length=256, validators=[partial(validate_extractor, ["ai", "pattern", "lookup"])]), help_text="extraction id(s)")
-    whitelists  = ArrayField(base_field=models.CharField(max_length=256, validators=[partial(validate_extractor, ["whitelist"])]), help_text="whitelist id(s)", default=list)
-    aliases     = ArrayField(base_field=models.CharField(max_length=256, validators=[partial(validate_extractor, ["alias"])]), help_text="alias id(s)", default=list)
-    relationship_mode = models.CharField(choices=RelationshipMode.choices, max_length=20, default=RelationshipMode.STANDARD)
-    extract_text_from_image = models.BooleanField(default=False)
-    defang = models.BooleanField(help_text='If the text should be defanged before processing')
-
-
-    def save(self, *args, **kwargs) -> None:
-        if not self.id:
-            self.id = uuid.uuid5(settings.STIX_NAMESPACE, self.name)
-        return super().save(*args, **kwargs)
+    pass
 
 
 class TLP_Levels(models.TextChoices):
