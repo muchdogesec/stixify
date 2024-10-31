@@ -15,7 +15,7 @@ env:
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
-    environment: stixify_staging # Specify the GitHub environment here
+    environment: public # Specify the GitHub environment here
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
     permissions:
       contents: read
@@ -50,7 +50,7 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          visibility: public
+          visibility: private
           build-args: |
             ARANGODB_HOST_URL=${{ secrets.ARANGODB_HOST_URL }}
             ARANGODB_USERNAME=${{ secrets.ARANGODB_USERNAME }}
