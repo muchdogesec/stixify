@@ -129,7 +129,6 @@ def validate_file(file: InMemoryUploadedFile, mode: str):
 
 class File(CommonSTIXProps):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
-    report_id = models.CharField(unique=True, max_length=64, null=True)
     file = models.FileField(upload_to=upload_to_func, help_text="Full path to the file to be converted. Must match a supported file type: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `text/html`, `text/csv`, `image/jpg`, `image/jpeg`, `image/png`, `image/webp`. The filetype must be supported by the `mode` used or you will receive an error.")
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
     dossiers = models.ManyToManyField(Dossier, related_name="files", help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
