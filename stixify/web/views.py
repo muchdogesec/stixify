@@ -59,7 +59,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
             """
         ),
         parameters=[
-            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File."),
+            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
         ],
     ),
     destroy=extend_schema(
@@ -338,7 +338,7 @@ class ReportView(viewsets.ViewSet):
     lookup_url_kwarg = "report_id"
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report. e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`. Do not pass the `report--` part."
         )
     ]
 
