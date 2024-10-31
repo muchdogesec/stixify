@@ -397,7 +397,7 @@ class ReportView(viewsets.ViewSet):
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
         reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
-            "report--"+report_id
+            self.fix_report_id(report_id)
         )
         if not reports.data:
             raise exceptions.NotFound(
@@ -424,15 +424,19 @@ class ReportView(viewsets.ViewSet):
     )
     @decorators.action(methods=["GET"], detail=True)
     def objects(self, request, *args, report_id=..., **kwargs):
-        return self.get_report_objects("report--"+report_id)
+        return self.get_report_objects(self.fix_report_id(report_id))
     
+    def fix_report_id(self, report_id):
+        if report_id.startswith('report--'):
+            return report_id
+        return "report--"+report_id
 
-    # @extend_schema()
-    # def destroy(self, request, *args, **kwargs):
-    #     report_id = kwargs.get(self.lookup_url_kwarg)
-    #     self.remove_report("report--"+report_id)
-    #     File.objects.filter(id=report_id).delete()
-    #     return Response(status=status.HTTP_204_NO_CONTENT)
+    @extend_schema()
+    def destroy(self, request, *args, **kwargs):
+        report_id = kwargs.get(self.lookup_url_kwarg)
+        self.remove_report(self.fix_report_id(report_id))
+        File.objects.filter(id=report_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     def remove_report(self, report_id):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
