@@ -54,15 +54,15 @@ jobs:
           build-args: |
             DJANGO_SECRET=${{ secrets.DJANGO_SECRET }}
             POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            ARANGODB_HOST_URL=${{ variables.ARANGODB_HOST_URL }}
-            ARANGODB_USERNAME=${{ variables.ARANGODB_USERNAME }}
-            CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP=${{ variables.CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP }}
-            CTIBUTLER_HOST=${{ variables.CTIBUTLER_HOST }}
-            DEFAULT_PAGE_SIZE=${{ variables.DEFAULT_PAGE_SIZE }}
-            DJANGO_DEBUG=${{ variables.DJANGO_DEBUG }}
-            MAX_PAGE_SIZE=${{ variables.MAX_PAGE_SIZE }}
-            POSTGRES_DB=${{ variables.POSTGRES_DB }}
-            POSTGRES_PORT=${{ variables.POSTGRES_PORT }}
+            ARANGODB_HOST_URL=${{ secrets.ARANGODB_HOST_URL }}
+            ARANGODB_USERNAME=${{ secrets.ARANGODB_USERNAME }}
+            CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP=${{ secrets.CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP }}
+            CTIBUTLER_HOST=${{ secrets.CTIBUTLER_HOST }}
+            DEFAULT_PAGE_SIZE=${{ secrets.DEFAULT_PAGE_SIZE }}
+            DJANGO_DEBUG=${{ secrets.DJANGO_DEBUG }}
+            MAX_PAGE_SIZE=${{ secrets.MAX_PAGE_SIZE }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
 
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see "[AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds)." 
       - name: Generate artifact attestation
