@@ -50,9 +50,9 @@ class CharacterSeparatedField(serializers.ListField):
 
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_id = serializers.UUIDField(source='id', validators=[
-        validators.UniqueValidator(queryset=File.objects.all())
-    ])
+    report_id = serializers.UUIDField(source='id', help_text="This is a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`", validators=[
+        validators.UniqueValidator(queryset=File.objects.all()),
+    ], required=False)
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
