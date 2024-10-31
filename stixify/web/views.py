@@ -12,7 +12,7 @@ from dogesec_commons.objects.helpers import ArangoDBHelper
 from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
-from .models import File, Dossier, FileImage, Job
+from .models import TLP_LEVEL_STIX_ID_MAPPING, File, Dossier, FileImage, Job, TLP_Levels
 from .serializers import FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
 from .utils import Pagination, Ordering, Response
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -407,10 +407,16 @@ class ReportView(viewsets.ViewSet):
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + [
+            OpenApiParameter('identity', description="filter only reports created by this identity"),
+            OpenApiParameter('name', description="Filter by the `name` of a report. Will search for titles that contain the value entered."),
+            OpenApiParameter('tlp_level', description="", enum=[f[0] for f in TLP_Levels.choices]),
+            OpenApiParameter('description', description="Filter by the content in a report description (this is the markdown created for the report). Will search for descriptions that contain the value entered."),
+            OpenApiParameter('description', description="Filter by the content in a report description (this is the markdown created for the report). Will search for descriptions that contain the value entered."),
+        ],
     )
     def list(self, request, *args, **kwargs):
-        return ArangoDBHelper(settings.VIEW_NAME, request).get_reports()
+        return self.get_reports()
     
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
@@ -459,6 +465,41 @@ class ReportView(viewsets.ViewSet):
                 "objects": objects,
             }
             helper.execute_query(deletion_query, bind_vars, paginate=False)
+
+    def get_reports(self, id=None):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+        filters = []
+        bind_vars = {
+                "@collection": helper.collection,
+                "type": 'report',
+        }
+
+        if q := helper.query_as_array('identity'):
+            bind_vars['identities'] = q
+            filters.append('FILTER doc.created_by_ref IN @identities')
+
+        if tlp_level := helper.query.get('tlp_level'):
+            bind_vars['tlp_level_stix_id'] = TLP_LEVEL_STIX_ID_MAPPING.get(tlp_level)
+            filters.append('FILTER @tlp_level_stix_id IN doc.object_marking_refs')
+
+        if q := helper.query.get('name'):
+            bind_vars['name'] = q.lower()
+            filters.append('FILTER CONTAINS(LOWER(doc.name), @name)')
+
+        if q := helper.query.get('description'):
+            bind_vars['description'] = q.lower()
+            filters.append('FILTER CONTAINS(LOWER(doc.description), @description)')
+
+        query = """
+            FOR doc in @@collection
+            FILTER doc.type == @type AND doc._is_latest
+            // <other filters>
+            @filters
+            // </other filters>
+            LIMIT @offset, @count
+            RETURN KEEP(doc, KEYS(doc, true))
+        """
+        return helper.execute_query(query.replace('@filters', '\n'.join(filters)), bind_vars=bind_vars)
 
     def get_report_objects(self, report_id):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
