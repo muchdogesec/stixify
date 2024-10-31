@@ -17,7 +17,8 @@ def upload_file(profile_id, mode, name, tlp_level, confidence, labels, identity,
             'confidence': (None, str(confidence)),
             'labels': (None, ','.join(labels)),
             'identity': (None, identity),
-            'file': (file_path, file, 'application/pdf')
+            'file': (file_path, file, 'application/pdf'),
+            'report_id': (None, report_id),
         }
         response = requests.post(FILES_ENDPOINT, files=files)
         response.raise_for_status()
@@ -52,7 +53,8 @@ def run_test():
     confidence = 99
     labels = ["label1", "label2"]
     identity = '{"type":"identity","spec_version":"2.1","id":"identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5","name":"Dummy Identity"}'
-    file_path = "path/to/fanged_data_good.pdf"
+    file_path = "path/to/fanged_data_good.pdf",
+    report_id = "e7b435d3-cb2b-487a-bb16-8826441a89ed"
 
     # Upload the first file and retrieve the job ID
     job_id_1 = upload_file(profile_id, mode, name, tlp_level, confidence, labels, identity, file_path)
@@ -71,6 +73,7 @@ def run_test():
     labels_2 = ["label3", "label4"]
     identity_2 = '{"type":"identity","spec_version":"2.1","id":"identity--12345678-9abc-def0-1234-56789abcdef0","name":"Second Dummy Identity"}'
     file_path_2 = "path/to/second_data.pdf"
+    report_id = "be2f9355-11eb-4c28-8c8d-0e63f9b59773"
 
     # Upload the second file only after the first job completes
     job_id_2 = upload_file(profile_id_2, mode_2, name_2, tlp_level_2, confidence_2, labels_2, identity_2, file_path_2)
