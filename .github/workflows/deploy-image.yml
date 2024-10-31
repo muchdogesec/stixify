@@ -1,10 +1,10 @@
 #
-name: Create and publish a Docker image
+name: Create and publish the Public Docker image
+description: This workflow builds a Docker image and pushes it to GitHub Container Registry (GHCR) when changes are pushed to the `main` branch. It uses secrets in the `public` environment as such this image should not be deployed in production environments.
 
-# Configures this workflow to run every time a change is pushed to the branch called `release`.
 on:
   push:
-    branches: ['main']
+    branches: ['adding-docker-build']
 
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
 env:
@@ -15,6 +15,7 @@ env:
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
+    environment: public  # Specify the GitHub environment here
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
     permissions:
       contents: read
@@ -49,7 +50,20 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-      
+          visibility: public
+          build-args: |
+            DJANGO_SECRET=${{ secrets.DJANGO_SECRET }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            ARANGODB_HOST_URL=${{ variables.ARANGODB_HOST_URL }}
+            ARANGODB_USERNAME=${{ variables.ARANGODB_USERNAME }}
+            CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP=${{ variables.CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP }}
+            CTIBUTLER_HOST=${{ variables.CTIBUTLER_HOST }}
+            DEFAULT_PAGE_SIZE=${{ variables.DEFAULT_PAGE_SIZE }}
+            DJANGO_DEBUG=${{ variables.DJANGO_DEBUG }}
+            MAX_PAGE_SIZE=${{ variables.MAX_PAGE_SIZE }}
+            POSTGRES_DB=${{ variables.POSTGRES_DB }}
+            POSTGRES_PORT=${{ variables.POSTGRES_PORT }}
+
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see "[AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds)." 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
