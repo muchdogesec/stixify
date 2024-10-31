@@ -66,7 +66,9 @@ class MarkdownImageReplacer(MarkdownRenderer):
         summary="Delete a File by ID",
         description=textwrap.dedent(
             """
-            This endpoint will delete a File using its ID. IMPORTANT: this request will also delete the Report SDO, and all other SROs and SDOs created during processing for this File. SCOs will remain because they often have relationships to other objects.
+            This endpoint will delete a File using its ID. It will also delete the markdown, images and original file stored for this File.
+
+            IMPORTANT: this request does NOT delete the Report SDO created from the file, or any other STIX objects created from this file during extractions. To delete these, use the delete report endpoint.
             """
         ),
     ),
@@ -90,7 +92,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
                 * `pdf`: Filetypes supported (mime-type): `pdf` (`application/pdf`)
                 * `powerpoint`: Filetypes supported (mime-type): `ppt` (`application/vnd.ms-powerpoint`), `.jpeg` (`application/vnd.openxmlformats-officedocument.presentationml.presentation`)
             * `name` (required): This will be used as the name value of the STIX Report object generated
-            * `identity` (required): This will be used as the `created_by_ref` for all created SDOs and SROs. This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15","name":"Dummy Identity"}`. If no value is passed, [the Stixify identity object will be used](https://raw.githubusercontent.com/muchdogesec/stix4doge/refs/heads/main/objects/identity/stixify.json).
+            * `identity` (optional): This will be used as the `created_by_ref` for all created SDOs and SROs. This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15","name":"Dummy Identity"}`. If no value is passed, [the Stixify identity object will be used](https://raw.githubusercontent.com/muchdogesec/stix4doge/refs/heads/main/objects/identity/stixify.json).
             * `tlp_level` (optional): This will be assigned to all SDOs and SROs created. Stixify uses TLPv2. Options are:
                 * `red`
                 * `amber+strict`
@@ -155,7 +157,8 @@ class FileView(
         summary="Get the processed markdown for a File",
         description=textwrap.dedent(
             """
-            Whan a file is uploaded it is converted to markdown using [file2txt](https://github.com/muchdogesec/file2txt/) which is subsequently used to make extractions from. This endpoint will return that output.\n\n
+            Whan a file is uploaded it is converted to markdown using [file2txt](https://github.com/muchdogesec/file2txt/) which is subsequently used to make extractions from. This endpoint will return that output.
+            
             This endpoint is useful for debugging issues in extractions when you think there could be an issue with the content being passed to the extractors.
             """
         ),
