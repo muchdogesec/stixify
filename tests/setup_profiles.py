@@ -100,30 +100,12 @@ if __name__ == "__main__":
                 "pattern_windows_registry_key",
                 "pattern_user_agent",
                 "pattern_autonomous_system_number",
-                "pattern_cryptocurrency_btc_wallet",
-                "pattern_cryptocurrency_btc_transaction",
-                "pattern_cve_id",
-                "pattern_cpe_uri",
-                "pattern_bank_card_mastercard",
-                "pattern_bank_card_visa",
-                "pattern_bank_card_amex",
-                "pattern_bank_card_union_pay",
-                "pattern_bank_card_diners",
-                "pattern_bank_card_jcb",
-                "pattern_bank_card_discover",
                 "pattern_iban_number",
-                "pattern_phone_number",
-                "lookup_mitre_attack_enterprise_id",
-                "lookup_mitre_attack_mobile_id",
-                "lookup_mitre_attack_ics_id",
-                "lookup_mitre_capec_id",
-                "lookup_mitre_cwe_id",
-                "lookup_mitre_atlas_id",
-                "lookup_country_alpha2"
+                "pattern_phone_number"
             ],
             "relationship_mode": "standard",
             "extract_text_from_image": False,
-            "defang": True
+            "defang": False
         },
         #24debd60-1774-5587-a6ce-e2e24879b7b4
         {
@@ -160,6 +142,17 @@ if __name__ == "__main__":
                 "pattern_windows_registry_key",
                 "pattern_user_agent",
                 "pattern_autonomous_system_number",
+                "pattern_iban_number",
+                "pattern_phone_number"
+            ],
+            "relationship_mode": "standard",
+            "extract_text_from_image": True,
+            "defang": True
+        },
+        # 42976b41-6070-5fc3-a87f-ee81c38d26ef
+        {
+            "name": "External lookups. Standard relationship. Extract text from images.",
+            "extractions": [
                 "pattern_cryptocurrency_btc_wallet",
                 "pattern_cryptocurrency_btc_transaction",
                 "pattern_cve_id",
@@ -171,8 +164,6 @@ if __name__ == "__main__":
                 "pattern_bank_card_diners",
                 "pattern_bank_card_jcb",
                 "pattern_bank_card_discover",
-                "pattern_iban_number",
-                "pattern_phone_number",
                 "lookup_mitre_attack_enterprise_id",
                 "lookup_mitre_attack_mobile_id",
                 "lookup_mitre_attack_ics_id",

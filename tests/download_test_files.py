@@ -6,7 +6,8 @@ file_paths = [
     "csv/csv-test.csv",
     "doc/fanged_data.doc",
     "doc/fanged_data.docx",
-    "doc/txt2stix-all-cases.docx",
+    "doc/txt2stix-local-extractions.docx",
+    "doc/txt2stix-local-extractions.docx",
     "html-real/bitdefender-fragments-of-cross-platform-backdoor-hint-at-larger-mac-os-attack.html",
     "html-real/group-ib-0ktapus.html",
     "html-real/unit42-Fighting-Ursa-Luring-Targets-With-Car-for-Sale.html",
@@ -33,9 +34,10 @@ file_paths = [
     "pdf-real/thai-cert-threat-actors.pdf",
     "pdf/fanged_data_good.pdf",
     "pdf/pdf-example.pdf",
-    "pdf/txt2stix-all-cases.pdf",
+    "pdf/txt2stix-local-extractions.pdf",
+    "pdf/txt2stix-remote-lookups.pdf",
     "ppt/fanged_data.ppt",
-    "ppt/fanged_data.pptx",
+    "ppt/fanged_data.pptx"
 ]
 
 # Base URL for Cloudflare R2 bucket
