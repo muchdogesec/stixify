@@ -22,6 +22,14 @@ It works at a high level like so:
 4. STIX bundles are generated for the file, and stored in a database called `stixify` and a collection matching the `identity` ID used to create the objects
 5. A user can access the bundle data or specific objects in the bundle via the API
 
+## tl;dr
+
+[![Stixify](https://img.youtube.com/vi/etK5NhrsHtU/0.jpg)](https://www.youtube.com/watch?v=etK5NhrsHtU)
+
+[Watch the demo](https://www.youtube.com/watch?v=etK5NhrsHtU).
+
+## Install
+
 ### Download and configure
 
 ```shell
