@@ -1,11 +1,11 @@
 import logging
-from rest_framework import serializers
+from rest_framework import serializers, validators
 
-from stixify.web.more_views.profile import ProfileSerializer, Profile
+from dogesec_commons.stixifier.serializers import ProfileSerializer
+from dogesec_commons.stixifier.models import Profile
 from .models import File, Dossier, FileImage, Job
-from django.core.exceptions import ImproperlyConfigured, ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
-import stix2
 from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
 
@@ -18,13 +18,17 @@ class RelatedObjectField(serializers.RelatedField):
         'incorrect_type': _('Incorrect type. Expected valid {lookup_key} value, received "{lookup_value}", type: {data_type}.'),
     }
     def __init__(self, /, serializer, use_raw_value=False, **kwargs):
+    def __init__(self, /, serializer, use_raw_value=False, **kwargs):
         self.internal_serializer: serializers.Serializer = serializer
+        self.use_raw_value = use_raw_value
         self.use_raw_value = use_raw_value
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
         try:
             instance = self.get_queryset().get(**{self.lookup_key: data})
+            if self.use_raw_value:
+                return data
             if self.use_raw_value:
                 return data
             return instance
@@ -50,7 +54,9 @@ class CharacterSeparatedField(serializers.ListField):
 
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_id = serializers.CharField(read_only=True)
+    report_id = serializers.UUIDField(source='id', validators=[
+        validators.UniqueValidator(queryset=File.objects.all())
+    ])
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
@@ -58,8 +64,9 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        exclude = ['profile']
+        exclude = ['profile', "dossiers"]
         read_only_fields = ["dossiers"]
+
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -83,7 +90,7 @@ class DossierReportsRelatedField(RelatedObjectField):
     def get_queryset(self):
         return File.objects.all()
     def to_representation(self, value):
-        return value.report_id
+        return value.id
 
 class DossierSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
@@ -100,6 +107,7 @@ class FileRelatedField(RelatedObjectField):
 class JobSerializer(serializers.ModelSerializer):
     profile = RelatedObjectField(read_only=True, source='file.profile', serializer=ProfileSerializer())
     file = RelatedObjectField(read_only=True,  serializer=FileSerializer())
+    file_id =  serializers.PrimaryKeyRelatedField(source='file', read_only=True)
     file_id =  serializers.PrimaryKeyRelatedField(source='file', read_only=True)
     class Meta:
         model = Job
