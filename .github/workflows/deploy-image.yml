@@ -1,7 +1,7 @@
 #
-name: Create and publish a Docker image
+name: Create and publish the Public Docker image
+description: This workflow builds a Docker image and pushes it to GitHub Container Registry (GHCR) when changes are pushed to the `main` branch. It uses secrets in the `stixify_staging` environment and therefore keeps the visibility as private for the image.
 
-# Configures this workflow to run every time a change is pushed to the branch called `release`.
 on:
   push:
     branches: ['main']
@@ -9,12 +9,13 @@ on:
 # Defines two custom environment variables for the workflow. These are used for the Container registry domain, and a name for the Docker image that this workflow builds.
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ${{ github.repository }}_staging
 
 # There is a single job in this workflow. It's configured to run on the latest available version of Ubuntu.
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
+    environment: stixify_staging # Specify the GitHub environment here
     # Sets the permissions granted to the `GITHUB_TOKEN` for the actions in this job.
     permissions:
       contents: read
@@ -43,13 +44,30 @@ jobs:
       # It uses the `tags` and `labels` parameters to tag and label the image with the output from the "meta" step.
       - name: Build and push Docker image
         id: push
-        uses: docker/build-push-action@f2a1d5e99d037542a71f64918e516c093c6f3fc4
+        uses: docker/build-push-action@v2
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-      
+          visibility: private
+          build-args: |
+            ARANGODB_HOST_URL=${{ secrets.ARANGODB_HOST_URL }}
+            ARANGODB_USERNAME=${{ secrets.ARANGODB_USERNAME }}
+            CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP=${{ secrets.CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP }}
+            CTIBUTLER_HOST=${{ secrets.CTIBUTLER_HOST }}
+            DEFAULT_PAGE_SIZE=${{ secrets.DEFAULT_PAGE_SIZE }}
+            DJANGO_ALLOWED_HOSTS=${{ secrets.DJANGO_ALLOWED_HOSTS }}
+            DJANGO_DEBUG=${{ secrets.DJANGO_DEBUG }}
+            DJANGO_SECRET=${{ secrets.DJANGO_SECRET }}
+            MAX_PAGE_SIZE=${{ secrets.MAX_PAGE_SIZE }}
+            POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            POSTGRES_HOST=${{ secrets.POSTGRES_HOST }}
+            POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            POSTGRES_PORT=${{ secrets.POSTGRES_PORT }}
+            POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            USE_S3_STORAGE=${{ secrets.USE_S3_STORAGE }}
+
       # This step generates an artifact attestation for the image, which is an unforgeable statement about where and how it was built. It increases supply chain security for people who consume the image. For more information, see "[AUTOTITLE](/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds)." 
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
