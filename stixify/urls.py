@@ -34,11 +34,11 @@ router.register('dossiers', DossierView, 'dossier-view')
 router.register('jobs', JobView, 'job-view')
 router.register('reports', ReportView, 'report-view')
 # objects
-router.register("objects", arango_views.ObjectsWithReportsView, "object-view-orig")
 router.register('objects/smos', arango_views.SMOView, "object-view-smo")
 router.register('objects/scos', arango_views.SCOView, "object-view-sco")
 router.register('objects/sros', arango_views.SROView, "object-view-sro")
 router.register('objects/sdos', arango_views.SDOView, "object-view-sdo")
+router.register("objects", arango_views.ObjectsWithReportsView, "object-view-orig")
 # txt2stix views
 router.register('extractors', ExtractorsView, "extractors-view")
 router.register('whitelists', WhitelistsView, "whitelists-view")
