@@ -18,17 +18,13 @@ class RelatedObjectField(serializers.RelatedField):
         'incorrect_type': _('Incorrect type. Expected valid {lookup_key} value, received "{lookup_value}", type: {data_type}.'),
     }
     def __init__(self, /, serializer, use_raw_value=False, **kwargs):
-    def __init__(self, /, serializer, use_raw_value=False, **kwargs):
         self.internal_serializer: serializers.Serializer = serializer
-        self.use_raw_value = use_raw_value
         self.use_raw_value = use_raw_value
         super().__init__(**kwargs)
 
     def to_internal_value(self, data):
         try:
             instance = self.get_queryset().get(**{self.lookup_key: data})
-            if self.use_raw_value:
-                return data
             if self.use_raw_value:
                 return data
             return instance
@@ -107,7 +103,6 @@ class FileRelatedField(RelatedObjectField):
 class JobSerializer(serializers.ModelSerializer):
     profile = RelatedObjectField(read_only=True, source='file.profile', serializer=ProfileSerializer())
     file = RelatedObjectField(read_only=True,  serializer=FileSerializer())
-    file_id =  serializers.PrimaryKeyRelatedField(source='file', read_only=True)
     file_id =  serializers.PrimaryKeyRelatedField(source='file', read_only=True)
     class Meta:
         model = Job

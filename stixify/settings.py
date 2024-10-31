@@ -236,7 +236,6 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
 
 ARANGODB_DATABASE   = "stixify"
 VIEW_NAME = "stixify_view"
-VIEW_NAME = "stixify_view2"
 ARANGODB_USERNAME   = os.getenv('ARANGODB_USERNAME')
 ARANGODB_PASSWORD   = os.getenv('ARANGODB_PASSWORD')
 ARANGODB_HOST_URL   = os.getenv("ARANGODB_HOST_URL")

@@ -16,8 +16,6 @@ POLL_INTERVAL = 1
 
 def new_task(job: Job, file: File):
     ( process_post.s(file.file.name, job.id) | job_completed_with_error.si(job.id)).apply_async(
-def new_task(job: Job, file: File):
-    ( process_post.s(file.file.name, job.id) | job_completed_with_error.si(job.id)).apply_async(
         countdown=POLL_INTERVAL, root_id=str(job.id), task_id=str(job.id)
     )
 
