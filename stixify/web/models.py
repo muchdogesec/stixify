@@ -1,7 +1,10 @@
+import logging
 import os
 import sys
 from typing import Iterable
 from django.conf import settings
+from django.db.models.signals import post_delete, pre_save
+from django.dispatch import receiver
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 import uuid, typing
@@ -124,6 +127,20 @@ class File(CommonSTIXProps):
         validate_file(self.file, self.mode)
         return super().clean()
     
+@receiver(post_delete, sender=File)
+def remove_files_on_delete(sender, instance: File, **kwargs):
+    filename = instance.file.name
+    files = [f.file for f in instance.images.all()] + [instance.file]
+    for f in files:
+        f.delete(save=False)
+    while filename:
+        filename = "/".join(filename.split('/')[:-1])
+        try:
+            instance.file.storage.delete(filename)
+        except Exception as e:
+            logging.debug(e)
+
+
     
 
 
