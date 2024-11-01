@@ -14,7 +14,8 @@ if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import TLP_LEVEL_STIX_ID_MAPPING, File, Dossier, FileImage, Job, TLP_Levels
 from .serializers import FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
-from .utils import Pagination, Ordering, Response
+from .utils import Response
+from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
 import django_filters.rest_framework as filters
 from stixify.worker.tasks import new_task
