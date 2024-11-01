@@ -159,6 +159,9 @@ class FileView(
         id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file", lookup_expr="in")
         name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
+        created_max = filters.DateTimeFilter('created', lookup_expr='gte', help_text='Maximum value of `created` value to filter by in format `YYYY-MM-DD`.')
+        created_min = filters.DateTimeFilter('created', lookup_expr='lte', help_text='Minimum value of `created` value to filter by in format `YYYY-MM-DD`.')
+        profile_id = filters.Filter()
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)
