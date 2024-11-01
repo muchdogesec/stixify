@@ -127,9 +127,11 @@ if os.getenv("USE_S3_STORAGE") == "1":
             "access_key": os.environ["R2_ACCESS_KEY"],
             "secret_key": os.environ["R2_SECRET_KEY"],
             'custom_domain': os.environ["R2_CUSTOM_DOMAIN"],
-            'location': 'stixify/media',
+            'location': 'media',
         },
     }
+    STORAGES["staticfiles"] = STORAGES["default"].copy()
+    STORAGES["staticfiles"]["OPTIONS"]['location'] = 'staticfiles'
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

@@ -12,9 +12,10 @@ from dogesec_commons.objects.helpers import ArangoDBHelper
 from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
-from .models import File, Dossier, FileImage, Job
+from .models import TLP_LEVEL_STIX_ID_MAPPING, File, Dossier, FileImage, Job, TLP_Levels
 from .serializers import FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
-from .utils import Pagination, Ordering, Response
+from .utils import Response
+from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
 import django_filters.rest_framework as filters
 from stixify.worker.tasks import new_task
@@ -103,6 +104,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
             The following key/values are accepted in the body of the request:
 
             * `file` (required): Full path to the file to be converted. The mimetype of the file uploaded must match that expected by the `mode` selected.
+            * `report_id` (optional): Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report---<UUID>`. If not passed, this file will be randomly generated.
             * `profile_id` (required): a valid profile ID to define how the post should be processed. You can add a profile using the POST Profile endpoint.
             * `mode` (required): How the File should be processed. Options are:
                 * `txt`: Filetypes supported (mime-type): `txt` (`text/plain`)
@@ -389,7 +391,7 @@ class ReportView(viewsets.ViewSet):
     lookup_url_kwarg = "report_id"
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report. e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`. Do not pass the `report--` part."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
         )
     ]
 
@@ -397,7 +399,7 @@ class ReportView(viewsets.ViewSet):
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
         reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
-            "report--"+report_id
+            self.fix_report_id(report_id)
         )
         if not reports.data:
             raise exceptions.NotFound(
@@ -407,10 +409,15 @@ class ReportView(viewsets.ViewSet):
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + [
+            OpenApiParameter('identity', description="Filter the result by only the reports created by this identity. Pass in the format `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`"),
+            OpenApiParameter('name', description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
+            OpenApiParameter('tlp_level', description="", enum=[f[0] for f in TLP_Levels.choices]),
+            OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
+        ],
     )
     def list(self, request, *args, **kwargs):
-        return ArangoDBHelper(settings.VIEW_NAME, request).get_reports()
+        return self.get_reports()
     
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
@@ -418,15 +425,19 @@ class ReportView(viewsets.ViewSet):
     )
     @decorators.action(methods=["GET"], detail=True)
     def objects(self, request, *args, report_id=..., **kwargs):
-        return self.get_report_objects("report--"+report_id)
+        return self.get_report_objects(self.fix_report_id(report_id))
     
+    def fix_report_id(self, report_id):
+        if report_id.startswith('report--'):
+            return report_id
+        return "report--"+report_id
 
-    # @extend_schema()
-    # def destroy(self, request, *args, **kwargs):
-    #     report_id = kwargs.get(self.lookup_url_kwarg)
-    #     self.remove_report("report--"+report_id)
-    #     File.objects.filter(id=report_id).delete()
-    #     return Response(status=status.HTTP_204_NO_CONTENT)
+    @extend_schema()
+    def destroy(self, request, *args, **kwargs):
+        report_id = kwargs.get(self.lookup_url_kwarg)
+        self.remove_report(self.fix_report_id(report_id))
+        File.objects.filter(id=report_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
     
     def remove_report(self, report_id):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
@@ -459,6 +470,41 @@ class ReportView(viewsets.ViewSet):
                 "objects": objects,
             }
             helper.execute_query(deletion_query, bind_vars, paginate=False)
+
+    def get_reports(self, id=None):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+        filters = []
+        bind_vars = {
+                "@collection": helper.collection,
+                "type": 'report',
+        }
+
+        if q := helper.query_as_array('identity'):
+            bind_vars['identities'] = q
+            filters.append('FILTER doc.created_by_ref IN @identities')
+
+        if tlp_level := helper.query.get('tlp_level'):
+            bind_vars['tlp_level_stix_id'] = TLP_LEVEL_STIX_ID_MAPPING.get(tlp_level)
+            filters.append('FILTER @tlp_level_stix_id IN doc.object_marking_refs')
+
+        if q := helper.query.get('name'):
+            bind_vars['name'] = q.lower()
+            filters.append('FILTER CONTAINS(LOWER(doc.name), @name)')
+
+        if q := helper.query.get('description'):
+            bind_vars['description'] = q.lower()
+            filters.append('FILTER CONTAINS(LOWER(doc.description), @description)')
+
+        query = """
+            FOR doc in @@collection
+            FILTER doc.type == @type AND doc._is_latest
+            // <other filters>
+            @filters
+            // </other filters>
+            LIMIT @offset, @count
+            RETURN KEEP(doc, KEYS(doc, true))
+        """
+        return helper.execute_query(query.replace('@filters', '\n'.join(filters)), bind_vars=bind_vars)
 
     def get_report_objects(self, report_id):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)

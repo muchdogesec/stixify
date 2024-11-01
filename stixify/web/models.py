@@ -1,7 +1,10 @@
+import logging
 import os
 import sys
 from typing import Iterable
 from django.conf import settings
+from django.db.models.signals import post_delete, pre_save
+from django.dispatch import receiver
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 import uuid, typing
@@ -28,12 +31,22 @@ def validate_extractor(types, name):
     pass
 
 
+
+
 class TLP_Levels(models.TextChoices):
     RED = "red"
     AMBER_STRICT = "amber+strict"
     AMBER = "amber"
     GREEN = "green"
     CLEAR = "clear"
+
+TLP_LEVEL_STIX_ID_MAPPING = {
+    TLP_Levels.RED: "marking-definition--e828b379-4e03-4974-9ac4-e53a884c97c1",
+    TLP_Levels.CLEAR: "marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487",
+    TLP_Levels.GREEN: "marking-definition--bab4a63c-aed9-4cf5-a766-dfca5abac2bb",
+    TLP_Levels.AMBER: "marking-definition--55d920b0-5e8b-4f79-9ee9-91f868d9b421",
+    TLP_Levels.AMBER_STRICT: "marking-definition--939a9414-2ddd-4d32-a0cd-375ea402b003",
+}
 
 class DossierContextType(models.TextChoices):
     SUSPICIOUS_ACTIVITY = "suspicious-activity"
@@ -124,6 +137,20 @@ class File(CommonSTIXProps):
         validate_file(self.file, self.mode)
         return super().clean()
     
+@receiver(post_delete, sender=File)
+def remove_files_on_delete(sender, instance: File, **kwargs):
+    filename = instance.file.name
+    files = [f.file for f in instance.images.all()] + [instance.file]
+    for f in files:
+        f.delete(save=False)
+    while filename:
+        filename = "/".join(filename.split('/')[:-1])
+        try:
+            instance.file.storage.delete(filename)
+        except Exception as e:
+            logging.debug(e)
+
+
     
 
 
