@@ -103,6 +103,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
             The following key/values are accepted in the body of the request:
 
             * `file` (required): Full path to the file to be converted. The mimetype of the file uploaded must match that expected by the `mode` selected.
+            * `report_id` (optional): Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report---<UUID>`. If not passed, this file will be randomly generated.
             * `profile_id` (required): a valid profile ID to define how the post should be processed. You can add a profile using the POST Profile endpoint.
             * `mode` (required): How the File should be processed. Options are:
                 * `txt`: Filetypes supported (mime-type): `txt` (`text/plain`)
@@ -389,7 +390,7 @@ class ReportView(viewsets.ViewSet):
     lookup_url_kwarg = "report_id"
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report. e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`. Do not pass the `report--` part."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
         )
     ]
 
@@ -408,11 +409,10 @@ class ReportView(viewsets.ViewSet):
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
-            OpenApiParameter('identity', description="filter only reports created by this identity"),
-            OpenApiParameter('name', description="Filter by the `name` of a report. Will search for titles that contain the value entered."),
+            OpenApiParameter('identity', description="Filter the result by only the reports created by this identity. Pass in the format `identity--identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`"),
+            OpenApiParameter('name', description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
             OpenApiParameter('tlp_level', description="", enum=[f[0] for f in TLP_Levels.choices]),
-            OpenApiParameter('description', description="Filter by the content in a report description (this is the markdown created for the report). Will search for descriptions that contain the value entered."),
-            OpenApiParameter('description', description="Filter by the content in a report description (this is the markdown created for the report). Will search for descriptions that contain the value entered."),
+            OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
         ],
     )
     def list(self, request, *args, **kwargs):

@@ -50,7 +50,7 @@ class CharacterSeparatedField(serializers.ListField):
 
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_id = serializers.UUIDField(source='id', help_text="This is a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`", validators=[
+    report_id = serializers.UUIDField(source='id', help_text="Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`. If not passed, this file will be randomly generated.", validators=[
         validators.UniqueValidator(queryset=File.objects.all()),
     ], required=False)
     mimetype = serializers.CharField(read_only=True)
