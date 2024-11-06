@@ -104,12 +104,12 @@ if __name__ == "__main__":
                 "pattern_phone_number"
             ],
             "relationship_mode": "standard",
-            "extract_text_from_image": False,
-            "defang": False
+            "extract_text_from_image": True,
+            "defang": True
         },
-        #24debd60-1774-5587-a6ce-e2e24879b7b4
+        #2919ca71-e60c-5aad-81f7-8cf561645d03
         {
-            "name": "Basic threat intel extractions. Standard relationship. Extract text from images.",
+            "name": "Basic threat intel extractions. AI relationship. Extract text from images.",
             "extractions": [
                 "pattern_ipv4_address_only",
                 "pattern_ipv4_address_port",
@@ -145,7 +145,7 @@ if __name__ == "__main__":
                 "pattern_iban_number",
                 "pattern_phone_number"
             ],
-            "relationship_mode": "standard",
+            "relationship_mode": "ai",
             "extract_text_from_image": True,
             "defang": True
         },
