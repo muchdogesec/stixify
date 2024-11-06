@@ -46,7 +46,7 @@ def poll_job_status(job_id, max_retries=10, interval=5):
 # Main function to run the tests with two file uploads in sequence
 def run_test():
     # Test values for the first file
-    profile_id = "24debd60-1774-5587-a6ce-e2e24879b7b4"
+    profile_id = "2919ca71-e60c-5aad-81f7-8cf561645d03"
     mode = "pdf"
     name = "Fanged data good PDF"
     tlp_level = "clear"
