@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from types import SimpleNamespace
 from typing import Iterable
 from django.conf import settings
 from django.db.models.signals import post_delete, pre_save
@@ -150,8 +151,10 @@ def remove_files_on_delete(sender, instance: File, **kwargs):
         except Exception as e:
             logging.debug(e)
 
-
-    
+@receiver(post_delete, sender=File)
+def remove_reports_on_delete(sender, instance: File, **kwargs):
+    from .views import ReportView
+    ReportView.remove_report(instance.report_id)
 
 
 class FileImage(models.Model):

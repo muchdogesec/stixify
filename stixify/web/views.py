@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions
 from django.http import FileResponse
 
@@ -166,7 +167,6 @@ class FileView(
     def perform_create(self, serializer):
         return super().perform_create(serializer)
         
-    @extend_schema(responses={200: JobSerializer}, request=FileSerializer)
     @extend_schema(responses={200: JobSerializer}, request=FileSerializer)
     def create(self, request, *args, **kwargs):
         serializer = FileSerializer(data=request.data)
@@ -434,6 +434,7 @@ class ReportView(viewsets.ViewSet):
     def objects(self, request, *args, report_id=..., **kwargs):
         return self.get_report_objects(self.fix_report_id(report_id))
     
+    @classmethod
     def fix_report_id(self, report_id):
         if report_id.startswith('report--'):
             return report_id
@@ -442,13 +443,13 @@ class ReportView(viewsets.ViewSet):
     @extend_schema()
     def destroy(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
-        self.remove_report(self.fix_report_id(report_id))
         File.objects.filter(id=report_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-    def remove_report(self, report_id):
-        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
-
+    @classmethod
+    def remove_report(cls, report_id):
+        helper = ArangoDBHelper(settings.VIEW_NAME, SimpleNamespace(query_params=dict()))
+        report_id = cls.fix_report_id(report_id)
         bind_vars = {
                 "@collection": helper.collection,
                 'report_id': report_id,
