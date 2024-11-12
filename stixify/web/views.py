@@ -343,11 +343,19 @@ class DossierView(
 @extend_schema_view(
     list=extend_schema(
         summary="Search and retrieve a list of Jobs",
-        description="Jobs track the status of File upload, conversion of the File into markdown and the extraction of the data from the text. For every new File added a job will be created. The `id` of a Job is printed in the POST responses, but you can use this endpoint to search for the `id` again, if required.",
+        description=textwrap.dedent(
+            """
+            Jobs track the status of File upload, conversion of the File into markdown and the extraction of the data from the text. For every new File added a job will be created. The `id` of a Job is printed in the POST responses, but you can use this endpoint to search for the `id` again, if required.
+            """
+        ),
     ),
     retrieve=extend_schema(
         summary="Get a job by ID",
-        description="Using a Job ID you can retrieve information about its state via this endpoint. This is useful to see if a Job is still processing, if an error has occurred (and at what stage), or if it has completed.",
+        description=textwrap.dedent(
+            """
+            Using a Job ID you can retrieve information about its state via this endpoint. This is useful to see if a Job is still processing, if an error has occurred (and at what stage), or if it has completed.
+            """
+        ),
         parameters=[
             OpenApiParameter('job_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Job."),
         ],
@@ -378,15 +386,27 @@ class JobView(
 @extend_schema_view(
     list=extend_schema(
         summary="Search for Report objects created from Files",
-        description="Search for Report objects created from Files",
+        description=textwrap.dedent(
+            """
+            Search for Report objects created from Files
+            """
+        ),
     ),
     retrieve=extend_schema(
         summary="Get a Report object using its ID",
-        description="Get a Report object using its ID",
+        description=textwrap.dedent(
+            """
+            Get a Report object using its ID
+            """
+        ),
     ),
     objects=extend_schema(
         summary="Get all objects linked to a Report ID",
-        description="This endpoint returns all objects that were extracted and created for the File linked to this report.",
+        description=textwrap.dedent(
+            """
+            This endpoint returns all objects that were extracted and created for the File linked to this report.
+            """
+        ),
     ),
 )
 class ReportView(viewsets.ViewSet):
