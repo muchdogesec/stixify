@@ -65,9 +65,9 @@ if __name__ == "__main__":
 
     # Step 3: Create new profiles
     profiles = [
-        #a814c18b-9f4a-558f-a8b5-7f9fefa14b82
+        #
         {
-            "name": "Basic threat intel extractions. Standard relationship. Do not extract text from images.",
+            "name": "Basic threat intel extractions. Standard relationship. Extract text from images.",
             "extractions": [
                 "pattern_ipv4_address_only",
                 "pattern_ipv4_address_port",
@@ -107,7 +107,7 @@ if __name__ == "__main__":
             "extract_text_from_image": True,
             "defang": True
         },
-        #2919ca71-e60c-5aad-81f7-8cf561645d03
+        # 2919ca71-e60c-5aad-81f7-8cf561645d03
         {
             "name": "Basic threat intel extractions. AI relationship. Extract text from images.",
             "extractions": [
@@ -146,10 +146,11 @@ if __name__ == "__main__":
                 "pattern_phone_number"
             ],
             "relationship_mode": "ai",
+            "ai_settings_relationships": "openai:gpt-4o",
             "extract_text_from_image": True,
             "defang": True
         },
-        # 42976b41-6070-5fc3-a87f-ee81c38d26ef
+        # 24debd60-1774-5587-a6ce-e2e24879b7b4
         {
             "name": "External lookups. Standard relationship. Extract text from images.",
             "extractions": [
@@ -173,6 +174,26 @@ if __name__ == "__main__":
                 "lookup_country_alpha2"
             ],
             "relationship_mode": "standard",
+            "extract_text_from_image": True,
+            "defang": True
+        },
+        # 4140d4d8-7824-51bc-b10a-3ba1465c8de3
+        {
+            "name": "AI extractions. AI relationship. Extract text from images.",
+            "extractions": [
+                "ai_mitre_attack_enterprise",
+                "ai_mitre_attack_mobile",
+                "ai_mitre_attack_ics",
+                "ai_mitre_capec",
+                "ai_mitre_cwe"
+            ],
+            "ai_settings_extractions": [
+                "openai:gpt-4o",
+                "anthropic:claude-3-5-sonnet-latest",
+                "gemini:models/gemini-1.5-pro-latest"
+            ],
+            "relationship_mode": "ai",
+            "ai_settings_relationships": "openai:gpt-4o",
             "extract_text_from_image": True,
             "defang": True
         }
