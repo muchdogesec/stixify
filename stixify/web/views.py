@@ -1,4 +1,5 @@
-from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request
+import uuid
+from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
 from django.http import FileResponse, HttpRequest
 
 from drf_spectacular.utils import OpenApiParameter
@@ -430,6 +431,7 @@ class ReportView(viewsets.ViewSet):
     @extend_schema()
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
+        report_id = self.validate_report_id(report_id)
         reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
             self.fix_report_id(report_id)
         )
@@ -461,6 +463,7 @@ class ReportView(viewsets.ViewSet):
     )
     @decorators.action(methods=["GET"], detail=True)
     def objects(self, request, *args, report_id=..., **kwargs):
+        report_id = self.validate_report_id(report_id)
         return self.get_report_objects(self.fix_report_id(report_id))
     
     @classmethod
@@ -468,10 +471,23 @@ class ReportView(viewsets.ViewSet):
         if report_id.startswith('report--'):
             return report_id
         return "report--"+report_id
+    
+    @classmethod
+    def validate_report_id(self, report_id:str):
+        if not report_id.startswith('report--'):
+            raise validators.ValidationError({self.lookup_url_kwarg: f'`{report_id}`: must be a valid STIX report id'})
+        report_uuid = report_id.replace('report--', '')
+        try:
+            uuid.UUID(report_uuid)
+        except Exception as e:
+            raise validators.ValidationError({self.lookup_url_kwarg: f'`{report_id}`: {e}'})
+        return report_uuid
 
     @extend_schema()
     def destroy(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
+        report_id = self.validate_report_id(report_id)
+
         File.objects.filter(id=report_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
