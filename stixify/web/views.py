@@ -409,7 +409,7 @@ class JobView(
         ),
     ),
     destroy=extend_schema(
-        summary="Delete all STIX objects linked to a Report ID",
+        summary="Delete all STIX objects for a Report ID",
         description=textwrap.dedent(
             """
             This endpoint will delete a Report using its ID. It will also delete all the STIX objects extracted from the Report.
