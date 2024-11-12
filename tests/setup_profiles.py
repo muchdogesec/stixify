@@ -107,7 +107,7 @@ if __name__ == "__main__":
             "extract_text_from_image": True,
             "defang": True
         },
-        # 
+        # 2919ca71-e60c-5aad-81f7-8cf561645d03
         {
             "name": "Basic threat intel extractions. AI relationship. Extract text from images.",
             "extractions": [
@@ -150,7 +150,7 @@ if __name__ == "__main__":
             "extract_text_from_image": True,
             "defang": True
         },
-        # 
+        # 24debd60-1774-5587-a6ce-e2e24879b7b4
         {
             "name": "External lookups. Standard relationship. Extract text from images.",
             "extractions": [
@@ -177,7 +177,7 @@ if __name__ == "__main__":
             "extract_text_from_image": True,
             "defang": True
         },
-        #
+        # 4140d4d8-7824-51bc-b10a-3ba1465c8de3
         {
             "name": "AI extractions. AI relationship. Extract text from images.",
             "extractions": [
