@@ -408,6 +408,16 @@ class JobView(
             """
         ),
     ),
+    destroy=extend_schema(
+        summary="Delete all STIX objects linked to a Report ID",
+        description=textwrap.dedent(
+            """
+            This endpoint will delete a Report using its ID. It will also delete all the STIX objects extracted from the Report.
+
+            IMPORTANT: this request does NOT delete the file this Report was generated from. To delete the file, use the delete file endpoint.
+            """
+        ),
+    ),
 )
 class ReportView(viewsets.ViewSet):
     openapi_tags = ["Reports"]
