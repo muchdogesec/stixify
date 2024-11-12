@@ -1,7 +1,6 @@
 import logging
 import os
 import sys
-from types import SimpleNamespace
 from typing import Iterable
 from django.conf import settings
 from django.db.models.signals import post_delete, pre_save

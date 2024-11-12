@@ -1,6 +1,5 @@
-from types import SimpleNamespace
-from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions
-from django.http import FileResponse
+from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request
+from django.http import FileResponse, HttpRequest
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -478,7 +477,7 @@ class ReportView(viewsets.ViewSet):
     
     @classmethod
     def remove_report(cls, report_id):
-        helper = ArangoDBHelper(settings.VIEW_NAME, SimpleNamespace(query_params=dict()))
+        helper = ArangoDBHelper(settings.VIEW_NAME, request.Request(HttpRequest()))
         report_id = cls.fix_report_id(report_id)
         bind_vars = {
                 "@collection": helper.collection,
