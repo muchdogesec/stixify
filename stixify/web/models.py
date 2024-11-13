@@ -121,7 +121,7 @@ class File(CommonSTIXProps):
     file = models.FileField(upload_to=upload_to_func, help_text="Full path to the file to be converted. Must match a supported file type: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `text/html`, `text/csv`, `image/jpg`, `image/jpeg`, `image/png`, `image/webp`. The filetype must be supported by the `mode` used or you will receive an error.")
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
     dossiers = models.ManyToManyField(Dossier, related_name="files", help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
-    mimetype = models.CharField(max_length=64)
+    mimetype = models.CharField(max_length=512)
     mode = models.CharField(max_length=256, help_text="How the File should be processed. Generally the `mode` should match the filetype of `file` selected. Except for HTML documents where you can use `html` mode (processes entirety of HTML page) and `html_article` mode (where only the article on the page will be processed).")
     markdown_file = models.FileField(upload_to=upload_to_func, null=True)
 
