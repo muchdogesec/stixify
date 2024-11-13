@@ -65,7 +65,7 @@ if __name__ == "__main__":
 
     # Step 3: Create new profiles
     profiles = [
-        #
+        # 24debd60-1774-5587-a6ce-e2e24879b7b4
         {
             "name": "Basic threat intel extractions. Standard relationship. Extract text from images.",
             "extractions": [
@@ -150,7 +150,7 @@ if __name__ == "__main__":
             "extract_text_from_image": True,
             "defang": True
         },
-        # 24debd60-1774-5587-a6ce-e2e24879b7b4
+        # 42976b41-6070-5fc3-a87f-ee81c38d26ef
         {
             "name": "External lookups. Standard relationship. Extract text from images.",
             "extractions": [
