@@ -97,32 +97,115 @@ def run_all_tests():
             "name": "Fanged data good PDF",
             "tlp_level": "clear",
             "confidence": 99,
-            "labels": ["label1", "label2"],
+            "labels": [
+                "label1",
+                "label2"
+            ],
             "file_name": "pdf/fanged_data_good.pdf",
             "report_id": "6cb8665e-3607-4bbe-a9a3-c2a46bd13630"
         },
         {
-            "profile_id": "3919da72-e60c-5aad-82f7-8cf561645d03",
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
             "mode": "pdf",
             "name": "txt2stix all cases pdf",
             "tlp_level": "amber",
             "confidence": 80,
-            "labels": ["label1"],
+            "labels": [
+                "label1"
+            ],
             "file_name": "pdf/txt2stix-all-cases.pdf",
             "report_id": "b2869cb5-5270-4543-ac71-601cc8cd2e3b"
         },
+    # PDF Real
+        {
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
+            "mode": "pdf",
+            "name": "Bitdefender rdstealer",
+            "tlp_level": "amber",
+            "confidence": 80,
+            "labels": [
+                "label1"
+            ],
+            "file_name": "pdf-real/bitdefender-rdstealer.pdf",
+            "report_id": "aaec934b-9141-4ff7-958b-3b99a7b24234"
+        },
+        {
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
+            "mode": "pdf",
+            "name": "Mandiant APT1",
+            "tlp_level": "amber",
+            "confidence": 80,
+            "labels": [
+                "label1"
+                ],
+            "file_name": "pdf-real/mandiant-apt1-report.pdf",
+            "report_id": "65ba4fa9-dfff-4597-bcb9-eb749bb84642"
+        },
     # HTML article
         {
-            "profile_id": "3919da72-e60c-5aad-82f7-8cf561645d03",
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
             "mode": "html_article",
             "name": "GroupIB 0ktapus",
             "tlp_level": "amber+strict",
             "confidence": 80,
-            "labels": ["label1"],
+            "labels": [
+                "label1"
+            ],
             "file_name": "html-real/group-ib-0ktapus.html",
             "report_id": "5795e067-72a4-4953-87ed-f6c56dc6f639"
+        },
+        {
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
+            "mode": "html_article",
+            "name": "Unit42 Ursa",
+            "tlp_level": "red",
+            "confidence": 34,
+            "labels": [
+                "label2"
+            ],
+            "file_name": "html-real/unit42-Fighting-Ursa-Luring-Targets-With-Car-for-Sale.html",
+            "report_id": "cc2a723e-fc24-42d1-8ffc-2c76a5531512"
+        },
+        {
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
+            "mode": "html_article",
+            "name": "Unit42 Mallox",
+            "tlp_level": "red",
+            "confidence": 34,
+            "labels": [
+                "label2"
+            ],
+            "file_name": "html-real/unit42-mallox-ransomware.html",
+            "report_id": "04aa52aa-4ba5-4e72-acd8-eb569da956d4"
+        },
+    # Word
+        {
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
+            "mode": "word",
+            "name": "txt2stix local extractions docx",
+            "tlp_level": "green",
+            "confidence": 7,
+            "labels": [
+                "label1",
+                "label2"
+            ],
+            "file_name": "doc/txt2stix-local-extractions.docx",
+            "report_id": "2bd196b5-cc59-491d-99ee-ed5ea2002d61"
+        },
+    # Powerpoint
+        {
+            "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
+            "mode": "powerpoint",
+            "name": "fanged data pptx",
+            "tlp_level": "green",
+            "confidence": 56,
+            "labels": [
+                "label1",
+                "label2"
+            ],
+            "file_name": "ppt/fanged_data.pptx",
+            "report_id": "4dee1bac-801c-451f-a35d-b5dd7159ee5e"
         }
-
     ]
 
     # Step 1: Delete any existing reports to avoid conflicts
