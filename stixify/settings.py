@@ -229,9 +229,7 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
         {"name": "Dossiers", "description": "Group together Reports as Dossiers around a theme."},
         {"name": "Objects", "description": "Search through STIX object extracted from Files in Reports."},
         {"name": "Profiles", "description": "Create and search for extraction profile applied to text Files."},
-        {"name": "Aliases", "description": "Search through aliases that can be used in profiles (see txt2stix for more information)"},
         {"name": "Extractors", "description": "Search through extractors that can be used in profiles (see txt2stix for more information)"},
-        {"name": "Whitelists", "description": "Search through whitelists that can be used in profiles (see txt2stix for more information)"},
         {"name": "Jobs", "description": "Check the status of data retrieval from Files uploaded."},
     ]
 }
