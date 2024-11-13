@@ -19,7 +19,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework import routers
 from dogesec_commons.objects import views as arango_views
-from dogesec_commons.stixifier.views import ProfileView, ExtractorsView, WhitelistsView, AliasesView
+from dogesec_commons.stixifier.views import ProfileView, ExtractorsView
 from .web.views import FileView, DossierView, JobView, ReportView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf.urls.static import static
@@ -41,8 +41,6 @@ router.register('objects/sdos', arango_views.SDOView, "object-view-sdo")
 router.register("objects", arango_views.ObjectsWithReportsView, "object-view-orig")
 # txt2stix views
 router.register('extractors', ExtractorsView, "extractors-view")
-router.register('whitelists', WhitelistsView, "whitelists-view")
-router.register('aliases', AliasesView, "aliases-view")
 
 urlpatterns = [
     path(f'api/{API_VERSION}/', include(router.urls)),
