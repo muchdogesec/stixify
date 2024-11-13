@@ -1,6 +1,6 @@
 import uuid
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
-from django.http import FileResponse, HttpRequest
+from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -203,7 +203,7 @@ class FileView(
     def markdown(self, request, *args, file_id=None, **kwargs):
         obj: File = self.get_object()
         if not obj.markdown_file:
-            return Response("No markdown file", status=status.HTTP_404_NOT_FOUND)
+            return HttpResponseNotFound("No markdown file")
         modify_links = mistune.create_markdown(escape=False, renderer=MarkdownImageReplacer(self.request, FileImage.objects.filter(report__id=file_id)))
         return FileResponse(streaming_content=modify_links(obj.markdown_file.read().decode()), content_type='text/markdown', filename=f'{obj.name}-markdown.md')
     
