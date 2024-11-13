@@ -8,7 +8,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
-
+from dogesec_commons.stixifier.summarizer import parse_summarizer_model
 
 class RelatedObjectField(serializers.RelatedField):
     lookup_key = 'pk'
@@ -57,11 +57,19 @@ class FileSerializer(serializers.ModelSerializer):
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
     download_url = serializers.FileField(source='file', read_only=True)
+    file = serializers.FileField(write_only=True)
+    ai_summary_provider = serializers.CharField(allow_blank=True, allow_null=True, validators=[parse_summarizer_model], default=None, write_only=True, help_text="AI Summary provider int the format provider:model e.g `openai:gpt-3.5-turbo`")
+
 
     class Meta:
         model = File
-        exclude = ['profile', "dossiers", "file", "markdown_file"]
+        exclude = ['profile', "dossiers", "markdown_file", "summary"]
         read_only_fields = ["dossiers"]
+
+    def create(self, validated_data):
+        validated_data = validated_data.copy()
+        validated_data.pop('ai_summary_provider', None)
+        return super().create(validated_data)
 
 
 class ImageSerializer(serializers.ModelSerializer):

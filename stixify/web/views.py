@@ -1,4 +1,6 @@
+import io
 import uuid
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
 from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 
@@ -175,9 +177,9 @@ class FileView(
         file_instance = serializer.save(mimetype=temp_file.content_type)
         job_instance =  Job.objects.create(file=file_instance)
         job_serializer = JobSerializer(job_instance)
-        new_task(job_instance, file_instance)
-        new_task(job_instance, file_instance)
+        new_task(job_instance, file_instance, serializer.validated_data['ai_summary_provider'])
         return Response(job_serializer.data)
+    
     
     @extend_schema(
         responses=None,
@@ -230,32 +232,18 @@ class FileView(
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-        modify_links = mistune.create_markdown(escape=False, renderer=MarkdownImageReplacer(self.request, FileImage.objects.filter(report__id=file_id)))
-        return FileResponse(streaming_content=modify_links(obj.markdown_file.read().decode()), content_type='text/markdown', filename=f'{obj.name}-markdown.md')
     
     @extend_schema(
-            responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},
-            filters=False,
-            summary="Retrieve images found in a File",
-            description=textwrap.dedent(
-            """
-            When [file2txt](https://github.com/muchdogesec/file2txt/) processes a file it will extract all images from the file and store them locally. You can see these images referenced in the markdown produced (see File markdown endpoint). This endpoint lists the image files found in the File selected.
-            """
-        ),
+            responses=None,
+            description="get summary of the file content",
+            summary="get summary of the file content",
     )
-    @decorators.action(detail=True, pagination_class=Pagination("images"))
-    def images(self, request, file_id=None, image=None):
-        queryset = FileImage.objects.filter(report__id=file_id).order_by('name')
-        paginator = Pagination('images')
-
-        page = paginator.paginate_queryset(queryset, request, self)
-
-        if page is not None:
-            serializer = ImageSerializer(page, many=True, context=dict(request=request))
-            return paginator.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+    @decorators.action(methods=["GET"], detail=True)
+    def summarize(self, request, file_id=None):
+        obj = get_object_or_404(File, id=file_id)
+        if not obj.summary:
+            raise exceptions.NotFound(f"No Summary for post")
+        return FileResponse(streaming_content=io.BytesIO(obj.summary.encode()), content_type='text/markdown', filename='summary.md')
 
 @extend_schema_view(
     list=extend_schema(
