@@ -1,5 +1,6 @@
-from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions
-from django.http import FileResponse
+import uuid
+from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
+from django.http import FileResponse, HttpRequest
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -166,7 +167,6 @@ class FileView(
     def perform_create(self, serializer):
         return super().perform_create(serializer)
         
-    @extend_schema(responses={200: JobSerializer}, request=FileSerializer)
     @extend_schema(responses={200: JobSerializer}, request=FileSerializer)
     def create(self, request, *args, **kwargs):
         serializer = FileSerializer(data=request.data)
@@ -343,11 +343,19 @@ class DossierView(
 @extend_schema_view(
     list=extend_schema(
         summary="Search and retrieve a list of Jobs",
-        description="Jobs track the status of File upload, conversion of the File into markdown and the extraction of the data from the text. For every new File added a job will be created. The `id` of a Job is printed in the POST responses, but you can use this endpoint to search for the `id` again, if required.",
+        description=textwrap.dedent(
+            """
+            Jobs track the status of File upload, conversion of the File into markdown and the extraction of the data from the text. For every new File added a job will be created. The `id` of a Job is printed in the POST responses, but you can use this endpoint to search for the `id` again, if required.
+            """
+        ),
     ),
     retrieve=extend_schema(
         summary="Get a job by ID",
-        description="Using a Job ID you can retrieve information about its state via this endpoint. This is useful to see if a Job is still processing, if an error has occurred (and at what stage), or if it has completed.",
+        description=textwrap.dedent(
+            """
+            Using a Job ID you can retrieve information about its state via this endpoint. This is useful to see if a Job is still processing, if an error has occurred (and at what stage), or if it has completed.
+            """
+        ),
         parameters=[
             OpenApiParameter('job_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Job."),
         ],
@@ -378,15 +386,37 @@ class JobView(
 @extend_schema_view(
     list=extend_schema(
         summary="Search for Report objects created from Files",
-        description="Search for Report objects created from Files",
+        description=textwrap.dedent(
+            """
+            Search for Report objects created from Files
+            """
+        ),
     ),
     retrieve=extend_schema(
         summary="Get a Report object using its ID",
-        description="Get a Report object using its ID",
+        description=textwrap.dedent(
+            """
+            Get a Report object using its ID
+            """
+        ),
     ),
     objects=extend_schema(
         summary="Get all objects linked to a Report ID",
-        description="This endpoint returns all objects that were extracted and created for the File linked to this report.",
+        description=textwrap.dedent(
+            """
+            This endpoint returns all objects that were extracted and created for the File linked to this report.
+            """
+        ),
+    ),
+    destroy=extend_schema(
+        summary="Delete all STIX objects for a Report ID",
+        description=textwrap.dedent(
+            """
+            This endpoint will delete a Report using its ID. It will also delete all the STIX objects extracted from the Report.
+
+            IMPORTANT: this request does NOT delete the file this Report was generated from. To delete the file, use the delete file endpoint.
+            """
+        ),
     ),
 )
 class ReportView(viewsets.ViewSet):
@@ -401,6 +431,7 @@ class ReportView(viewsets.ViewSet):
     @extend_schema()
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
+        report_id = self.validate_report_id(report_id)
         reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
             self.fix_report_id(report_id)
         )
@@ -432,23 +463,38 @@ class ReportView(viewsets.ViewSet):
     )
     @decorators.action(methods=["GET"], detail=True)
     def objects(self, request, *args, report_id=..., **kwargs):
+        report_id = self.validate_report_id(report_id)
         return self.get_report_objects(self.fix_report_id(report_id))
     
+    @classmethod
     def fix_report_id(self, report_id):
         if report_id.startswith('report--'):
             return report_id
         return "report--"+report_id
+    
+    @classmethod
+    def validate_report_id(self, report_id:str):
+        if not report_id.startswith('report--'):
+            raise validators.ValidationError({self.lookup_url_kwarg: f'`{report_id}`: must be a valid STIX report id'})
+        report_uuid = report_id.replace('report--', '')
+        try:
+            uuid.UUID(report_uuid)
+        except Exception as e:
+            raise validators.ValidationError({self.lookup_url_kwarg: f'`{report_id}`: {e}'})
+        return report_uuid
 
     @extend_schema()
     def destroy(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
-        self.remove_report(self.fix_report_id(report_id))
+        report_id = self.validate_report_id(report_id)
+
         File.objects.filter(id=report_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
-    def remove_report(self, report_id):
-        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
-
+    @classmethod
+    def remove_report(cls, report_id):
+        helper = ArangoDBHelper(settings.VIEW_NAME, request.Request(HttpRequest()))
+        report_id = cls.fix_report_id(report_id)
         bind_vars = {
                 "@collection": helper.collection,
                 'report_id': report_id,

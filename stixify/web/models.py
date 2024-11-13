@@ -150,8 +150,10 @@ def remove_files_on_delete(sender, instance: File, **kwargs):
         except Exception as e:
             logging.debug(e)
 
-
-    
+@receiver(post_delete, sender=File)
+def remove_reports_on_delete(sender, instance: File, **kwargs):
+    from .views import ReportView
+    ReportView.remove_report(instance.report_id)
 
 
 class FileImage(models.Model):
