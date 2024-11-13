@@ -56,11 +56,11 @@ class FileSerializer(serializers.ModelSerializer):
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
-    markdown_file = serializers.FileField(read_only=True)
+    download_url = serializers.FileField(source='file', read_only=True)
 
     class Meta:
         model = File
-        exclude = ['profile', "dossiers"]
+        exclude = ['profile', "dossiers", "file", "markdown_file"]
         read_only_fields = ["dossiers"]
 
 
@@ -95,15 +95,10 @@ class DossierSerializer(serializers.ModelSerializer):
         model = Dossier
         fields = "__all__"
 
-@extend_schema_field(field=FileSerializer)
-class FileRelatedField(RelatedObjectField):
-    def __init__(self, **kwargs):
-        super().__init__(FileSerializer(), **kwargs)
 
 class JobSerializer(serializers.ModelSerializer):
-    profile = RelatedObjectField(read_only=True, source='file.profile', serializer=ProfileSerializer())
+    profile_id = serializers.UUIDField(read_only=True, source='file.profile_id')
     file = RelatedObjectField(read_only=True,  serializer=FileSerializer())
-    file_id =  serializers.PrimaryKeyRelatedField(source='file', read_only=True)
     class Meta:
         model = Job
         exclude = []
