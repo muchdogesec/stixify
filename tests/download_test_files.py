@@ -21,6 +21,7 @@ file_paths = [
     "image/test-image-1.png",
     "image/test-image-2.webp",
     "image/test-image-3.png",
+    "markdown/threat-report.md",
     "pdf-real/bitdefender-rdstealer.pdf",
     "pdf-real/canadian-cert-qakbot.pdf",
     "pdf-real/crowdstrike-fancy-bear.pdf",
@@ -37,7 +38,10 @@ file_paths = [
     "pdf/txt2stix-local-extractions.pdf",
     "pdf/txt2stix-remote-lookups.pdf",
     "ppt/fanged_data.ppt",
-    "ppt/fanged_data.pptx"
+    "ppt/fanged_data.pptx",
+    "txt/threat-report.txt",
+    "xls/fanged_data.xls",
+    "xls/fanged_data.xlsx"
 ]
 
 # Base URL for Cloudflare R2 bucket

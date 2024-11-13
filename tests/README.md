@@ -34,7 +34,9 @@ python3 tests/add_files.py
 
 ```shell
 python3 tests/delete_all_files.py && \
-python3 tests/delete_all_reports.py
+python3 tests/delete_all_reports.py && \
+python3 tests/delete_all_dossiers.py && \
+python3 tests/delete_all_profiles.py
 ```
 
 ```shell
