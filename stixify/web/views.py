@@ -235,11 +235,11 @@ class FileView(
     
     @extend_schema(
             responses=None,
-            description="get summary of the file content",
-            summary="get summary of the file content",
+            description="Get summary of the file content",
+            summary="Get summary of the file content if `ai_summary_provider` was enabled.",
     )
     @decorators.action(methods=["GET"], detail=True)
-    def summarize(self, request, file_id=None):
+    def summary(self, request, file_id=None):
         obj = get_object_or_404(File, id=file_id)
         if not obj.summary:
             raise exceptions.NotFound(f"No Summary for post")
