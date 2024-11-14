@@ -1,21 +1,12 @@
-import logging
 import os
-import sys
-from typing import Iterable
 from django.conf import settings
-from django.db.models.signals import post_delete, pre_save
+from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 import uuid, typing
-from django.utils.text import slugify
-from urllib.parse import urlparse
-from functools import partial
-import txt2stix.common
 import txt2stix, txt2stix.extractions
 from django.core.exceptions import ValidationError
-from django.db.models import F, CharField, Value
-from django.db.models.functions import Concat
 from datetime import datetime, timezone
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import stix2
@@ -104,10 +95,8 @@ class Dossier(models.Model):
 
 def upload_to_func(instance: 'File|FileImage', filename):
     if isinstance(instance, FileImage):
-        id = instance.report.id
-    else:
-        id = instance.id
-    return os.path.join(str(id), 'files', filename)
+        instance = instance.report
+    return os.path.join(str(instance.identity['id']), str(instance.report_id), filename)
 
 def validate_file(file: InMemoryUploadedFile, mode: str):
     _, ext = os.path.splitext(file.name)
@@ -118,12 +107,12 @@ def validate_file(file: InMemoryUploadedFile, mode: str):
 
 class File(CommonSTIXProps):
     id = models.UUIDField(unique=True, max_length=64, primary_key=True, default=uuid.uuid4)
-    file = models.FileField(upload_to=upload_to_func, help_text="Full path to the file to be converted. Must match a supported file type: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `text/html`, `text/csv`, `image/jpg`, `image/jpeg`, `image/png`, `image/webp`. The filetype must be supported by the `mode` used or you will receive an error.")
+    file = models.FileField(max_length=1024, upload_to=upload_to_func, help_text="Full path to the file to be converted. Must match a supported file type: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `text/html`, `text/csv`, `image/jpg`, `image/jpeg`, `image/png`, `image/webp`. The filetype must be supported by the `mode` used or you will receive an error.")
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
     dossiers = models.ManyToManyField(Dossier, related_name="files", help_text="The Dossier ID(s) you want to add the generated Report for this File to.")
     mimetype = models.CharField(max_length=64)
     mode = models.CharField(max_length=256, help_text="How the File should be processed. Generally the `mode` should match the filetype of `file` selected. Except for HTML documents where you can use `html` mode (processes entirety of HTML page) and `html_article` mode (where only the article on the page will be processed).")
-    markdown_file = models.FileField(upload_to=upload_to_func, null=True)
+    markdown_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
 
     @property
     def report_id(self):
@@ -136,19 +125,6 @@ class File(CommonSTIXProps):
     def clean(self) -> None:
         validate_file(self.file, self.mode)
         return super().clean()
-    
-@receiver(post_delete, sender=File)
-def remove_files_on_delete(sender, instance: File, **kwargs):
-    filename = instance.file.name
-    files = [f.file for f in instance.images.all()] + [instance.file]
-    for f in files:
-        f.delete(save=False)
-    while filename:
-        filename = "/".join(filename.split('/')[:-1])
-        try:
-            instance.file.storage.delete(filename)
-        except Exception as e:
-            logging.debug(e)
 
 @receiver(post_delete, sender=File)
 def remove_reports_on_delete(sender, instance: File, **kwargs):
@@ -158,7 +134,7 @@ def remove_reports_on_delete(sender, instance: File, **kwargs):
 
 class FileImage(models.Model):
     report = models.ForeignKey(File, related_name='images', on_delete=models.CASCADE)
-    file = models.ImageField(upload_to=upload_to_func)
+    file = models.ImageField(upload_to=upload_to_func, max_length=256)
     name = models.CharField(max_length=256)
 
 

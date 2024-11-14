@@ -60,7 +60,7 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        exclude = ['profile', "dossiers", "file", "markdown_file"]
+        exclude = ['profile', "dossiers", "markdown_file"]
         read_only_fields = ["dossiers"]
 
 
