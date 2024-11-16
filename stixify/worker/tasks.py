@@ -5,6 +5,8 @@ from stixify.web.models import Job, File
 from stixify.web import models
 from celery import shared_task
 from dogesec_commons.stixifier.stixifier import StixifyProcessor, ReportProperties
+from dogesec_commons.stixifier.summarizer import parse_summarizer_model
+
 import tempfile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.storage import default_storage
@@ -14,8 +16,8 @@ import stix2
 POLL_INTERVAL = 1
 
 
-def new_task(job: Job, file: File):
-    ( process_post.s(file.file.name, job.id) | job_completed_with_error.si(job.id)).apply_async(
+def new_task(job: Job, file: File, summary_provider):
+    ( process_post.s(file.file.name, job.id, summary_provider) | job_completed_with_error.si(job.id)).apply_async(
         countdown=POLL_INTERVAL, root_id=str(job.id), task_id=str(job.id)
     )
 
@@ -29,7 +31,7 @@ def save_file(file: InMemoryUploadedFile):
 
 
 @shared_task
-def process_post(filename, job_id, *args):
+def process_post(filename, job_id, summary_provider, *args):
     job = Job.objects.get(id=job_id)
     try:
         processor = StixifyProcessor(default_storage.open(filename), job.profile, job_id=job.id, file2txt_mode=job.file.mode, report_id=job.file.id)
@@ -43,7 +45,13 @@ def process_post(filename, job_id, *args):
         )
         processor.setup(report_prop=report_props, extra=dict(_stixify_file_id=str(job.file.id)))
         processor.process()
-        
+        if summary_provider:
+            logging.info(f"summarizing report {processor.report_id} using `{summary_provider}`")
+            try:
+                summary_provider = parse_summarizer_model(summary_provider)
+                job.file.summary = summary_provider.summarize(processor.output_md)
+            except BaseException as e:
+                logging.info(f"got err {e}", exc_info=True)
         job.file.markdown_file.save('markdown.md', processor.md_file.open(), save=True)
         models.FileImage.objects.filter(report=job.file).delete() # remove old references
 

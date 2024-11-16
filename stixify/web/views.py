@@ -1,4 +1,6 @@
+import io
 import uuid
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
 from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 
@@ -126,7 +128,10 @@ class MarkdownImageReplacer(MarkdownRenderer):
                 * `clear`
             * `confidence` (optional): Will be added to the `confidence` value of the Report SDO created. A value between 0-100. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.
             * `labels` (optional): Will be added to the `labels` of the Report SDO created.
-
+            * `ai_summary_provider` (optional): you can optionally get an AI model to produce a summary of the report. You must pass the request in format `provider:model`. Currently supported providers are:
+                * `openai:`, models e.g.: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-4` ([More here](https://platform.openai.com/docs/models))
+                * `anthropic:`, models e.g.: `claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest` ([More here](https://docs.anthropic.com/en/docs/about-claude/models))
+                * `gemini:models/`, models: `gemini-1.5-pro-latest`, `gemini-1.5-flash-latest` ([More here](https://ai.google.dev/gemini-api/docs/models/gemini))
             Files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.
 
             The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
@@ -175,9 +180,9 @@ class FileView(
         file_instance = serializer.save(mimetype=temp_file.content_type)
         job_instance =  Job.objects.create(file=file_instance)
         job_serializer = JobSerializer(job_instance)
-        new_task(job_instance, file_instance)
-        new_task(job_instance, file_instance)
+        new_task(job_instance, file_instance, serializer.validated_data['ai_summary_provider'])
         return Response(job_serializer.data)
+    
     
     @extend_schema(
         responses=None,
@@ -230,32 +235,26 @@ class FileView(
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-        modify_links = mistune.create_markdown(escape=False, renderer=MarkdownImageReplacer(self.request, FileImage.objects.filter(report__id=file_id)))
-        return FileResponse(streaming_content=modify_links(obj.markdown_file.read().decode()), content_type='text/markdown', filename=f'{obj.name}-markdown.md')
     
     @extend_schema(
-            responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},
-            filters=False,
-            summary="Retrieve images found in a File",
+            responses=None,
+            summary="Get summary of the file content",
             description=textwrap.dedent(
             """
-            When [file2txt](https://github.com/muchdogesec/file2txt/) processes a file it will extract all images from the file and store them locally. You can see these images referenced in the markdown produced (see File markdown endpoint). This endpoint lists the image files found in the File selected.
+            If `ai_summary_provider` was enabled, this endpoint will return a summary of the report. This is useful to get a quick understanding of the contents of the report.
+
+            The prompt used to generate the summary can be seen in [dogesec_commons here](https://github.com/muchdogesec/dogesec_commons/blob/main/dogesec_commons/stixifier/summarizer.py).
+
+            If you want a summary but `ai_summary_provider` was not enabled during processing, you will need to process the file again.
             """
         ),
     )
-    @decorators.action(detail=True, pagination_class=Pagination("images"))
-    def images(self, request, file_id=None, image=None):
-        queryset = FileImage.objects.filter(report__id=file_id).order_by('name')
-        paginator = Pagination('images')
-
-        page = paginator.paginate_queryset(queryset, request, self)
-
-        if page is not None:
-            serializer = ImageSerializer(page, many=True, context=dict(request=request))
-            return paginator.get_paginated_response(serializer.data)
-
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
+    @decorators.action(methods=["GET"], detail=True)
+    def summary(self, request, file_id=None):
+        obj = get_object_or_404(File, id=file_id)
+        if not obj.summary:
+            raise exceptions.NotFound(f"No Summary for post")
+        return FileResponse(streaming_content=io.BytesIO(obj.summary.encode()), content_type='text/markdown', filename='summary.md')
 
 @extend_schema_view(
     list=extend_schema(
@@ -404,7 +403,7 @@ class JobView(
         summary="Get all objects linked to a Report ID",
         description=textwrap.dedent(
             """
-            This endpoint returns all objects that were extracted and created for the File linked to this report.
+            This endpoint returns all STIX objects that were extracted and created for the File linked to this report.
             """
         ),
     ),
