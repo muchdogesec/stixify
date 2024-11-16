@@ -38,7 +38,3 @@ python3 tests/delete_all_reports.py && \
 python3 tests/delete_all_dossiers.py && \
 python3 tests/delete_all_profiles.py
 ```
-
-```shell
-
-```
