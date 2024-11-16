@@ -128,7 +128,10 @@ class MarkdownImageReplacer(MarkdownRenderer):
                 * `clear`
             * `confidence` (optional): Will be added to the `confidence` value of the Report SDO created. A value between 0-100. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.
             * `labels` (optional): Will be added to the `labels` of the Report SDO created.
-
+            * `ai_summary_provider` (optional): you can optionally get an AI model to produce a summary of the report. You must pass the request in format `provider:model`. Currently supported providers are:
+                * `openai:`, models e.g.: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-4` ([More here](https://platform.openai.com/docs/models))
+                * `anthropic:`, models e.g.: `claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest` ([More here](https://docs.anthropic.com/en/docs/about-claude/models))
+                * `gemini:models/`, models: `gemini-1.5-pro-latest`, `gemini-1.5-flash-latest` ([More here](https://ai.google.dev/gemini-api/docs/models/gemini))
             Files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.
 
             The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
@@ -235,8 +238,16 @@ class FileView(
     
     @extend_schema(
             responses=None,
-            description="Get summary of the file content",
-            summary="Get summary of the file content if `ai_summary_provider` was enabled.",
+            summary="Get summary of the file content",
+            description=textwrap.dedent(
+            """
+            If `ai_summary_provider` was enabled, this endpoint will return a summary of the report. This is useful to get a quick understanding of the contents of the report.
+
+            The prompt used to generate the summary can be seen in [dogesec_commons here](https://github.com/muchdogesec/dogesec_commons/blob/main/dogesec_commons/stixifier/summarizer.py).
+
+            If you want a summary but `ai_summary_provider` was not enabled during processing, you will need to process the file again.
+            """
+        ),
     )
     @decorators.action(methods=["GET"], detail=True)
     def summary(self, request, file_id=None):
