@@ -23,10 +23,35 @@ This will add profiles used by tests (and also delete all existing profiles)
 python3 tests/setup_profiles.py
 ```
 
-Upload the files used for tests:
+Upload ALL the files used for tests:
 
 ```shell
 python3 tests/add_files.py
+```
+
+It is also possible to control what files are uploaded by using the `report_id` value found in `add_files.py`, e.g..
+
+```shell
+python3 tests/add_files.py --report-ids 6cb8665e-3607-4bbe-a9a3-c2a46bd13630 b2869cb5-5270-4543-ac71-601cc8cd2e3b
+```
+
+PDF: Bitdefender rdstealer
+
+```shell
+python3 tests/add_files.py --report-ids aaec934b-9141-4ff7-958b-3b99a7b24234
+```
+
+HTML: GroupIB 0ktapus
+
+
+```shell
+python3 tests/add_files.py --report-ids 5795e067-72a4-4953-87ed-f6c56dc6f639
+```
+
+Word: txt2stix local extractions docx
+
+```shell
+python3 tests/add_files.py --report-ids 2bd196b5-cc59-491d-99ee-ed5ea2002d61
 ```
 
 
@@ -37,4 +62,16 @@ python3 tests/delete_all_files.py && \
 python3 tests/delete_all_reports.py && \
 python3 tests/delete_all_dossiers.py && \
 python3 tests/delete_all_profiles.py
+```
+
+Note if using Cloudflare R2 (and app fails to correctly delete file via API commands -- e.g. if destroy db), to delete all files in a bucket install rclone and run;
+
+```shell
+rclone delete remote:bucket-name
+```
+
+e.g.
+
+```shell
+rclone delete r2:stixify-local-david
 ```

@@ -1,3 +1,4 @@
+import argparse
 import requests
 import time
 import os
@@ -42,7 +43,7 @@ def upload_file(profile_id, mode, name, tlp_level, confidence, labels, file_path
         print(f"POST Request to {FILES_ENDPOINT}")
         print("Request Files:", files)
         print("Response Status Code:", response.status_code)
-        print("Response Body:", response.text)  # Print full response text to help debug 400 errors
+        print("Response Body:", response.text)
         response.raise_for_status()
         return response.json().get("id")
 
@@ -88,11 +89,27 @@ def run_single_test(test_case):
     job_result = poll_job_status(job_id)
     print(f"Job result for '{test_case['file_name']}':", job_result)
 
-# Main function to run all test cases
-def run_all_tests():
+# Main function to run all test cases or selected ones
+def run_tests(test_cases, selected_report_ids=None):
+    # Filter test cases based on selected_report_ids
+    if selected_report_ids:
+        test_cases = [tc for tc in test_cases if tc["report_id"] in selected_report_ids]
+
+    # Step 1: Delete any existing reports to avoid conflicts
+    for test_case in test_cases:
+        delete_report(test_case["report_id"])
+
+    # Step 2: Run tests for each test case
+    for test_case in test_cases:
+        print(f"Running test for file '{test_case['file_name']}'")
+        try:
+            run_single_test(test_case)
+        except requests.exceptions.HTTPError as e:
+            print(f"Failed to upload file '{test_case['file_name']}': {e}")
+
+if __name__ == "__main__":
     # Define test cases as a list of dictionaries
     test_cases = [
-    # PDF
         {
             "profile_id": "2919ca71-e60c-5aad-81f7-8cf561645d03",
             "mode": "pdf",
@@ -217,20 +234,17 @@ def run_all_tests():
             "report_id": "4dee1bac-801c-451f-a35d-b5dd7159ee5e",
             "ai_summary_provider": "openai:gpt-4o"
         }
+
     ]
 
-    # Step 1: Delete any existing reports to avoid conflicts
-    for test_case in test_cases:
-        delete_report(test_case["report_id"])
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Run file upload tests.")
+    parser.add_argument(
+        "--report-ids",
+        nargs="*",
+        help="List of report IDs to run tests for. If not specified, all tests will run."
+    )
+    args = parser.parse_args()
 
-    # Step 2: Run tests for each test case
-    for test_case in test_cases:
-        print(f"Running test for file '{test_case['file_name']}'")
-        try:
-            run_single_test(test_case)
-        except requests.exceptions.HTTPError as e:
-            print(f"Failed to upload file '{test_case['file_name']}': {e}")
-
-# Run all tests
-if __name__ == "__main__":
-    run_all_tests()
+    # Run tests
+    run_tests(test_cases, selected_report_ids=args.report_ids)
