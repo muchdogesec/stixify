@@ -167,7 +167,7 @@ class FileView(
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
         created_max = filters.DateTimeFilter('created', lookup_expr='gte', help_text='Maximum value of `created` value to filter by in format `YYYY-MM-DD`.')
         created_min = filters.DateTimeFilter('created', lookup_expr='lte', help_text='Minimum value of `created` value to filter by in format `YYYY-MM-DD`.')
-        profile_id = filters.Filter()
+        profile_id = filters.Filter(help_text="Filter profiles by the `id` of the Profile. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)
