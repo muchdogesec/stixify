@@ -111,7 +111,6 @@ class DossierSerializer(serializers.ModelSerializer):
 
 
 class JobSerializer(serializers.ModelSerializer):
-    profile_id = serializers.UUIDField(read_only=True, source='file.profile_id')
     file = RelatedObjectField(read_only=True,  serializer=FileSerializer())
     class Meta:
         model = Job
