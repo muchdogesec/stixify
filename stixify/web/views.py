@@ -107,7 +107,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
             The following key/values are accepted in the body of the request:
 
             * `file` (required): Full path to the file to be converted. The mimetype of the file uploaded must match that expected by the `mode` selected.
-            * `report_id` (optional): Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report---<UUID>`. If not passed, this file will be randomly generated.
+            * `report_id` (optional): Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`. If not passed, this file will be randomly generated.
             * `profile_id` (required): a valid profile ID to define how the post should be processed. You can add a profile using the POST Profile endpoint.
             * `mode` (required): How the File should be processed. Options are:
                 * `txt`: Filetypes supported (mime-type): `txt` (`text/plain`)
