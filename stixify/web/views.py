@@ -107,7 +107,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
             The following key/values are accepted in the body of the request:
 
             * `file` (required): Full path to the file to be converted. The mimetype of the file uploaded must match that expected by the `mode` selected.
-            * `report_id` (optional): Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report---<UUID>`. If not passed, this file will be randomly generated.
+            * `report_id` (optional): Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`. If not passed, this file will be randomly generated.
             * `profile_id` (required): a valid profile ID to define how the post should be processed. You can add a profile using the POST Profile endpoint.
             * `mode` (required): How the File should be processed. Options are:
                 * `txt`: Filetypes supported (mime-type): `txt` (`text/plain`)
@@ -167,7 +167,7 @@ class FileView(
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
         created_max = filters.DateTimeFilter('created', lookup_expr='gte', help_text='Maximum value of `created` value to filter by in format `YYYY-MM-DD`.')
         created_min = filters.DateTimeFilter('created', lookup_expr='lte', help_text='Minimum value of `created` value to filter by in format `YYYY-MM-DD`.')
-        profile_id = filters.Filter()
+        profile_id = filters.Filter(help_text="Filter profiles by the `id` of the Profile. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)

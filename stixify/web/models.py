@@ -114,6 +114,7 @@ class File(CommonSTIXProps):
     mode = models.CharField(max_length=256, help_text="How the File should be processed. Generally the `mode` should match the filetype of `file` selected. Except for HTML documents where you can use `html` mode (processes entirety of HTML page) and `html_article` mode (where only the article on the page will be processed).")
     markdown_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
     summary = models.CharField(max_length=65536, null=True, default=None)
+    ai_summary_provider = models.CharField(max_length=256, null=True, default=None)
     
     @property
     def report_id(self):

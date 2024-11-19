@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
 from dogesec_commons.stixifier.summarizer import parse_summarizer_model
+from rest_framework.exceptions import ValidationError
 
 class RelatedObjectField(serializers.RelatedField):
     lookup_key = 'pk'
@@ -48,9 +49,20 @@ class CharacterSeparatedField(serializers.ListField):
             retval.extend(s.split(self.separator))
         return super().to_internal_value(retval)
 
+
+class ReportIDField(serializers.CharField):
+    def to_internal_value(self, data: str):
+        if not data.startswith('report--'):
+            raise ValidationError("invalid STIX Report ID, must be in format `report--{UUID}`")
+        data = data.replace("report--", "")
+        return serializers.UUIDField().to_internal_value(data)
+    
+    def to_representation(self, value):
+        return "report--"+serializers.UUIDField().to_representation(value)
+    
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_id = serializers.UUIDField(source='id', help_text="Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`. If not passed, this file will be randomly generated.", validators=[
+    report_id = ReportIDField(source='id', help_text="Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`. If not passed, this file will be randomly generated.", validators=[
         validators.UniqueValidator(queryset=File.objects.all()),
     ], required=False)
     mimetype = serializers.CharField(read_only=True)
@@ -58,19 +70,13 @@ class FileSerializer(serializers.ModelSerializer):
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
     download_url = serializers.FileField(source='file', read_only=True)
     file = serializers.FileField(write_only=True)
-    ai_summary_provider = serializers.CharField(allow_blank=True, allow_null=True, validators=[parse_summarizer_model], default=None, write_only=True, help_text="AI Summary provider in the format `provider:model`. e.g `openai:gpt-3.5-turbo`, `anthropic:claude-3-5-sonnet-latest`")
+    ai_summary_provider = serializers.CharField(allow_blank=True, allow_null=True, validators=[parse_summarizer_model], default=None, help_text="AI Summary provider in the format `provider:model`. e.g `openai:gpt-3.5-turbo`, `anthropic:claude-3-5-sonnet-latest`")
 
 
     class Meta:
         model = File
         exclude = ['profile', "dossiers", "markdown_file", "summary"]
         read_only_fields = ["dossiers"]
-
-    def create(self, validated_data):
-        validated_data = validated_data.copy()
-        validated_data.pop('ai_summary_provider', None)
-        return super().create(validated_data)
-
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -105,7 +111,6 @@ class DossierSerializer(serializers.ModelSerializer):
 
 
 class JobSerializer(serializers.ModelSerializer):
-    profile_id = serializers.UUIDField(read_only=True, source='file.profile_id')
     file = RelatedObjectField(read_only=True,  serializer=FileSerializer())
     class Meta:
         model = Job
