@@ -68,7 +68,7 @@ class FileSerializer(serializers.ModelSerializer):
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
-    download_url = serializers.FileField(source='file', read_only=True)
+    download_url = serializers.FileField(source='file', read_only=True, allow_null=True)
     file = serializers.FileField(write_only=True)
     ai_summary_provider = serializers.CharField(allow_blank=True, allow_null=True, validators=[parse_summarizer_model], default=None, help_text="AI Summary provider in the format `provider:model`. e.g `openai:gpt-3.5-turbo`, `anthropic:claude-3-5-sonnet-latest`")
 

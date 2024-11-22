@@ -6,6 +6,7 @@ from django.db.models import Q
 from datetime import datetime
 from rest_framework import response
 
+
 class MinMaxDateFilter(BaseFilterBackend):
     min_val = datetime.min
     max_value = datetime.max
@@ -50,12 +51,6 @@ class MinMaxDateFilter(BaseFilterBackend):
             parameters.append(parameter)
         return parameters
 
-
-
-class ErrorSerializer(serializers.Serializer):
-    message = serializers.CharField(required=True)
-    code    = serializers.IntegerField(required=True)
-    details = serializers.DictField(required=False)
 
 
 class Response(response.Response):

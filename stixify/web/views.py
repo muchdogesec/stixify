@@ -1,8 +1,9 @@
 import io
 import uuid
-from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
 from django.http import FileResponse, HttpRequest, HttpResponseNotFound
+
+from django.db.models import F, Value, CharField, Func
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -76,6 +77,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
             This endpoint allows you to search for Files you've uploaded. This endpoint is particularly useful if you want to download the original File uploaded or find the Report object created for the uploaded File so you can retrieve the objects created for it.
             """
         ),
+        responses={200: FileSerializer, 400: DEFAULT_400_ERROR},
     ),
     retrieve=extend_schema(
         summary="Get a File by ID",
@@ -87,6 +89,8 @@ class MarkdownImageReplacer(MarkdownRenderer):
         parameters=[
             OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
         ],
+        responses={200: FileSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
+
     ),
     destroy=extend_schema(
         summary="Delete a File by ID",
@@ -97,8 +101,10 @@ class MarkdownImageReplacer(MarkdownRenderer):
             IMPORTANT: this request does NOT delete the Report SDO created from the file, or any other STIX objects created from this file during extractions. To delete these, use the delete report endpoint.
             """
         ),
+        responses={200: FileSerializer, 404: DEFAULT_404_ERROR},
     ),
     create=extend_schema(
+        responses={201: JobSerializer, 400: DEFAULT_400_ERROR},
         summary="Upload a new File",
         description=textwrap.dedent(
             """
@@ -185,7 +191,7 @@ class FileView(
     
     
     @extend_schema(
-        responses=None,
+        responses={200:{}, 404: DEFAULT_404_ERROR},
         summary="Get the processed markdown for a File",
         description=textwrap.dedent(
             """
@@ -224,7 +230,7 @@ class FileView(
     )
     @decorators.action(detail=True, pagination_class=Pagination("images"))
     def images(self, request, file_id=None, image=None):
-        queryset = FileImage.objects.filter(report__id=file_id).order_by('name')
+        queryset = self.get_object().images.order_by('name')
         paginator = Pagination('images')
 
         page = paginator.paginate_queryset(queryset, request, self)
@@ -237,7 +243,7 @@ class FileView(
         return Response(serializer.data)
     
     @extend_schema(
-            responses=None,
+            responses={200:{}, 404: DEFAULT_404_ERROR},
             summary="Get summary of the file content",
             description=textwrap.dedent(
             """
@@ -251,7 +257,7 @@ class FileView(
     )
     @decorators.action(methods=["GET"], detail=True)
     def summary(self, request, file_id=None):
-        obj = get_object_or_404(File, id=file_id)
+        obj = self.get_object()
         if not obj.summary:
             raise exceptions.NotFound(f"No Summary for post")
         return FileResponse(streaming_content=io.BytesIO(obj.summary.encode()), content_type='text/markdown', filename='summary.md')
@@ -264,6 +270,7 @@ class FileView(
             This endpoint will return a list of all Dossiers created and information about them.
             """
         ),
+        responses={200: DossierSerializer, 400: DEFAULT_400_ERROR},
     ),
     create=extend_schema(
         summary="Create a New Dossier",
@@ -279,6 +286,7 @@ class FileView(
             * `labels` (required, array of string): a list of labels for the Dossier. Useful to find it in search. e.g. `["label1","label2"]`
             """
         ),
+        responses={201: DossierSerializer, 400: DEFAULT_400_ERROR},
     ),
     partial_update=extend_schema(
         summary="Update a Dossier",
@@ -287,10 +295,11 @@ class FileView(
             This endpoint allows you update a Dossier. Use this endpoint to add or remove reports from a Dossier
             """
         ),
+        responses={200: DossierSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
     ),
     retrieve=extend_schema(
         summary="Get a Dossier by ID",
-       description=textwrap.dedent(
+        description=textwrap.dedent(
             """
             This endpoint will return information for a specific Dossier using its ID.
             """
@@ -298,6 +307,7 @@ class FileView(
         parameters=[
             OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
         ],
+        responses={200: DossierSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
     ),
     destroy=extend_schema(
         summary="Delete a Dossier by ID",
@@ -309,6 +319,7 @@ class FileView(
         parameters=[
             OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
         ],
+        responses={204: DossierSerializer, 404: DEFAULT_404_ERROR},
     ),
 )
 class DossierView(
@@ -331,12 +342,19 @@ class DossierView(
 
     class filterset_class(FilterSet):
         name = Filter(lookup_expr='search', label="Filter results by the `name` of the Dossier. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
-        labels = Filter(lookup_expr='search', label="Filter results by the `labels` of the Dossier.")
+        labels = Filter(field_name='labels_str', lookup_expr='search', label="Filter results by the `labels` of the Dossier.")
         description = Filter(lookup_expr='search', label="Filter results by the `description` of the Dossier. Search is a wildcard so `threat` will match any description that contains the string `threat`. ")
         created_by_ref = filters.BaseInFilter(field_name='created_by_ref__id', label="Filter results by the Identity `id` that created the Dossier. e.g. `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`.")
-        
+
     def get_queryset(self):
-        return Dossier.objects.all()
+        return Dossier.objects.all().annotate(
+            labels_str=Func(
+                F("labels"),
+                Value(", "),  # The delimiter
+                function="array_to_string",
+                output_field=CharField(),
+            )
+        )
 
 
 @extend_schema_view(
@@ -347,6 +365,7 @@ class DossierView(
             Jobs track the status of File upload, conversion of the File into markdown and the extraction of the data from the text. For every new File added a job will be created. The `id` of a Job is printed in the POST responses, but you can use this endpoint to search for the `id` again, if required.
             """
         ),
+        responses={200: JobSerializer, 400: DEFAULT_400_ERROR},
     ),
     retrieve=extend_schema(
         summary="Get a job by ID",
@@ -358,6 +377,7 @@ class DossierView(
         parameters=[
             OpenApiParameter('job_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Job."),
         ],
+        responses={200: JobSerializer, 404: DEFAULT_404_ERROR},
     ),
 )
 class JobView(
@@ -379,7 +399,6 @@ class JobView(
 
     class filterset_class(FilterSet):
         file_id = Filter('file_id', label="Filter Jobs by File `id`")
-
 
 
 @extend_schema_view(
@@ -420,10 +439,12 @@ class JobView(
 )
 class ReportView(viewsets.ViewSet):
     openapi_tags = ["Reports"]
+    skip_list_view = True
     lookup_url_kwarg = "report_id"
+    lookup_value_regex = r'report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=r'^report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'), description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
         )
     ]
 

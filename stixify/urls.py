@@ -26,7 +26,7 @@ from django.conf.urls.static import static
 
 API_VERSION = "v1"
 
-router = routers.SimpleRouter(use_regex_path=False)
+router = routers.SimpleRouter(use_regex_path=True)
 # profile view
 router.register('profiles', ProfileView, 'profile-view')
 router.register('files', FileView, 'file-view')
