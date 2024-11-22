@@ -3,7 +3,7 @@ from dogesec_commons.utils.autoschema import CustomAutoSchema
 from drf_spectacular.plumbing import ResolvedComponent
 from rest_framework.serializers import Serializer
 import uritemplate
-from .utils import ErrorSerializer
+from dogesec_commons.utils.serializers import CommonErrorSerializer as ErrorSerializer
 from drf_spectacular.utils import OpenApiResponse, OpenApiExample
 
 

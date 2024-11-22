@@ -183,6 +183,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "stixify.web.autoschema.StixifyAutoSchema",
     'DEFAULT_AUTHENTICATION_CLASSES': [],
     'DEFAULT_PERMISSION_CLASSES': [],
+    'EXCEPTION_HANDLER': "dogesec_commons.utils.custom_exception_handler",
 }
 
 STIX_IDENTITY = {
