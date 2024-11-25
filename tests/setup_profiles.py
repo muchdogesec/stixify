@@ -105,7 +105,9 @@ if __name__ == "__main__":
             ],
             "relationship_mode": "standard",
             "extract_text_from_image": True,
-            "defang": True
+            "defang": True,
+            "ignore_image_refs": True,
+            "ignore_link_refs": True
         },
         # 2919ca71-e60c-5aad-81f7-8cf561645d03
         {
@@ -148,7 +150,9 @@ if __name__ == "__main__":
             "relationship_mode": "ai",
             "ai_settings_relationships": "openai:gpt-4o",
             "extract_text_from_image": True,
-            "defang": True
+            "defang": True,
+            "ignore_image_refs": True,
+            "ignore_link_refs": True
         },
         # 42976b41-6070-5fc3-a87f-ee81c38d26ef
         {
@@ -175,7 +179,9 @@ if __name__ == "__main__":
             ],
             "relationship_mode": "standard",
             "extract_text_from_image": True,
-            "defang": True
+            "defang": True,
+            "ignore_image_refs": True,
+            "ignore_link_refs": True
         },
         # 4140d4d8-7824-51bc-b10a-3ba1465c8de3
         {
@@ -195,7 +201,9 @@ if __name__ == "__main__":
             "relationship_mode": "ai",
             "ai_settings_relationships": "openai:gpt-4o",
             "extract_text_from_image": True,
-            "defang": True
+            "defang": True,
+            "ignore_image_refs": True,
+            "ignore_link_refs": True
         }
     ]
 
