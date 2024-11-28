@@ -22,7 +22,7 @@ def get_all_report_ids():
             report_ids.extend([report['id'] for report in data.get('reports', [])])
 
             # Check if there are more pages
-            if page_number * data['page_results_count'] >= data['total_results_count']:
+            if data['page_results_count'] < data['page_size']:
                 break
             page_number += 1
         else:

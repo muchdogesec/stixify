@@ -24,6 +24,14 @@ from .web.views import FileView, DossierView, JobView, ReportView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf.urls.static import static
 
+from django.http import JsonResponse
+def handler404(*args, **kwargs):
+    return JsonResponse(dict(code=404, message='non-existent page'), status=404)
+
+def handler500(*args, **kwargs):
+    return JsonResponse(dict(code=500, message='internal server error'), status=500)
+
+
 API_VERSION = "v1"
 
 router = routers.SimpleRouter(use_regex_path=True)

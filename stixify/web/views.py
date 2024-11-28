@@ -134,10 +134,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
                 * `clear`
             * `confidence` (optional): Will be added to the `confidence` value of the Report SDO created. A value between 0-100. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.
             * `labels` (optional): Will be added to the `labels` of the Report SDO created.
-            * `ai_summary_provider` (optional): you can optionally get an AI model to produce a summary of the report. You must pass the request in format `provider:model`. Currently supported providers are:
-                * `openai:`, models e.g.: `gpt-4o`, `gpt-4o-mini`, `gpt-4-turbo`, `gpt-4` ([More here](https://platform.openai.com/docs/models))
-                * `anthropic:`, models e.g.: `claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest` ([More here](https://docs.anthropic.com/en/docs/about-claude/models))
-                * `gemini:models/`, models: `gemini-1.5-pro-latest`, `gemini-1.5-flash-latest` ([More here](https://ai.google.dev/gemini-api/docs/models/gemini))
+
             Files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.
 
             The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
@@ -186,7 +183,7 @@ class FileView(
         file_instance = serializer.save(mimetype=temp_file.content_type)
         job_instance =  Job.objects.create(file=file_instance)
         job_serializer = JobSerializer(job_instance)
-        new_task(job_instance, file_instance, serializer.validated_data['ai_summary_provider'])
+        new_task(job_instance, file_instance)
         return Response(job_serializer.data)
     
     
