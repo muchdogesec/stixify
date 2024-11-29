@@ -22,7 +22,7 @@ def get_all_file_ids():
             file_ids.extend([file['id'] for file in data.get('files', [])])
 
             # Check if there are more pages
-            if page_number * data['page_results_count'] >= data['total_results_count']:
+            if data['page_results_count'] < data['page_size']:
                 break
             page_number += 1
         else:
