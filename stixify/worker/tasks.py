@@ -53,10 +53,7 @@ def process_post(filename, job_id, *args):
             except BaseException as e:
                 logging.info(f"got err {e}", exc_info=True)
         job.file.markdown_file.save('markdown.md', processor.md_file.open(), save=True)
-        models.FileImage.objects.filter(report=job.file).delete() # remove old references
-
-        for image in processor.md_images:
-            models.FileImage.objects.create(report=job.file, file=DjangoFile(image, image.name), name=image.name)
+        
         models.FileImage.objects.filter(report=job.file).delete() # remove old references
 
         for image in processor.md_images:
