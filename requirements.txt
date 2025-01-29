@@ -25,7 +25,7 @@ kombu==5.4.0
 mistune==3.0.2
 packaging==24.1
 prompt_toolkit==3.0.47
-psycopg2==2.9.10
+psycopg2-binary==2.9.10
 python-dateutil==2.9.0.post0
 PyYAML==6.0.2
 redis==5.0.8
