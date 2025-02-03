@@ -69,7 +69,7 @@ class FileSerializer(serializers.ModelSerializer):
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed) to control the markdown output created. This is a file2txt setting.")
     download_url = serializers.FileField(source='file', read_only=True, allow_null=True)
-    file = serializers.FileField(write_only=True)
+    file = serializers.FileField(write_only=True,help_text="XX")
     ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True)
 
 
