@@ -62,12 +62,12 @@ class ReportIDField(serializers.CharField):
     
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_id = ReportIDField(source='id', help_text="Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`. If not passed, this file will be randomly generated.", validators=[
+    report_id = ReportIDField(source='id', help_text="If you want to define the UUID of the STIX Report object you can use this property. Only pass a UUIDv4, e.g. `26dd4dcb-0ebc-4a71-8d37-ffd88faed163`. This will be used in the STIX Report ID, e.g. `report--<UUID>`. If not passed, this UUID will be randomly generated. This UUID will also be assigned as the File ID.", validators=[
         validators.UniqueValidator(queryset=File.objects.all()),
     ], required=False)
     mimetype = serializers.CharField(read_only=True)
-    profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="How the file should be processed"), use_raw_value=True, queryset=Profile.objects)
-    mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="How the File should be processed. Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed)")
+    profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`"), use_raw_value=True, queryset=Profile.objects)
+    mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed) to control the markdown output created. This is a file2txt setting.")
     download_url = serializers.FileField(source='file', read_only=True, allow_null=True)
     file = serializers.FileField(write_only=True)
     ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True)
