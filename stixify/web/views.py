@@ -91,32 +91,9 @@ class MarkdownImageReplacer(MarkdownRenderer):
             """
             Upload a file to be processed by Stixify. During processing a file is turned into markdown by [file2txt](https://github.com/muchdogesec/file2txt/), which is then passed to [txt2stix](https://github.com/muchdogesec/txt2stix/) to .
 
-            The following key/values are accepted in the body of the request:
+            Files cannot be modified once uploaded.
 
-            * `file` (required): Full path to the file to be converted. The mimetype of the file uploaded must match that expected by the `mode` selected.
-            * `report_id` (optional): Only pass a UUIDv4. It will be use to generate the STIX Report ID, e.g. `report--<UUID>`. If not passed, this file will be randomly generated.
-            * `profile_id` (required): a valid profile ID to define how the post should be processed. You can add a profile using the POST Profile endpoint.
-            * `mode` (required): How the File should be processed. Options are:
-                * `txt`: Filetypes supported (mime-type): `txt` (`text/plain`)
-                * `image`: Filetypes supported (mime-type): `jpg` (`image/jpg`), `.jpeg` (`image/jpeg`), `.png` (`image/png`), `.webp` (`image/webp`)
-                * `csv`: Filetypes supported (mime-type): `csv` (`text/csv`)
-                * `html`: Filetypes supported (mime-type): `html` (`text/html`)
-                * `html_article`: same as `html` but only considers the article on the page, good for blog posts. Filetypes supported (mime-type): `html` (`text/html`)
-                * `word`: Filetypes supported (mime-type): `docx` (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`), `doc` (`application/msword`)
-                * `pdf`: Filetypes supported (mime-type): `pdf` (`application/pdf`)
-                * `powerpoint`: Filetypes supported (mime-type): `ppt` (`application/vnd.ms-powerpoint`), `.jpeg` (`application/vnd.openxmlformats-officedocument.presentationml.presentation`)
-            * `name` (required): This will be used as the name value of the STIX Report object generated
-            * `identity` (optional): This will be used as the `created_by_ref` for all created SDOs and SROs. This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15","name":"Dummy Identity"}`. If no value is passed, [the Stixify identity object will be used](https://raw.githubusercontent.com/muchdogesec/stix4doge/refs/heads/main/objects/identity/stixify.json).
-            * `tlp_level` (optional): This will be assigned to all SDOs and SROs created. Stixify uses TLPv2. Options are:
-                * `red`
-                * `amber+strict`
-                * `amber`
-                * `green`
-                * `clear`
-            * `confidence` (optional): Will be added to the `confidence` value of the Report SDO created. A value between 0-100. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.
-            * `labels` (optional): Will be added to the `labels` of the Report SDO created.
-
-            Files cannot be modified once uploaded. If you need to reprocess a file, you must upload it again.
+            If you need to reprocess a file, you must upload it again. If you have lost a copy of the original file that you want to re-process, you can re-download it using the `download_url` value in the GET Files response.
 
             The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
             """
