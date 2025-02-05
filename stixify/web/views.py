@@ -7,6 +7,7 @@ from django.db.models import F, Value, CharField, Func
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
+from stix2arango.services import ArangoDBService
 
 import typing
 from django.conf import settings
@@ -16,8 +17,8 @@ from dogesec_commons.objects.helpers import ArangoDBHelper
 from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
-from .models import TLP_LEVEL_STIX_ID_MAPPING, File, Dossier, FileImage, Job, TLP_Levels
-from .serializers import FileSerializer, DossierSerializer, ImageSerializer, JobSerializer
+from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, TLP_Levels
+from .serializers import FileSerializer, ImageSerializer, JobSerializer
 from .utils import Response
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -219,101 +220,6 @@ class FileView(
 
 @extend_schema_view(
     list=extend_schema(
-        summary="Search and retrieve a list of created Dossiers",
-        description=textwrap.dedent(
-            """
-            This endpoint will return a list of all Dossiers created and information about them.
-            """
-        ),
-        responses={200: DossierSerializer, 400: DEFAULT_400_ERROR},
-    ),
-    create=extend_schema(
-        summary="Create a New Dossier",
-        description=textwrap.dedent(
-            """
-            This endpoint allows you create a Dossier you can use to group Reports together.
-
-            The following key/values are accepted in the body of the request:
-            * `name` (required, string): up to 128 characters
-            * `description` (optional, string): up to 512 characters
-            * `created_by_ref` (required, STIX Identity Object): This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15","name":"Dummy Identity"}`. If no value is passed, [the Stixify identity object will be used](https://raw.githubusercontent.com/muchdogesec/stix4doge/refs/heads/main/objects/identity/stixify.json).
-            * `tlp_level` (required, TLP level): options are; `clear`, `green`, `amber`, `amber+strict`, or `red`
-            * `labels` (required, array of string): a list of labels for the Dossier. Useful to find it in search. e.g. `["label1","label2"]`
-            """
-        ),
-        responses={201: DossierSerializer, 400: DEFAULT_400_ERROR},
-    ),
-    partial_update=extend_schema(
-        summary="Update a Dossier",
-        description=textwrap.dedent(
-            """
-            This endpoint allows you update a Dossier. Use this endpoint to add or remove reports from a Dossier
-            """
-        ),
-        responses={200: DossierSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
-    ),
-    retrieve=extend_schema(
-        summary="Get a Dossier by ID",
-        description=textwrap.dedent(
-            """
-            This endpoint will return information for a specific Dossier using its ID.
-            """
-        ),
-        parameters=[
-            OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
-        ],
-        responses={200: DossierSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
-    ),
-    destroy=extend_schema(
-        summary="Delete a Dossier by ID",
-        description=textwrap.dedent(
-            """
-            This endpoint will delete a Dossier using its ID. This request will not affect any Reports or the data linked to the Reports attached to the deleted Dossier.
-            """
-        ),
-        parameters=[
-            OpenApiParameter('dossier_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."),
-        ],
-        responses={204: DossierSerializer, 404: DEFAULT_404_ERROR},
-    ),
-)
-class DossierView(
-    mixins.CreateModelMixin, mixins.DestroyModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
-    viewsets.GenericViewSet
-):
-    pagination_class = Pagination("dossiers")
-    serializer_class = DossierSerializer
-    openapi_tags = ["Dossiers"]
-    lookup_url_kwarg = "dossier_id"
-    openapi_path_params = [
-        OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Dossier."
-        )
-    ]
-
-    ordering_fields = ["name", "created", "modified"]
-    ordering = "modified_descending"
-    filter_backends = [DjangoFilterBackend, Ordering]
-
-    class filterset_class(FilterSet):
-        name = Filter(lookup_expr='search', label="Filter results by the `name` of the Dossier. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
-        labels = Filter(field_name='labels_str', lookup_expr='search', label="Filter results by the `labels` of the Dossier.")
-        description = Filter(lookup_expr='search', label="Filter results by the `description` of the Dossier. Search is a wildcard so `threat` will match any description that contains the string `threat`. ")
-        created_by_ref = filters.BaseInFilter(field_name='created_by_ref__id', label="Filter results by the Identity `id` that created the Dossier. e.g. `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`.")
-
-    def get_queryset(self):
-        return Dossier.objects.all().annotate(
-            labels_str=Func(
-                F("labels"),
-                Value(", "),  # The delimiter
-                function="array_to_string",
-                output_field=CharField(),
-            )
-        )
-
-
-@extend_schema_view(
-    list=extend_schema(
         summary="Search and retrieve a list of Jobs",
         description=textwrap.dedent(
             """
@@ -468,6 +374,15 @@ class ReportView(viewsets.ViewSet):
     
     @classmethod
     def remove_report(cls, report_id):
+        db_service = ArangoDBService(
+            settings.ARANGODB_DATABASE,
+            [],
+            [],
+            create=False,
+            username=settings.ARANGODB_USERNAME,
+            password=settings.ARANGODB_PASSWORD,
+            host_url=settings.ARANGODB_HOST_URL,
+        )
         helper = ArangoDBHelper(settings.VIEW_NAME, request.Request(HttpRequest()))
         report_id = cls.fix_report_id(report_id)
         bind_vars = {
@@ -498,6 +413,7 @@ class ReportView(viewsets.ViewSet):
                 "objects": objects,
             }
             helper.execute_query(deletion_query, bind_vars, paginate=False)
+            db_service.update_is_latest_several_chunked([object_key.split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection')+'_edge_collection')
 
     def get_reports(self, id=None):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)

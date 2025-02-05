@@ -3,7 +3,7 @@ from rest_framework import serializers, validators
 
 from dogesec_commons.stixifier.serializers import ProfileSerializer
 from dogesec_commons.stixifier.models import Profile
-from .models import File, Dossier, FileImage, Job
+from .models import File, FileImage, Job
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
@@ -69,14 +69,14 @@ class FileSerializer(serializers.ModelSerializer):
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed) to control the markdown output created. This is a file2txt setting.")
     download_url = serializers.FileField(source='file', read_only=True, allow_null=True)
-    file = serializers.FileField(write_only=True,help_text="XX")
+    file = serializers.FileField(write_only=True, help_text="This is the file to be processed. The mimetype of the file uploaded must match that expected by the `mode` selected.")
     ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True)
 
 
     class Meta:
         model = File
-        exclude = ['profile', "dossiers", "markdown_file", "summary"]
-        read_only_fields = ["dossiers"]
+        exclude = ['profile', "markdown_file", "summary"]
+        read_only_fields = []
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -91,23 +91,6 @@ class ImageSerializer(serializers.ModelSerializer):
             photo_url = instance.file.url
             return request.build_absolute_uri(photo_url)
         return None
-
-
-class DossierReportsRelatedField(RelatedObjectField):
-    lookup_key = 'report_id'
-    def __init__(self, /, **kwargs):
-        super().__init__(serializers.CharField(), **kwargs)
-    def get_queryset(self):
-        return File.objects.all()
-    def to_representation(self, value):
-        return value.id
-
-class DossierSerializer(serializers.ModelSerializer):
-    id = serializers.UUIDField(read_only=True)
-    report_ids = DossierReportsRelatedField(source='files', required=False, many=True)
-    class Meta:
-        model = Dossier
-        fields = "__all__"
 
 
 class JobSerializer(serializers.ModelSerializer):
