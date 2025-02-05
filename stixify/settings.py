@@ -245,7 +245,6 @@ VIEW_NAME = "stixify_view"
 ARANGODB_USERNAME   = os.getenv('ARANGODB_USERNAME')
 ARANGODB_PASSWORD   = os.getenv('ARANGODB_PASSWORD')
 ARANGODB_HOST_URL   = os.getenv("ARANGODB_HOST_URL")
-SRO_OBJECTS_ONLY_LATEST = False # allow showing relationships to sco objects where _is_latest == False
 
 GOOGLE_VISION_API_KEY = os.getenv("GOOGLE_VISION_API_KEY")
 if not GOOGLE_VISION_API_KEY:
