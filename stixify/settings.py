@@ -232,7 +232,6 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
     "TAGS": [
         {"name": "Files", "description": "Upload files and retrieve uploaded files"},
         {"name": "Reports", "description": "Files are processed into Reports. Search and view created Reports."},
-        {"name": "Dossiers", "description": "Group together Reports as Dossiers around a theme."},
         {"name": "Objects", "description": "Search through STIX object extracted from Files in Reports."},
         {"name": "Profiles", "description": "Create and search for extraction profile applied to text Files."},
         {"name": "Extractors", "description": "Search through extractors that can be used in profiles (see txt2stix for more information)"},
@@ -246,6 +245,7 @@ VIEW_NAME = "stixify_view"
 ARANGODB_USERNAME   = os.getenv('ARANGODB_USERNAME')
 ARANGODB_PASSWORD   = os.getenv('ARANGODB_PASSWORD')
 ARANGODB_HOST_URL   = os.getenv("ARANGODB_HOST_URL")
+SRO_OBJECTS_ONLY_LATEST = False # allow showing relationships to sco objects where _is_latest == False
 
 GOOGLE_VISION_API_KEY = os.getenv("GOOGLE_VISION_API_KEY")
 if not GOOGLE_VISION_API_KEY:

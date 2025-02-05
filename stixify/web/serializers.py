@@ -3,7 +3,7 @@ from rest_framework import serializers, validators
 
 from dogesec_commons.stixifier.serializers import ProfileSerializer
 from dogesec_commons.stixifier.models import Profile
-from .models import File, Dossier, FileImage, Job
+from .models import File, FileImage, Job
 from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
@@ -75,8 +75,8 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        exclude = ['profile', "dossiers", "markdown_file", "summary"]
-        read_only_fields = ["dossiers"]
+        exclude = ['profile', "markdown_file", "summary"]
+        read_only_fields = []
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -91,23 +91,6 @@ class ImageSerializer(serializers.ModelSerializer):
             photo_url = instance.file.url
             return request.build_absolute_uri(photo_url)
         return None
-
-
-class DossierReportsRelatedField(RelatedObjectField):
-    lookup_key = 'report_id'
-    def __init__(self, /, **kwargs):
-        super().__init__(serializers.CharField(), **kwargs)
-    def get_queryset(self):
-        return File.objects.all()
-    def to_representation(self, value):
-        return value.id
-
-class DossierSerializer(serializers.ModelSerializer):
-    id = serializers.UUIDField(read_only=True)
-    report_ids = DossierReportsRelatedField(source='files', required=False, many=True)
-    class Meta:
-        model = Dossier
-        fields = "__all__"
 
 
 class JobSerializer(serializers.ModelSerializer):
