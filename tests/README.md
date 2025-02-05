@@ -23,6 +23,8 @@ Download the files used for tests:
 python3 tests/download_test_files.py
 ```
 
+These files will be stored in `/tests/files/`
+
 This will add profiles used by tests (and also delete all existing profiles)
 
 ```shell
