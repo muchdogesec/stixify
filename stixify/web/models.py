@@ -39,11 +39,6 @@ TLP_LEVEL_STIX_ID_MAPPING = {
     TLP_Levels.AMBER_STRICT: "marking-definition--939a9414-2ddd-4d32-a0cd-375ea402b003",
 }
 
-class DossierContextType(models.TextChoices):
-    SUSPICIOUS_ACTIVITY = "suspicious-activity"
-    MALWARE_ANALYSIS =  "malware-analysis"
-    UNSPECIFIED = "unspecified"
-
 def create_report_id():
     return ""
 
@@ -77,24 +72,6 @@ class CommonSTIXProps(models.Model):
 
 
 
-class Dossier(models.Model):
-    id = models.UUIDField(primary_key=True)
-    name = models.CharField(max_length=128)
-    tlp_level = models.CharField(choices=TLP_Levels.choices, default=TLP_Levels.RED, help_text="This will be assigned to all SDOs and SROs created. Stixify uses TLPv2.")
-    description = models.CharField(max_length=512, blank=True)
-    created_by_ref = models.JSONField(default=default_identity, validators=[validate_identity])
-    labels = ArrayField(base_field=models.CharField(max_length=256), default=list, help_text="These will be added to the `labels` property of the STIX Report object generated")
-    created = models.DateTimeField(auto_now_add=True)
-    modified = models.DateTimeField(auto_now=True)
-
-
-    def save(self, *args, **kwargs):
-        if not self.id:
-            created = self.created or self._meta.get_field('created').pre_save(self, True)
-            created = created.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-            self.id = uuid.uuid5(settings.STIX_NAMESPACE, f"{created}+{self.created_by_ref['id']}")
-        return super().save(*args, **kwargs)
-
 def upload_to_func(instance: 'File|FileImage', filename):
     if isinstance(instance, FileImage):
         instance = instance.report
@@ -109,10 +86,10 @@ def validate_file(file: InMemoryUploadedFile, mode: str):
 
 class File(CommonSTIXProps):
     id = models.UUIDField(unique=True, max_length=64, primary_key=True, default=uuid.uuid4)
-    file = models.FileField(max_length=1024, upload_to=upload_to_func, help_text="Full path to the file to be converted. Must match a supported file type: `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document`, `application/vnd.ms-powerpoint`, `application/vnd.openxmlformats-officedocument.presentationml.presentation`, `text/html`, `text/csv`, `image/jpg`, `image/jpeg`, `image/png`, `image/webp`. The filetype must be supported by the `mode` used or you will receive an error.")
+    file = models.FileField(max_length=1024, upload_to=upload_to_func)
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
     mimetype = models.CharField(max_length=512)
-    mode = models.CharField(max_length=256, help_text="Generally the `mode` should match the filetype of `file` selected. Except for HTML documents where you can use `html` mode (processes entirety of HTML page) and `html_article` mode (where only the article on the page will be processed). The `mode` determines how the markdown is created by file2txt.")
+    mode = models.CharField(max_length=256)
     markdown_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
     summary = models.CharField(max_length=65536, null=True, default=None)
     
