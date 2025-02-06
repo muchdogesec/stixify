@@ -110,7 +110,6 @@ if __name__ == "__main__":
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
             "ignore_extraction_boundary": False,
-            "ignore_extraction_boundary": False,
             "ignore_embedded_relationships": False,
             "ignore_embedded_relationships_sro": False,
             "ignore_embedded_relationships_smo": False
@@ -161,7 +160,6 @@ if __name__ == "__main__":
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
             "ignore_extraction_boundary": False,
-            "ignore_extraction_boundary": False,
             "ignore_embedded_relationships": False,
             "ignore_embedded_relationships_sro": False,
             "ignore_embedded_relationships_smo": False
@@ -196,7 +194,6 @@ if __name__ == "__main__":
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
             "ignore_extraction_boundary": False,
-            "ignore_extraction_boundary": False,
             "ignore_embedded_relationships": False,
             "ignore_embedded_relationships_sro": False,
             "ignore_embedded_relationships_smo": False
@@ -223,7 +220,6 @@ if __name__ == "__main__":
             "ignore_image_refs": True,
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
-            "ignore_extraction_boundary": False,
             "ignore_extraction_boundary": False,
             "ignore_embedded_relationships": False,
             "ignore_embedded_relationships_sro": False,
