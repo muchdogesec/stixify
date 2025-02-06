@@ -109,7 +109,11 @@ if __name__ == "__main__":
             "ignore_image_refs": True,
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
-            "ignore_extraction_boundary": False
+            "ignore_extraction_boundary": False,
+            "ignore_extraction_boundary": False,
+            "ignore_embedded_relationships": False,
+            "ignore_embedded_relationships_sro": False,
+            "ignore_embedded_relationships_smo": False
         },
         # 2919ca71-e60c-5aad-81f7-8cf561645d03
         {
@@ -156,7 +160,11 @@ if __name__ == "__main__":
             "ignore_image_refs": True,
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
-            "ignore_extraction_boundary": False
+            "ignore_extraction_boundary": False,
+            "ignore_extraction_boundary": False,
+            "ignore_embedded_relationships": False,
+            "ignore_embedded_relationships_sro": False,
+            "ignore_embedded_relationships_smo": False
         },
         # 42976b41-6070-5fc3-a87f-ee81c38d26ef
         {
@@ -187,7 +195,11 @@ if __name__ == "__main__":
             "ignore_image_refs": True,
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
-            "ignore_extraction_boundary": False
+            "ignore_extraction_boundary": False,
+            "ignore_extraction_boundary": False,
+            "ignore_embedded_relationships": False,
+            "ignore_embedded_relationships_sro": False,
+            "ignore_embedded_relationships_smo": False
         },
         # 4140d4d8-7824-51bc-b10a-3ba1465c8de3
         {
@@ -211,7 +223,11 @@ if __name__ == "__main__":
             "ignore_image_refs": True,
             "ignore_link_refs": True,
             "ai_summary_provider": "openai:gpt-4o",
-            "ignore_extraction_boundary": False
+            "ignore_extraction_boundary": False,
+            "ignore_extraction_boundary": False,
+            "ignore_embedded_relationships": False,
+            "ignore_embedded_relationships_sro": False,
+            "ignore_embedded_relationships_smo": False
         }
     ]
 
