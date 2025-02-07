@@ -430,8 +430,8 @@ class ReportView(viewsets.ViewSet):
 
         if q := helper.query.get('visible_to'):
             bind_vars['visible_to'] = q
-            bind_vars['marking_green'] = TLP_LEVEL_STIX_ID_MAPPING.get(TLP_Levels.GREEN)
-            filters.append('FILTER doc.created_by_ref == @visible_to OR @marking_green IN doc.object_marking_refs')
+            bind_vars['marking_visible_to_all'] = TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN], TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR]
+            filters.append('FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs')
 
         if tlp_level := helper.query.get('tlp_level'):
             bind_vars['tlp_level_stix_id'] = TLP_LEVEL_STIX_ID_MAPPING.get(tlp_level)
