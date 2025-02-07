@@ -326,7 +326,7 @@ class ReportView(viewsets.ViewSet):
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
             OpenApiParameter('identity', description="Filter the result by only the reports created by this identity. Pass in the format `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`"),
-            OpenApiParameter('visible_to', description="Only show reports created by identity or with `tlp_level == green`"),
+            OpenApiParameter('visible_to', description="Only show reports created by identity (with any TLP level) or public reports with `tlp_level == green` OR `tlp_level == clear`"),
             OpenApiParameter('name', description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
             OpenApiParameter('tlp_level', description="", enum=[f[0] for f in TLP_Levels.choices]),
             OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
