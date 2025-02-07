@@ -326,6 +326,7 @@ class ReportView(viewsets.ViewSet):
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
             OpenApiParameter('identity', description="Filter the result by only the reports created by this identity. Pass in the format `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`"),
+            OpenApiParameter('owner', description="Only show reports created by identity or with `tlp_level == green`"),
             OpenApiParameter('name', description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
             OpenApiParameter('tlp_level', description="", enum=[f[0] for f in TLP_Levels.choices]),
             OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
@@ -426,6 +427,11 @@ class ReportView(viewsets.ViewSet):
         if q := helper.query_as_array('identity'):
             bind_vars['identities'] = q
             filters.append('FILTER doc.created_by_ref IN @identities')
+
+        if q := helper.query.get('owner'):
+            bind_vars['owner'] = q
+            bind_vars['marking_green'] = TLP_LEVEL_STIX_ID_MAPPING.get(TLP_Levels.GREEN)
+            filters.append('FILTER doc.created_by_ref == @owner OR @marking_green IN doc.object_marking_refs')
 
         if tlp_level := helper.query.get('tlp_level'):
             bind_vars['tlp_level_stix_id'] = TLP_LEVEL_STIX_ID_MAPPING.get(tlp_level)
