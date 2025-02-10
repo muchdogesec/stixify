@@ -341,7 +341,9 @@ class ReportView(viewsets.ViewSet):
     
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + [
+            OpenApiParameter('visible_to', description="Only show reports created by identity (with any TLP level) or public reports with `tlp_level == green` OR `tlp_level == clear`"),
+        ],
     )
     @decorators.action(methods=["GET"], detail=True)
     def objects(self, request, *args, report_id=..., **kwargs):
@@ -478,11 +480,22 @@ class ReportView(viewsets.ViewSet):
                 "@collection": settings.VIEW_NAME,
                 'report_id': report_id,                
         }
+        visible_to_filter = ''
+        if q := helper.query.get('visible_to'):
+            bind_vars['visible_to'] = q
+            bind_vars['marking_visible_to_all'] = TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN], TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR]
+            visible_to_filter = 'FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs'
         query = """
+            LET report = FIRST(
+                FOR doc in @@collection
+                SEARCH doc.id == @report_id
+                #visible_to
+                RETURN doc.id
+            )
             FOR doc in @@collection
-            FILTER doc._stixify_report_id == @report_id
-            
+            SEARCH report != NULL AND doc._stixify_report_id == @report_id
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, TRUE))
-        """
+        """.replace('#visible_to', visible_to_filter)
+        print(bind_vars, query)
         return helper.execute_query(query, bind_vars=bind_vars)
