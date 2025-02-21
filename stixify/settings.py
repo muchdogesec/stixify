@@ -43,7 +43,16 @@ MEDIA_URL = str("media/uploads/")
 
 # Application definition
 
-INSTALLED_APPS = [
+
+STIXIFY_APPS = [
+    'dogesec_commons.objects',
+    'dogesec_commons.stixifier',
+    'django.contrib.postgres',
+    'stixify.web',
+    'django_cleanup.apps.CleanupConfig',
+]
+
+CORE_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -51,11 +60,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'drf_spectacular',
-    'dogesec_commons.objects.app.ArangoObjectsViewApp',
-    'django.contrib.postgres',
-    'stixify.web',
-    'django_cleanup.apps.CleanupConfig',
 ]
+
+INSTALLED_APPS = CORE_APPS + STIXIFY_APPS
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -207,11 +214,6 @@ STIX_IDENTITY = {
     ]
 }
 
-STIX_NAMESPACE = uuid.UUID('e92c648d-03eb-59a5-a318-9a36e6f8057c')
-
-TXT2STIX_INCLUDE_URL = "https://github.com/muchdogesec/txt2stix/blob/main/includes/"
-APP_LABEL = "web"
-
 MAXIMUM_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", 50))
 DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", 50))
 
@@ -246,10 +248,12 @@ ARANGODB_USERNAME   = os.getenv('ARANGODB_USERNAME')
 ARANGODB_PASSWORD   = os.getenv('ARANGODB_PASSWORD')
 ARANGODB_HOST_URL   = os.getenv("ARANGODB_HOST_URL")
 
+# stixifier settings
+STIXIFIER_NAMESPACE = uuid.UUID('e92c648d-03eb-59a5-a318-9a36e6f8057c')
+TXT2STIX_INCLUDE_URL = "https://github.com/muchdogesec/txt2stix/blob/main/includes/"
+ARANGODB_DATABASE_VIEW = VIEW_NAME
 GOOGLE_VISION_API_KEY = os.getenv("GOOGLE_VISION_API_KEY")
 if not GOOGLE_VISION_API_KEY:
     logging.warning("GOOGLE_VISION_API_KEY not set")
-
 INPUT_TOKEN_LIMIT = int(os.environ["INPUT_TOKEN_LIMIT"])
-
 SRO_OBJECTS_ONLY_LATEST = os.getenv('SRO_OBJECTS_ONLY_LATEST', False)
