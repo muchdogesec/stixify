@@ -31,7 +31,7 @@ dataclasses-json==0.6.7
 Deprecated==1.2.18
 dirtyjson==1.0.8
 distro==1.9.0
-Django==5.1.5
+Django==5.1.7
 django-cleanup==9.0.0
 django-filter==24.3
 django-storages==1.14.4
