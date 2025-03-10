@@ -37,7 +37,6 @@ class RelatedObjectField(serializers.RelatedField):
             self.fail('incorrect_type', data_type=type(data), lookup_value=data, lookup_key=self.lookup_key)
         
     def to_representation(self, value):
-        print(self.internal_serializer.context)
         return self.internal_serializer.to_representation(value)
 
 class CharacterSeparatedField(serializers.ListField):
