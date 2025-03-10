@@ -22,6 +22,7 @@ class RelatedObjectField(serializers.RelatedField):
         self.internal_serializer: serializers.Serializer = serializer
         self.use_raw_value = use_raw_value
         super().__init__(**kwargs)
+        serializer.parent = self.root
 
     def to_internal_value(self, data):
         try:
@@ -68,14 +69,17 @@ class FileSerializer(serializers.ModelSerializer):
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`"), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed) to control the markdown output created. This is a file2txt setting.")
-    download_url = serializers.FileField(source='file', read_only=True, allow_null=True)
+    download_url = serializers.FileField(source='file', use_url=True, read_only=True, allow_null=True)
     file = serializers.FileField(write_only=True, help_text="This is the file to be processed. The mimetype of the file uploaded must match that expected by the `mode` selected.")
-    ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True)
-
+    ai_describes_incident = serializers.BooleanField(required=False, read_only=True, allow_null=True)
+    ai_incident_summary = serializers.CharField(required=False, read_only=True, allow_null=True)
+    ai_incident_classification = serializers.CharField(required=False, read_only=True, allow_null=True)
+    summary = serializers.CharField(read_only=True, required=False, allow_null=True)
+    ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True, required=False, allow_null=True)
 
     class Meta:
         model = File
-        exclude = ['profile', "markdown_file", "summary"]
+        exclude = ['profile', "markdown_file"]
         read_only_fields = []
 
 class ImageSerializer(serializers.ModelSerializer):

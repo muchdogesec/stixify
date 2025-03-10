@@ -53,6 +53,7 @@ class MinMaxDateFilter(BaseFilterBackend):
 
 
 
+
 class Response(response.Response):
     DEFAULT_HEADERS = {
         'Access-Control-Allow-Origin': '*',

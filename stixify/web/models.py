@@ -91,7 +91,12 @@ class File(CommonSTIXProps):
     mimetype = models.CharField(max_length=512)
     mode = models.CharField(max_length=256)
     markdown_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
-    summary = models.CharField(max_length=65536, null=True, default=None)
+    summary = models.CharField(max_length=65536, null=True, default=None)    
+    
+    # describe incident
+    ai_describes_incident = models.BooleanField(default=None, null=True)
+    ai_incident_summary = models.CharField(default=None, max_length=65535, null=True)
+    ai_incident_classification = models.CharField(default=None, max_length=256, null=True)
     
     @property
     def report_id(self):
@@ -107,6 +112,10 @@ class File(CommonSTIXProps):
     
     def __str__(self) -> str:
         return f"File(id={self.id})"
+    
+    # @classmethod
+    # def visible_files(cls):
+    #     return cls.objects.filter(job__state=JobState.COMPLETED)
 
 @receiver(post_delete, sender=File)
 def remove_reports_on_delete(sender, instance: File, **kwargs):
@@ -123,6 +132,7 @@ class FileImage(models.Model):
 class JobState(models.TextChoices):
     PENDING = "pending"
     PROCESSING = "processing"
+    FAILED = "failed"
     COMPLETED = "completed"
 
 class Job(models.Model):
@@ -134,7 +144,7 @@ class Job(models.Model):
     completion_time = models.DateTimeField(null=True, default=None)
 
     def save(self, *args, **kwargs) -> None:
-        if not self.completion_time and self.state == JobState.COMPLETED:
+        if not self.completion_time and self.state in [JobState.COMPLETED, JobState.FAILED]:
             self.completion_time = datetime.now(timezone.utc)
         return super().save(*args, **kwargs)
     
