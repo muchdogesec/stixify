@@ -1,7 +1,10 @@
+# Tests
+
+## Environment setup
 
 ```shell
-python3 -m venv obstracts-venv && \
-source obstracts-venv/bin/activate && \
+python3 -m venv stixify-venv && \
+source stixify-venv/bin/activate && \
 pip3 install -r requirements.txt
 ````
 

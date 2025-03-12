@@ -137,7 +137,6 @@ rsa==4.9
 rstr==3.2.2
 s3transfer==0.10.3
 safetensors==0.5.2
-schemathesis==3.38.7
 schwifty==2025.1.0
 setuptools==73.0.1
 simplejson==3.20.1
