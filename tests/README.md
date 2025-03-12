@@ -24,7 +24,7 @@ st run --checks all http://127.0.0.1:8001/api/schema --generation-allow-x00 true
 
 These tests are run via Github actions.
 
-You must create a `.env` file with the following secrets;
+You must create a `.env` file with the following secrets (on Github they are stored in an environment called `stixify_tests`);
 
 ```txt
 MARKER_API_KEY=
