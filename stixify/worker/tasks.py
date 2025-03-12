@@ -34,6 +34,8 @@ def save_file(file: InMemoryUploadedFile):
 def process_post(filename, job_id, *args):
     job = Job.objects.get(id=job_id)
     try:
+        job.state = models.JobState.PROCESSING
+        job.save()
         processor = StixifyProcessor(default_storage.open(filename), job.profile, job_id=job.id, file2txt_mode=job.file.mode, report_id=job.file.id)
         report_props = ReportProperties(
             name=job.file.name,
@@ -42,9 +44,17 @@ def process_post(filename, job_id, *args):
             confidence=job.file.confidence,
             labels=job.file.labels,
             created=job.file.created,
+            kwargs=dict(external_references=[
+                dict(source_name='stixify_profile_id', external_id=str(job.profile.id)),
+            ])
         )
         processor.setup(report_prop=report_props, extra=dict(_stixify_file_id=str(job.file.id)))
         processor.process()
+        if processor.incident:
+            job.file.ai_describes_incident = processor.incident.describes_incident
+            job.file.ai_incident_summary = processor.incident.explanation
+            job.file.ai_incident_classification = processor.incident.incident_classification
+
         if job.profile.ai_summary_provider:
             logging.info(f"summarizing report {processor.report_id} using `{job.profile.ai_summary_provider}`")
             try:
@@ -71,4 +81,6 @@ def process_post(filename, job_id, *args):
 def job_completed_with_error(job_id):
     job = Job.objects.get(pk=job_id)
     job.state = models.JobState.COMPLETED
+    if job.error:
+        job.state = models.JobState.FAILED
     job.save()

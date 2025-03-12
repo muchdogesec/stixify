@@ -214,7 +214,7 @@ STIX_IDENTITY = {
     ]
 }
 
-MAXIMUM_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", 50))
+MAXIMUM_PAGE_SIZE = int(os.getenv("MAX_PAGE_SIZE", 5000))
 DEFAULT_PAGE_SIZE = int(os.getenv("DEFAULT_PAGE_SIZE", 50))
 
 SPECTACULAR_SETTINGS: dict[str, Any] = {

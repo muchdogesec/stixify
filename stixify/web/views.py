@@ -17,9 +17,9 @@ from dogesec_commons.objects.helpers import ArangoDBHelper
 from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
-from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, TLP_Levels
+from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, TLP_Levels, JobState
 from .serializers import FileSerializer, ImageSerializer, JobSerializer
-from .utils import Response
+from .utils import Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
 import django_filters.rest_framework as filters
@@ -83,7 +83,7 @@ class MarkdownImageReplacer(MarkdownRenderer):
             IMPORTANT: this request does NOT delete the Report SDO created from the file, or any other STIX objects created from this file during extractions. To delete these, use the delete report endpoint.
             """
         ),
-        responses={200: FileSerializer, 404: DEFAULT_404_ERROR},
+        responses={204: {}, 404: DEFAULT_404_ERROR},
     ),
     create=extend_schema(
         responses={201: JobSerializer, 400: DEFAULT_400_ERROR},
@@ -117,7 +117,8 @@ class FileView(
     ]
     ordering_fields = ["name", "created"]
     ordering = "created_descending"
-    filter_backends = [DjangoFilterBackend, Ordering]
+    filter_backends = [DjangoFilterBackend, Ordering, MinMaxDateFilter]
+    minmax_date_fields = ["created"]
 
     def get_queryset(self):
         return File.objects.all()
@@ -127,9 +128,8 @@ class FileView(
         id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file", lookup_expr="in")
         name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
-        created_max = filters.DateTimeFilter('created', lookup_expr='gte', help_text='Maximum value of `created` value to filter by in format `YYYY-MM-DD`.')
-        created_min = filters.DateTimeFilter('created', lookup_expr='lte', help_text='Minimum value of `created` value to filter by in format `YYYY-MM-DD`.')
         profile_id = filters.Filter(help_text="Filter profiles by the `id` of the Profile. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
+        job_state = filters.ChoiceFilter(field_name='job__state', help_text="Job state of the file", choices=JobState.choices)
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)
@@ -143,7 +143,7 @@ class FileView(
         job_instance =  Job.objects.create(file=file_instance)
         job_serializer = JobSerializer(job_instance)
         new_task(job_instance, file_instance)
-        return Response(job_serializer.data)
+        return Response(job_serializer.data, status=status.HTTP_201_CREATED)
     
     
     @extend_schema(
@@ -260,7 +260,6 @@ class JobView(
 
     class filterset_class(FilterSet):
         file_id = Filter('file_id', label="Filter Jobs by File `id`")
-
 
 @extend_schema_view(
     list=extend_schema(
@@ -416,7 +415,7 @@ class ReportView(viewsets.ViewSet):
                 "objects": objects,
             }
             helper.execute_query(deletion_query, bind_vars, paginate=False)
-            db_service.update_is_latest_several_chunked([object_key.split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection')+'_edge_collection')
+            db_service.update_is_latest_several_chunked([object_key.split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection').removesuffix('_edge_collection')+'_edge_collection')
 
     def get_reports(self, id=None):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
