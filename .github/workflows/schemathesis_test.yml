@@ -9,6 +9,7 @@ on:
 jobs:
   test-schema-thesis:
     runs-on: ubuntu-latest
+    environment: stixify_tests
     
     steps:
       - name: Checkout repository
