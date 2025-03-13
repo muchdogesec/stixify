@@ -8,7 +8,7 @@ from urllib.parse import urljoin
 from dateutil.parser import parse as parse_date
 import logging
 
-from tests.utils import random_list, remove_unknown_keys, wait_for_jobs
+from tests.utils import is_sorted, random_list, remove_unknown_keys, wait_for_jobs
 
 base_url = os.environ["SERVICE_BASE_URL"]
 import requests
@@ -27,6 +27,7 @@ def report_objects_test(file_id, subtests):
     report_object_refs = set(report_object["object_refs"])
     get_resp_all = requests.get(urljoin(report_url, "objects/"))
     objects_data = get_resp_all.json()
+
     file_object_refs = {obj["id"] for obj in objects_data["objects"]}
     assert (
         len(file_object_refs) == objects_data["page_results_count"]
@@ -118,3 +119,12 @@ def test_deleted_objects_deleted(subtests):
             assert (
                 obj_ref not in reports[0]["object_refs"]
             ), "report.object_refs should not contain object"
+
+
+def test_list_reports():
+    reports_url = urljoin(base_url, f"api/v1/reports/")
+    get_resp = requests.get(reports_url)
+    assert get_resp.status_code == 200, f"response: {get_resp.text}"
+    report_objects = get_resp.json()["objects"]
+    assert all(map(lambda obj: obj['type'] == 'report', report_objects)), "expected all returned objects to have type = 'report'"
+    assert is_sorted(report_objects, key=lambda obj: obj['modified'], reverse=True), "expected reports to be sorted by modified in descending order"
