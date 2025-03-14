@@ -468,6 +468,7 @@ class ReportView(viewsets.ViewSet):
             // <other filters>
             @filters
             // </other filters>
+            SORT doc.modified DESC
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, true))
         """
@@ -493,6 +494,7 @@ class ReportView(viewsets.ViewSet):
             )
             FOR doc in @@collection
             SEARCH report != NULL AND doc._stixify_report_id == @report_id
+            SORT doc.modified DESC
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, TRUE))
         """.replace('#visible_to', visible_to_filter)
