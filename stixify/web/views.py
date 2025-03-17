@@ -252,7 +252,7 @@ class JobView(
     lookup_url_kwarg = "job_id"
 
     ordering_fields = ["state", "run_datetime", "completion_time"]
-    ordering = "run_datetime_ascending"
+    ordering = "run_datetime_descending"
     filter_backends = [DjangoFilterBackend, Ordering]
 
     def get_queryset(self):
