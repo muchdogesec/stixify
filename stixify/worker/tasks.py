@@ -7,7 +7,6 @@ from celery import shared_task
 from dogesec_commons.stixifier.stixifier import StixifyProcessor, ReportProperties
 from dogesec_commons.stixifier.summarizer import parse_summarizer_model
 
-import tempfile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.storage import default_storage
 from django.core.files.base import File as DjangoFile
@@ -20,15 +19,6 @@ def new_task(job: Job, file: File):
     ( process_post.s(file.file.name, job.id) | job_completed_with_error.si(job.id)).apply_async(
         countdown=POLL_INTERVAL, root_id=str(job.id), task_id=str(job.id)
     )
-
-
-def save_file(file: InMemoryUploadedFile):
-    filename = Path(file.name).name
-    print("name=", file.name, filename)
-    fd, filename = tempfile.mkstemp(suffix='--'+filename, prefix='file--')
-    os.write(fd, file.read())
-    return filename
-
 
 @shared_task
 def process_post(filename, job_id, *args):
