@@ -73,7 +73,7 @@ class FileSerializer(serializers.ModelSerializer):
     file = serializers.FileField(write_only=True, help_text="This is the file to be processed. The mimetype of the file uploaded must match that expected by the `mode` selected.")
     ai_describes_incident = serializers.BooleanField(required=False, read_only=True, allow_null=True)
     ai_incident_summary = serializers.CharField(required=False, read_only=True, allow_null=True)
-    ai_incident_classification = serializers.CharField(required=False, read_only=True, allow_null=True)
+    ai_incident_classification = serializers.ListField(required=False, read_only=True, allow_null=True)
     summary = serializers.CharField(read_only=True, required=False, allow_null=True)
     ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True, required=False, allow_null=True)
 
