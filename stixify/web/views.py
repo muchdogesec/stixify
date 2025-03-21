@@ -1,9 +1,12 @@
+from functools import reduce
 import io
+import operator
 import uuid
+from django import forms
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
 from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 
-from django.db.models import F, Value, CharField, Func
+from django.db.models import F, Value, CharField, Func, Q
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -23,6 +26,7 @@ from .utils import Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
 import django_filters.rest_framework as filters
+from django_filters import fields as django_filters_fields
 from stixify.worker.tasks import new_task
 from drf_spectacular.utils import extend_schema, extend_schema_view
 
@@ -130,6 +134,13 @@ class FileView(
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
         profile_id = filters.Filter(help_text="Filter profiles by the `id` of the Profile. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
         job_state = filters.ChoiceFilter(field_name='job__state', help_text="Job state of the file", choices=JobState.choices)
+
+        ai_describes_incident = filters.BooleanFilter(help_text="boolean, default: show all")
+        ai_incident_classification = filters.BaseCSVFilter('name', help_text="default: show all", method='ai_incident_classification_filter')
+        
+        def ai_incident_classification_filter(self, queryset, name, value):
+            filter = reduce(operator.or_, [Q(ai_incident_classification__icontains=s) for s in value])
+            return queryset.filter(filter)
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)
