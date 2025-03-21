@@ -127,4 +127,26 @@ def test_list_reports():
     assert get_resp.status_code == 200, f"response: {get_resp.text}"
     report_objects = get_resp.json()["objects"]
     assert all(map(lambda obj: obj['type'] == 'report', report_objects)), "expected all returned objects to have type = 'report'"
-    assert is_sorted(report_objects, key=lambda obj: obj['modified'], reverse=True), "expected reports to be sorted by modified in descending order"
+    assert is_sorted(report_objects, key=lambda obj: obj['created'], reverse=True), "expected reports to be sorted by created in descending order"
+
+@pytest.mark.parametrize(
+        "sort_filter",
+        [
+        "created_descending",
+        "created_ascending",
+        "name_descending",
+        "name_ascending",
+        "confidence_descending",
+        "confidence_ascending",
+    ]
+)
+def test_list_reports_sort(sort_filter: str):
+    reports_url = urljoin(base_url, f"api/v1/reports/")
+    get_resp = requests.get(reports_url, params=dict(sort=sort_filter))
+    assert get_resp.status_code == 200, f"response: {get_resp.text}"
+    report_objects = get_resp.json()["objects"]
+    assert all(map(lambda obj: obj['type'] == 'report', report_objects)), "expected all returned objects to have type = 'report'"
+    property, _, direction = sort_filter.rpartition('_')
+    assert is_sorted(report_objects, key=lambda obj: obj[property], reverse=direction == 'descending'), f"expected reports to be sorted by {property} in {direction} order"
+
+

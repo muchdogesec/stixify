@@ -1,6 +1,7 @@
 from functools import reduce
 import io
 import operator
+import re
 import uuid
 from django import forms
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
@@ -318,6 +319,14 @@ class ReportView(viewsets.ViewSet):
             lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=r'^report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'), description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
         )
     ]
+    SORT_PROPERTIES = [
+        "created_descending",
+        "created_ascending",
+        "name_descending",
+        "name_ascending",
+        "confidence_descending",
+        "confidence_ascending",
+    ]
 
     @extend_schema()
     def retrieve(self, request, *args, **kwargs):
@@ -344,11 +353,12 @@ class ReportView(viewsets.ViewSet):
             OpenApiParameter('confidence_min', description="The minimum confidence score of a report `0` is no confidence, `1` is lowest, `100` is highest.", type=OpenApiTypes.NUMBER),
             OpenApiParameter('created_max', description="Maximum value of `created` value to filter by in format `YYYY-MM-DD`."),
             OpenApiParameter('created_min', description="Minimum value of `created` value to filter by in format `YYYY-MM-DD`."),
+            OpenApiParameter('sort', description="report property to sort by", enum=[f[0] for f in TLP_Levels.choices]),
         ],
     )
     def list(self, request, *args, **kwargs):
         return self.get_reports()
-    
+
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
@@ -359,13 +369,13 @@ class ReportView(viewsets.ViewSet):
     def objects(self, request, *args, report_id=..., **kwargs):
         report_id = self.validate_report_id(report_id)
         return self.get_report_objects(self.fix_report_id(report_id))
-    
+
     @classmethod
     def fix_report_id(self, report_id):
         if report_id.startswith('report--'):
             return report_id
         return "report--"+report_id
-    
+
     @classmethod
     def validate_report_id(self, report_id:str):
         if not report_id.startswith('report--'):
@@ -384,7 +394,7 @@ class ReportView(viewsets.ViewSet):
 
         File.objects.filter(id=report_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
-    
+
     @classmethod
     def remove_report(cls, report_id):
         db_service = ArangoDBService(
@@ -427,6 +437,19 @@ class ReportView(viewsets.ViewSet):
             }
             helper.execute_query(deletion_query, bind_vars, paginate=False)
             db_service.update_is_latest_several_chunked([object_key.split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection').removesuffix('_edge_collection')+'_edge_collection')
+
+
+    def get_sort_stmt(self, sort_options: 'list[str]', customs={}):
+        finder = re.compile(r"(.+)_((a|de)sc)ending")
+        sort_field = self.request.GET.get('sort')
+        if sort_field not in sort_options:
+            sort_field = sort_options[0]
+        if m := finder.match(sort_field):
+            field = m.group(1)
+            direction = m.group(2).upper()
+            if cfield := customs.get(field):
+                return f"SORT {cfield} {direction}"
+            return f"SORT doc.{field} {direction}"
 
     def get_reports(self, id=None):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
@@ -477,13 +500,17 @@ class ReportView(viewsets.ViewSet):
             FOR doc in @@collection
             FILTER doc.type == @type AND doc._is_latest
             // <other filters>
-            @filters
+            #more_filters
             // </other filters>
-            SORT doc.modified DESC
+            #sort_statement
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, true))
         """
-        return helper.execute_query(query.replace('@filters', '\n'.join(filters)), bind_vars=bind_vars)
+        return helper.execute_query(
+            query.replace('#more_filters', '\n'.join(filters)).replace(
+                '#sort_statement', self.get_sort_stmt(self.SORT_PROPERTIES)
+            )
+        , bind_vars=bind_vars)
 
     def get_report_objects(self, report_id):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
@@ -505,7 +532,6 @@ class ReportView(viewsets.ViewSet):
             )
             FOR doc in @@collection
             SEARCH report != NULL AND doc._stixify_report_id == @report_id
-            SORT doc.modified DESC
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, TRUE))
         """.replace('#visible_to', visible_to_filter)
