@@ -121,10 +121,26 @@ def test_deleted_objects_deleted(subtests):
             ), "report.object_refs should not contain object"
 
 
-def test_list_reports():
+@pytest.mark.parametrize(
+        ["sort_filter", "expected_sort"],
+        [
+        ("", "created_descending"), #default filter
+        ("created_descending", "created_descending"),
+        ("created_ascending", "created_ascending"),
+        ("name_descending", "name_descending"),
+        ("name_ascending", "name_ascending"),
+        ("confidence_descending", "confidence_descending"),
+        ("confidence_ascending", "confidence_ascending"),
+    ]
+)
+def test_list_reports_sort(sort_filter: str, expected_sort: str):
     reports_url = urljoin(base_url, f"api/v1/reports/")
-    get_resp = requests.get(reports_url)
+    filters = dict(sort=sort_filter) if sort_filter else None
+    get_resp = requests.get(reports_url, params=filters)
     assert get_resp.status_code == 200, f"response: {get_resp.text}"
     report_objects = get_resp.json()["objects"]
     assert all(map(lambda obj: obj['type'] == 'report', report_objects)), "expected all returned objects to have type = 'report'"
-    assert is_sorted(report_objects, key=lambda obj: obj['modified'], reverse=True), "expected reports to be sorted by modified in descending order"
+    property, _, direction = expected_sort.rpartition('_')
+    assert is_sorted(report_objects, key=lambda obj: obj[property], reverse=direction == 'descending'), f"expected reports to be sorted by {property} in {direction} order"
+
+

@@ -96,7 +96,7 @@ class File(CommonSTIXProps):
     # describe incident
     ai_describes_incident = models.BooleanField(default=None, null=True)
     ai_incident_summary = models.CharField(default=None, max_length=65535, null=True)
-    ai_incident_classification = models.CharField(default=None, max_length=256, null=True)
+    ai_incident_classification = ArrayField(base_field=models.CharField(default=None, max_length=256, null=True), null=True, blank=True)
     
     @property
     def report_id(self):
