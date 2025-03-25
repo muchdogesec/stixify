@@ -26,7 +26,7 @@ def process_post(filename, job_id, *args):
     try:
         job.state = models.JobState.PROCESSING
         job.save()
-        processor = StixifyProcessor(default_storage.open(filename), job.profile, job_id=job.id, file2txt_mode=job.file.mode, report_id=job.file.id)
+        processor = StixifyProcessor(default_storage.open(filename), job.profile, job_id=job.id, file2txt_mode=job.file.mode, report_id=job.file.id, always_extract=True)
         report_props = ReportProperties(
             name=job.file.name,
             identity=stix2.Identity(**job.file.identity),
