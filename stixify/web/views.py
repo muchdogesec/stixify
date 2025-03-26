@@ -353,7 +353,7 @@ class ReportView(viewsets.ViewSet):
             OpenApiParameter('confidence_min', description="The minimum confidence score of a report `0` is no confidence, `1` is lowest, `100` is highest.", type=OpenApiTypes.NUMBER),
             OpenApiParameter('created_max', description="Maximum value of `created` value to filter by in format `YYYY-MM-DD`."),
             OpenApiParameter('created_min', description="Minimum value of `created` value to filter by in format `YYYY-MM-DD`."),
-            OpenApiParameter('sort', description="report property to sort by", enum=[f[0] for f in TLP_Levels.choices]),
+            OpenApiParameter('sort', description="report property to sort by", enum=SORT_PROPERTIES),
         ],
     )
     def list(self, request, *args, **kwargs):
