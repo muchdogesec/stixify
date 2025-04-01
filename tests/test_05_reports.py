@@ -141,6 +141,11 @@ def test_list_reports_sort(sort_filter: str, expected_sort: str):
     report_objects = get_resp.json()["objects"]
     assert all(map(lambda obj: obj['type'] == 'report', report_objects)), "expected all returned objects to have type = 'report'"
     property, _, direction = expected_sort.rpartition('_')
-    assert is_sorted(report_objects, key=lambda obj: obj[property], reverse=direction == 'descending'), f"expected reports to be sorted by {property} in {direction} order"
+    def sort_fn(obj):
+        retval = obj[property]
+        if property == 'name':
+            retval = retval.lower()
+        return retval
+    assert is_sorted(report_objects, key=sort_fn, reverse=direction == 'descending'), f"expected reports to be sorted by {property} in {direction} order"
 
 
