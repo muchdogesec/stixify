@@ -55,6 +55,22 @@ class MarkdownImageReplacer(MarkdownRenderer):
         return super().codespan(token, state)
 ## markdown helper ends
 
+from drf_spectacular.views import SpectacularAPIView
+from rest_framework.response import Response
+
+class SchemaViewCached(SpectacularAPIView):
+    _schema = None
+    
+    def _get_schema_response(self, request):
+        version = self.api_version or request.version or self._get_version_parameter(request)
+        if not self.__class__._schema:
+            generator = self.generator_class(urlconf=self.urlconf, api_version=version, patterns=self.patterns)
+            self.__class__._schema = generator.get_schema(request=request, public=self.serve_public)
+        return Response(
+            data=self.__class__._schema,
+            headers={"Content-Disposition": f'inline; filename="{self._get_filename(request, version)}"'}
+        )
+
 # Create your views here.
 @extend_schema_view(
     list=extend_schema(
