@@ -20,7 +20,7 @@ from django.urls import path, include
 from rest_framework import routers
 from dogesec_commons.objects import views as arango_views
 from dogesec_commons.stixifier.views import ProfileView, ExtractorsView
-from .web.views import FileView, JobView, ReportView
+from .web.views import FileView, JobView, ReportView, SchemaViewCached
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf.urls.static import static
 
@@ -53,7 +53,7 @@ urlpatterns = [
     path(f'api/{API_VERSION}/', include(router.urls)),
     path('admin/', admin.site.urls),
     # YOUR PATTERNS
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/schema/', SchemaViewCached.as_view(), name='schema'),
     # Optional UI:
     path('api/schema/swagger-ui/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
