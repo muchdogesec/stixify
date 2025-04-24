@@ -101,7 +101,7 @@ class SchemaViewCached(SpectacularAPIView):
             """
             This endpoint will delete a File using its ID. It will also delete the markdown, images and original file stored for this File.
 
-            IMPORTANT: this request does NOT delete the Report SDO created from the file, or any other STIX objects created from this file during extractions. To delete these, use the delete report endpoint.
+            IMPORTANT: this request WILL also delete the Report SDO created from the file, or any other STIX objects created from this file during extractions.
             """
         ),
         responses={204: {}, 404: DEFAULT_404_ERROR},
@@ -314,16 +314,6 @@ class JobView(
             """
         ),
     ),
-    destroy=extend_schema(
-        summary="Delete all STIX objects for a Report ID",
-        description=textwrap.dedent(
-            """
-            This endpoint will delete a Report using its ID. It will also delete all the STIX objects extracted from the Report.
-
-            IMPORTANT: this request does NOT delete the file this Report was generated from. To delete the file, use the delete file endpoint.
-            """
-        ),
-    ),
 )
 class ReportView(viewsets.ViewSet):
     openapi_tags = ["Reports"]
@@ -402,14 +392,6 @@ class ReportView(viewsets.ViewSet):
         except Exception as e:
             raise validators.ValidationError({self.lookup_url_kwarg: f'`{report_id}`: {e}'})
         return report_uuid
-
-    @extend_schema()
-    def destroy(self, request, *args, **kwargs):
-        report_id = kwargs.get(self.lookup_url_kwarg)
-        report_id = self.validate_report_id(report_id)
-
-        File.objects.filter(id=report_id).delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @classmethod
     def remove_report(cls, report_id):
