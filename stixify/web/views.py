@@ -1,5 +1,6 @@
 from functools import reduce
 import io
+import logging
 import operator
 import re
 import uuid
@@ -535,3 +536,45 @@ class ReportView(viewsets.ViewSet):
         """.replace('#visible_to', visible_to_filter)
         print(bind_vars, query)
         return helper.execute_query(query, bind_vars=bind_vars)
+
+class IdentityView(viewsets.ViewSet):
+    
+    openapi_tags = ["Identity"]
+    skip_list_view = True
+    lookup_url_kwarg = "identity_id"
+    lookup_value_regex = r'identity--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=lookup_value_regex), description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
+        )
+    ]
+    def destroy(self, request, *args, identity_id=None, **kwargs):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+        vertices = helper.execute_query('''
+            FOR doc IN stixify_vertex_collection
+            FILTER doc.id == @identity_id OR doc.created_by_ref == @identity_id
+            RETURN KEEP(doc, "_key", "_id")
+        ''', bind_vars=dict(identity_id=identity_id), paginate=False)
+        edges = helper.execute_query('''
+            FOR doc IN stixify_edge_collection
+            FILTER 
+                    doc.id == @identity_id OR
+                    doc.created_by_ref == @identity_id OR
+                    doc._from IN @vertex_ids OR doc._to IN @vertex_ids
+            RETURN KEEP(doc, "_key", "_id")
+        ''',
+            bind_vars=dict(
+                identity_id=identity_id,
+                vertex_ids=[v['_id'] for v in vertices]),
+            paginate=False
+        )
+        logging.info(f'removing {len(edges)} edges and {len(vertices)} vertices')
+        for collection, documents in [('stixify_vertex_collection', vertices), ('stixify_edge_collection', edges)]:
+            helper.execute_query(
+                '''
+                FOR doc IN @documents
+                REMOVE doc IN @@collection
+                RETURN NULL
+                ''', paginate=False, bind_vars={'@collection': collection, 'documents': documents}
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
