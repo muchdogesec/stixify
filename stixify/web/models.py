@@ -58,7 +58,7 @@ def validate_identity(value):
 
 class CommonSTIXProps(models.Model):
     name = models.CharField(max_length=256, help_text="This will be used as the `name` value of the STIX Report object generated")
-    tlp_level = models.CharField(choices=TLP_Levels.choices, default=TLP_Levels.RED, help_text="This will be assigned to all SDOs and SROs created. Stixify uses TLPv2.")
+    tlp_level = models.CharField(choices=TLP_Levels.choices, default=TLP_Levels.RED, help_text="This will be assigned to all SDOs and SROs created. If no value passed, `TLP:Clear` will be assigned.")
     confidence = models.IntegerField(default=0, help_text="A value between `0`-`100`. `0` means confidence unknown. `1` is the lowest confidence score, `100` is the highest confidence score.")
 
 

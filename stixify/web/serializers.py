@@ -63,7 +63,7 @@ class ReportIDField(serializers.CharField):
     
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
-    report_id = ReportIDField(source='id', help_text="If you want to define the UUID of the STIX Report object you can use this property. Only pass a UUIDv4, e.g. `26dd4dcb-0ebc-4a71-8d37-ffd88faed163`. This will be used in the STIX Report ID, e.g. `report--<UUID>`. If not passed, this UUID will be randomly generated. This UUID will also be assigned as the File ID.", validators=[
+    report_id = ReportIDField(source='id', help_text="If you want to define the UUID of the STIX Report object you can use this property. Pass the full report ID with UUIDv4, e.g. `report--26dd4dcb-0ebc-4a71-8d37-ffd88faed163`. This will be used in the STIX Report ID. If not passed, this UUID will be randomly generated. This UUID will also be assigned as the File ID. The `report_id` passed must not already exist in the database.", validators=[
         validators.UniqueValidator(queryset=File.objects.all()),
     ], required=False)
     mimetype = serializers.CharField(read_only=True)
