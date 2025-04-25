@@ -537,6 +537,12 @@ class ReportView(viewsets.ViewSet):
         print(bind_vars, query)
         return helper.execute_query(query, bind_vars=bind_vars)
 
+@extend_schema_view(
+    destroy=extend_schema(
+        description="Delete all objects associated with identity",
+        summary="Delete all objects associated with identity",
+    )
+)
 class IdentityView(viewsets.ViewSet):
     
     openapi_tags = ["Identity"]
