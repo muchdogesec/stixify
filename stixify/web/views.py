@@ -90,7 +90,7 @@ class SchemaViewCached(SpectacularAPIView):
             """
         ),
         parameters=[
-            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
+            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File. This is also the UUID part of the STIX Report object for the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
         ],
         responses={200: FileSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
 
@@ -101,7 +101,7 @@ class SchemaViewCached(SpectacularAPIView):
             """
             This endpoint will delete a File using its ID. It will also delete the markdown, images and original file stored for this File.
 
-            IMPORTANT: this request WILL also delete the Report SDO created from the file, or any other STIX objects created from this file during extractions.
+            IMPORTANT: this request WILL also delete any STIX objects created from this file.
             """
         ),
         responses={204: {}, 404: DEFAULT_404_ERROR},
@@ -133,7 +133,7 @@ class FileView(
     lookup_url_kwarg = "file_id"
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File. This is also the UUID part of the STIX Report object for the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."
         )
     ]
     ordering_fields = ["name", "created"]
