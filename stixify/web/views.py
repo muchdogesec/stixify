@@ -311,7 +311,7 @@ class JobView(
         summary="Get all objects linked to a Report ID",
         description=textwrap.dedent(
             """
-            This endpoint returns all STIX objects that were extracted and created for the File linked to this report.
+            This endpoint returns all STIX objects that were extracted from the uploaded File linked to this report.
             """
         ),
     ),
