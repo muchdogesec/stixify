@@ -91,7 +91,7 @@ class SchemaViewCached(SpectacularAPIView):
             """
         ),
         parameters=[
-            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
+            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File. This will be the same as the UUID part of the STIX report object create from the file. (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
         ],
         responses={200: FileSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
 
@@ -134,7 +134,7 @@ class FileView(
     lookup_url_kwarg = "file_id"
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."
         )
     ]
     ordering_fields = ["name", "created"]
@@ -147,14 +147,14 @@ class FileView(
 
 
     class filterset_class(FilterSet):
-        id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file", lookup_expr="in")
+        id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).", lookup_expr="in")
         name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
-        profile_id = filters.Filter(help_text="Filter profiles by the `id` of the Profile. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
+        profile_id = filters.Filter(help_text="Filter by the `id` of the Profile to only include files processed by entered Profile ID. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
         job_state = filters.ChoiceFilter(field_name='job__state', help_text="Job state of the file", choices=JobState.choices)
 
-        ai_describes_incident = filters.BooleanFilter(help_text="boolean, default: show all")
-        ai_incident_classification = filters.BaseCSVFilter('name', help_text="default: show all", method='ai_incident_classification_filter')
+        ai_describes_incident = filters.BooleanFilter(help_text="If `ai_content_check_provider` set in profile used to process report, AI will answer if file describes security incident. Default will show all reports, can filter those that only describe incident by setting to true.")
+        ai_incident_classification = filters.BaseCSVFilter('name', help_text="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", method='ai_incident_classification_filter')
         
         def ai_incident_classification_filter(self, queryset, name, value):
             filter = reduce(operator.or_, [Q(ai_incident_classification__icontains=s) for s in value])
@@ -295,7 +295,7 @@ class JobView(
         summary="Search for Report objects created from Files",
         description=textwrap.dedent(
             """
-            Search for Report objects created from Files
+            When a file is uploaded a STIX report object will be created for it. The file `id` will match the UUID part of the STIX report object (e.g. `report--UUID`).
             """
         ),
     ),
@@ -352,15 +352,15 @@ class ReportView(viewsets.ViewSet):
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
             OpenApiParameter('identity', description="Filter the result by only the reports created by this identity. Pass in the format `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`"),
-            OpenApiParameter('visible_to', description="Only show reports created by identity (with any TLP level) or public reports with `tlp_level == green` OR `tlp_level == clear`"),
+            OpenApiParameter('visible_to', description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`."),
             OpenApiParameter('name', description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
-            OpenApiParameter('tlp_level', description="", enum=[f[0] for f in TLP_Levels.choices]),
+            OpenApiParameter('tlp_level', description="Filter the results by TLP marking of the Report object (set at file upload time).", enum=[f[0] for f in TLP_Levels.choices]),
             OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
-            OpenApiParameter('labels', description="searches the `labels` property for the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
+            OpenApiParameter('labels', description="Searches the `labels` property of Report objects for the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
             OpenApiParameter('confidence_min', description="The minimum confidence score of a report `0` is no confidence, `1` is lowest, `100` is highest.", type=OpenApiTypes.NUMBER),
             OpenApiParameter('created_max', description="Maximum value of `created` value to filter by in format `YYYY-MM-DD`."),
             OpenApiParameter('created_min', description="Minimum value of `created` value to filter by in format `YYYY-MM-DD`."),
-            OpenApiParameter('sort', description="Sort by", enum=SORT_PROPERTIES),
+            OpenApiParameter('sort', description="Sort the results by selected property", enum=SORT_PROPERTIES),
         ],
     )
     def list(self, request, *args, **kwargs):
@@ -369,7 +369,7 @@ class ReportView(viewsets.ViewSet):
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
-            OpenApiParameter('visible_to', description="Only show reports created by identity (with any TLP level) or public reports with `tlp_level == green` OR `tlp_level == clear`"),
+            OpenApiParameter('visible_to', description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`."),
         ],
     )
     @decorators.action(methods=["GET"], detail=True)
