@@ -235,6 +235,7 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
         {"name": "Files", "description": "Upload files and retrieve uploaded files"},
         {"name": "Reports", "description": "Files are processed into Reports. Search and view created Reports."},
         {"name": "Objects", "description": "Search through STIX object extracted from Files in Reports."},
+        {"name": "Identities", "description": "Manage the identities used to create content."},
         {"name": "Profiles", "description": "Create and search for extraction profile applied to text Files."},
         {"name": "Extractors", "description": "Search through extractors that can be used in profiles (see txt2stix for more information)"},
         {"name": "Jobs", "description": "Check the status of data retrieval from Files uploaded."},

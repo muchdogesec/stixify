@@ -539,19 +539,24 @@ class ReportView(viewsets.ViewSet):
 
 @extend_schema_view(
     destroy=extend_schema(
-        description="Delete all objects associated with identity",
         summary="Delete all objects associated with identity",
+        description=textwrap.dedent(
+            """
+            This endpoint will delete all Files, Reports, and any other STIX objects created using this identity.
+            """
+        ),
     )
 )
 class IdentityView(viewsets.ViewSet):
     
-    openapi_tags = ["Identity"]
+    openapi_tags = ["Identities"]
     skip_list_view = True
     lookup_url_kwarg = "identity_id"
     lookup_value_regex = r'identity--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=lookup_value_regex), description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=lookup_value_regex),
+            description="The full STIX `id` of the Identity object. e.g. `identity--cfc24d7a-0b5e-4068-8bfc-10b66059afe0`."
         )
     ]
     def destroy(self, request, *args, identity_id=None, **kwargs):
