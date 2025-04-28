@@ -545,10 +545,20 @@ class ReportView(viewsets.ViewSet):
             This endpoint will delete all Files, Reports, and any other STIX objects created using this identity.
             """
         ),
-    )
+    ),
+    list=extend_schema(
+        summary="Search identity objects",
+        description="",
+    ),
 )
 class IdentityView(viewsets.ViewSet):
     
+    SORT_PROPERTIES = [
+        "created_descending",
+        "created_ascending",
+        "name_descending",
+        "name_ascending",
+    ]
     openapi_tags = ["Identities"]
     skip_list_view = True
     lookup_url_kwarg = "identity_id"
@@ -590,3 +600,36 @@ class IdentityView(viewsets.ViewSet):
             )
         File.objects.filter(identity__id=identity_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @extend_schema(
+        responses=ArangoDBHelper.get_paginated_response_schema(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + [
+            OpenApiParameter('name', description="Filter by the `name` of identity object. Search is wildcard so `co` will match `company`, `cointel`, etc."),
+            OpenApiParameter('sort', description="Sort the results by selected property", enum=SORT_PROPERTIES),
+        ],
+    )
+    def list(self, request, *args, **kwargs):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+        binds = {
+            "@view": settings.VIEW_NAME,
+        }
+        more_filters = []
+        if name := helper.query.get('name'):
+            binds['name'] = "%" + name.replace('%', r'\%') + "%"
+            more_filters.append('FILTER doc.name LIKE @name')
+
+        query = """
+        FOR doc IN @@view
+        SEARCH doc.type == "identity"
+        #more_filters
+        #sort_stmt
+        LIMIT @offset, @count
+        RETURN KEEP(doc, KEYS(doc, TRUE))
+        """
+    
+        query = query.replace(
+            '#sort_stmt', helper.get_sort_stmt(
+                self.SORT_PROPERTIES
+            )
+        ).replace('#more_filters', '\n'.join(more_filters))
+        return helper.execute_query(query, bind_vars=binds)
