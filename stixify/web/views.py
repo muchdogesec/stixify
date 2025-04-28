@@ -588,4 +588,5 @@ class IdentityView(viewsets.ViewSet):
                 RETURN NULL
                 ''', paginate=False, bind_vars={'@collection': collection, 'documents': documents}
             )
+        File.objects.filter(identity__id=identity_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
