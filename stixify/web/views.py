@@ -102,7 +102,7 @@ class SchemaViewCached(SpectacularAPIView):
             """
             This endpoint will delete a File using its ID. It will also delete the markdown, images and original file stored for this File.
 
-            IMPORTANT: this request WILL also delete the Report SDO created from the file, or any other STIX objects created from this file during extractions.
+            IMPORTANT: this request WILL also delete any STIX objects created from this file.
             """
         ),
         responses={204: {}, 404: DEFAULT_404_ERROR},
