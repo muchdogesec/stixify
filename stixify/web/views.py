@@ -554,6 +554,14 @@ class ReportView(viewsets.ViewSet):
             """
         ),
     ),
+    retrieve=extend_schema(
+        summary="GET identity object by STIX ID",
+        description=textwrap.dedent(
+            """
+            This endpoint will allow you to GET an identity object by its STIX ID.
+            """
+        ),
+    ),
 )
 class IdentityView(viewsets.ViewSet):
     
