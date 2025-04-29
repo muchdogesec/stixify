@@ -645,3 +645,17 @@ class IdentityView(viewsets.ViewSet):
         ).replace('#more_filters', '\n'.join(more_filters))
         return helper.execute_query(query, bind_vars=binds)
     
+    def retrieve(self, request, *args, identity_id=None, **kwargs):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+        binds = {
+            "@view": settings.VIEW_NAME,
+            "identity_id": identity_id,
+        }
+        query = """
+        FOR doc IN @@view
+        SEARCH doc.type == "identity" AND doc._is_latest == TRUE AND doc.id == @identity_id
+        COLLECT id = doc.id INTO docs LET doc = docs[0].doc
+        LIMIT @offset, @count
+        RETURN KEEP(doc, KEYS(doc, TRUE))
+        """
+        return helper.execute_query(query, bind_vars=binds)
