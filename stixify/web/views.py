@@ -1,5 +1,6 @@
 from functools import reduce
 import io
+import logging
 import operator
 import re
 import uuid
@@ -90,7 +91,7 @@ class SchemaViewCached(SpectacularAPIView):
             """
         ),
         parameters=[
-            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File. This is also the UUID part of the STIX Report object for the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
+            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File. This will be the same as the UUID part of the STIX report object create from the file. (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
         ],
         responses={200: FileSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
 
@@ -133,7 +134,7 @@ class FileView(
     lookup_url_kwarg = "file_id"
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File. This is also the UUID part of the STIX Report object for the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."
         )
     ]
     ordering_fields = ["name", "created"]
@@ -146,14 +147,14 @@ class FileView(
 
 
     class filterset_class(FilterSet):
-        id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file", lookup_expr="in")
+        id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).", lookup_expr="in")
         name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
-        profile_id = filters.Filter(help_text="Filter profiles by the `id` of the Profile. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
+        profile_id = filters.Filter(help_text="Filter by the `id` of the Profile to only include files processed by entered Profile ID. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
         job_state = filters.ChoiceFilter(field_name='job__state', help_text="Job state of the file", choices=JobState.choices)
 
-        ai_describes_incident = filters.BooleanFilter(help_text="boolean, default: show all")
-        ai_incident_classification = filters.BaseCSVFilter('name', help_text="default: show all", method='ai_incident_classification_filter')
+        ai_describes_incident = filters.BooleanFilter(help_text="If `ai_content_check_provider` set in profile used to process report, AI will answer if file describes security incident. Default will show all reports, can filter those that only describe incident by setting to true.")
+        ai_incident_classification = filters.BaseCSVFilter('name', help_text="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", method='ai_incident_classification_filter')
         
         def ai_incident_classification_filter(self, queryset, name, value):
             filter = reduce(operator.or_, [Q(ai_incident_classification__icontains=s) for s in value])
@@ -294,7 +295,7 @@ class JobView(
         summary="Search for Report objects created from Files",
         description=textwrap.dedent(
             """
-            Search for Report objects created from Files
+            When a file is uploaded a STIX report object will be created for it. The file `id` will match the UUID part of the STIX report object (e.g. `report--UUID`).
             """
         ),
     ),
@@ -310,7 +311,7 @@ class JobView(
         summary="Get all objects linked to a Report ID",
         description=textwrap.dedent(
             """
-            This endpoint returns all STIX objects that were extracted and created for the File linked to this report.
+            This endpoint returns all STIX objects that were extracted from the uploaded File linked to this report.
             """
         ),
     ),
@@ -351,15 +352,15 @@ class ReportView(viewsets.ViewSet):
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
             OpenApiParameter('identity', description="Filter the result by only the reports created by this identity. Pass in the format `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`"),
-            OpenApiParameter('visible_to', description="Only show reports created by identity (with any TLP level) or public reports with `tlp_level == green` OR `tlp_level == clear`"),
+            OpenApiParameter('visible_to', description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`."),
             OpenApiParameter('name', description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
-            OpenApiParameter('tlp_level', description="", enum=[f[0] for f in TLP_Levels.choices]),
+            OpenApiParameter('tlp_level', description="Filter the results by TLP marking of the Report object (set at file upload time).", enum=[f[0] for f in TLP_Levels.choices]),
             OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
-            OpenApiParameter('labels', description="searches the `labels` property for the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
+            OpenApiParameter('labels', description="Searches the `labels` property of Report objects for the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
             OpenApiParameter('confidence_min', description="The minimum confidence score of a report `0` is no confidence, `1` is lowest, `100` is highest.", type=OpenApiTypes.NUMBER),
             OpenApiParameter('created_max', description="Maximum value of `created` value to filter by in format `YYYY-MM-DD`."),
             OpenApiParameter('created_min', description="Minimum value of `created` value to filter by in format `YYYY-MM-DD`."),
-            OpenApiParameter('sort', description="Sort by", enum=SORT_PROPERTIES),
+            OpenApiParameter('sort', description="Sort the results by selected property", enum=SORT_PROPERTIES),
         ],
     )
     def list(self, request, *args, **kwargs):
@@ -368,7 +369,7 @@ class ReportView(viewsets.ViewSet):
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
         parameters=ArangoDBHelper.get_schema_operation_parameters() + [
-            OpenApiParameter('visible_to', description="Only show reports created by identity (with any TLP level) or public reports with `tlp_level == green` OR `tlp_level == clear`"),
+            OpenApiParameter('visible_to', description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`."),
         ],
     )
     @decorators.action(methods=["GET"], detail=True)
@@ -535,3 +536,104 @@ class ReportView(viewsets.ViewSet):
         """.replace('#visible_to', visible_to_filter)
         print(bind_vars, query)
         return helper.execute_query(query, bind_vars=bind_vars)
+
+@extend_schema_view(
+    destroy=extend_schema(
+        summary="Delete all objects associated with identity",
+        description=textwrap.dedent(
+            """
+            This endpoint will delete all Files, Reports, and any other STIX objects created using this identity.
+            """
+        ),
+    ),
+    list=extend_schema(
+        summary="Search identity objects",
+        description=textwrap.dedent(
+            """
+            This endpoint will allow you to search for all identities that exist.
+            """
+        ),
+    ),
+)
+class IdentityView(viewsets.ViewSet):
+    
+    SORT_PROPERTIES = [
+        "created_descending",
+        "created_ascending",
+        "name_descending",
+        "name_ascending",
+    ]
+    openapi_tags = ["Identities"]
+    skip_list_view = True
+    lookup_url_kwarg = "identity_id"
+    lookup_value_regex = r'identity--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    openapi_path_params = [
+        OpenApiParameter(
+            lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=lookup_value_regex),
+            description="The full STIX `id` of the Identity object. e.g. `identity--cfc24d7a-0b5e-4068-8bfc-10b66059afe0`."
+        )
+    ]
+    def destroy(self, request, *args, identity_id=None, **kwargs):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+        vertices = helper.execute_query('''
+            FOR doc IN stixify_vertex_collection
+            FILTER doc.id == @identity_id OR doc.created_by_ref == @identity_id
+            RETURN KEEP(doc, "_key", "_id")
+        ''', bind_vars=dict(identity_id=identity_id), paginate=False)
+        edges = helper.execute_query('''
+            FOR doc IN stixify_edge_collection
+            FILTER 
+                    doc.id == @identity_id OR
+                    doc.created_by_ref == @identity_id OR
+                    doc._from IN @vertex_ids OR doc._to IN @vertex_ids
+            RETURN KEEP(doc, "_key", "_id")
+        ''',
+            bind_vars=dict(
+                identity_id=identity_id,
+                vertex_ids=[v['_id'] for v in vertices]),
+            paginate=False
+        )
+        logging.info(f'removing {len(edges)} edges and {len(vertices)} vertices')
+        for collection, documents in [('stixify_vertex_collection', vertices), ('stixify_edge_collection', edges)]:
+            helper.execute_query(
+                '''
+                FOR doc IN @documents
+                REMOVE doc IN @@collection
+                RETURN NULL
+                ''', paginate=False, bind_vars={'@collection': collection, 'documents': documents}
+            )
+        File.objects.filter(identity__id=identity_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
+    @extend_schema(
+        responses=ArangoDBHelper.get_paginated_response_schema(),
+        parameters=ArangoDBHelper.get_schema_operation_parameters() + [
+            OpenApiParameter('name', description="Filter by the `name` of identity object. Search is wildcard so `co` will match `company`, `cointel`, etc."),
+            OpenApiParameter('sort', description="Sort the results by selected property", enum=SORT_PROPERTIES),
+        ],
+    )
+    def list(self, request, *args, **kwargs):
+        helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
+        binds = {
+            "@view": settings.VIEW_NAME,
+        }
+        more_filters = []
+        if name := helper.query.get('name'):
+            binds['name'] = "%" + name.replace('%', r'\%') + "%"
+            more_filters.append('FILTER doc.name LIKE @name')
+
+        query = """
+        FOR doc IN @@view
+        SEARCH doc.type == "identity"
+        #more_filters
+        #sort_stmt
+        LIMIT @offset, @count
+        RETURN KEEP(doc, KEYS(doc, TRUE))
+        """
+    
+        query = query.replace(
+            '#sort_stmt', helper.get_sort_stmt(
+                self.SORT_PROPERTIES
+            )
+        ).replace('#more_filters', '\n'.join(more_filters))
+        return helper.execute_query(query, bind_vars=binds)
