@@ -548,7 +548,11 @@ class ReportView(viewsets.ViewSet):
     ),
     list=extend_schema(
         summary="Search identity objects",
-        description="",
+        description=textwrap.dedent(
+            """
+            This endpoint will allow you to search for all identities that exist.
+            """
+        ),
     ),
 )
 class IdentityView(viewsets.ViewSet):
