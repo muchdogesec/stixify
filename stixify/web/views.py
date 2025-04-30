@@ -421,21 +421,11 @@ class ReportView(viewsets.ViewSet):
         for key in out:
             collection, key = key.split('/', 2)
             collections[collection] = collections.get(collection, [])
-            collections[collection].append(key)
-
-        deletion_query = """
-            FOR _key in @objects
-            REMOVE {_key} IN @@collection
-            RETURN _key
-        """
-
+            collections[collection].append(dict(_key=key))
+        
         for collection, objects in collections.items():
-            bind_vars = {
-                "@collection": collection,
-                "objects": objects,
-            }
-            helper.execute_query(deletion_query, bind_vars, paginate=False)
-            db_service.update_is_latest_several_chunked([object_key.split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection').removesuffix('_edge_collection')+'_edge_collection')
+            helper.db.collection(collection).delete_many(objects, silent=True)
+            db_service.update_is_latest_several_chunked([object_key['_key'].split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection').removesuffix('_edge_collection')+'_edge_collection')
 
 
     def get_sort_stmt(self, sort_options: 'list[str]', customs={}):
@@ -608,13 +598,8 @@ class IdentityView(viewsets.ViewSet):
         )
         logging.info(f'removing {len(edges)} edges and {len(vertices)} vertices')
         for collection, documents in [('stixify_vertex_collection', vertices), ('stixify_edge_collection', edges)]:
-            helper.execute_query(
-                '''
-                FOR doc IN @documents
-                REMOVE doc IN @@collection
-                RETURN NULL
-                ''', paginate=False, bind_vars={'@collection': collection, 'documents': documents}
-            )
+            helper.db.collection(collection).delete_many(documents, silent=True)
+        print('here')
         File.objects.filter(identity__id=identity_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
