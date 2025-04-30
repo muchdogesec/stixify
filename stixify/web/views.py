@@ -599,7 +599,6 @@ class IdentityView(viewsets.ViewSet):
         logging.info(f'removing {len(edges)} edges and {len(vertices)} vertices')
         for collection, documents in [('stixify_vertex_collection', vertices), ('stixify_edge_collection', edges)]:
             helper.db.collection(collection).delete_many(documents, silent=True)
-        print('here')
         File.objects.filter(identity__id=identity_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     
