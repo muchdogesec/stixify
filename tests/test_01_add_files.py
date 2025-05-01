@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import time
 from types import SimpleNamespace
@@ -19,6 +20,14 @@ def all_posts():
             "name": "some document",
             "file_name": "pdf-real/bitdefender-rdstealer.pdf",
             "report_id": "report--a378c839-0940-56fb-b52c-e5b78d34ec94",
+
+            "identity": {
+                "type": "identity",
+                "id": "identity--a378c839-0940-56fb-b52c-e5b78d34ec94",
+                "name": "identity meant for deletion",
+                "identity_class": "individual",
+                "spec_version":"2.1",
+            },
         },
         {
             "profile_id": "64ca67f0-753a-51b5-a64b-de73184c5457",
@@ -66,11 +75,13 @@ def all_posts():
 @pytest.mark.parametrize(
     ["file_name", "file_data", "should_fail"], all_posts()
 )
-def test_add_file(file_name, file_data, should_fail):
+def test_add_file(file_name, file_data: dict, should_fail):
     file_url = urljoin(files_base_url, file_name)
     f = io.BytesIO(requests.get(file_url).content)
     f.name = os.path.basename(file_name)
-    payload = file_data
+    payload = file_data.copy()
+    if identity := payload.get('identity'):
+        payload.update(identity=json.dumps(identity))
     file_job_resp = requests.post(
         urljoin(base_url, f"api/v1/files/"), data=payload, files={'file': (f.name, f, "application/pdf")})
 
