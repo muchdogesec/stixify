@@ -7,6 +7,7 @@ import uuid
 from django import forms
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
 from django.http import FileResponse, HttpRequest, HttpResponseNotFound
+from django.utils.text import slugify
 
 from django.db.models import F, Value, CharField, Func, Q
 
@@ -71,6 +72,8 @@ class SchemaViewCached(SpectacularAPIView):
             data=self.__class__._schema,
             headers={"Content-Disposition": f'inline; filename="{self._get_filename(request, version)}"'}
         )
+    
+incident_classification_types = ['other', 'apt_group', 'vulnerability', 'data_leak', 'malware', 'ransomware', 'infostealer', 'threat_actor', 'campaign', 'exploit', 'cyber_crime', 'indicators_of_compromise', 'ttps']
 
 # Create your views here.
 @extend_schema_view(
@@ -154,7 +157,7 @@ class FileView(
         job_state = filters.ChoiceFilter(field_name='job__state', help_text="Job state of the file", choices=JobState.choices)
 
         ai_describes_incident = filters.BooleanFilter(help_text="If `ai_content_check_provider` set in profile used to process report, AI will answer if file describes security incident. Default will show all reports, can filter those that only describe incident by setting to true.")
-        ai_incident_classification = filters.BaseCSVFilter('name', help_text="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", method='ai_incident_classification_filter')
+        ai_incident_classification = filters.MultipleChoiceFilter(choices=[(c, c) for c in incident_classification_types], help_text="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", method='ai_incident_classification_filter')
         
         def ai_incident_classification_filter(self, queryset, name, value):
             filter = reduce(operator.or_, [Q(ai_incident_classification__icontains=s) for s in value])
@@ -162,6 +165,7 @@ class FileView(
         
     def perform_create(self, serializer):
         return super().perform_create(serializer)
+    
         
     @extend_schema(responses={200: JobSerializer}, request=FileSerializer)
     def create(self, request, *args, **kwargs):
@@ -326,6 +330,7 @@ class ReportView(viewsets.ViewSet):
             lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=r'^report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'), description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
         )
     ]
+    
     SORT_PROPERTIES = [
         "created_descending",
         "created_ascending",
@@ -357,6 +362,7 @@ class ReportView(viewsets.ViewSet):
             OpenApiParameter('tlp_level', description="Filter the results by TLP marking of the Report object (set at file upload time).", enum=[f[0] for f in TLP_Levels.choices]),
             OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
             OpenApiParameter('labels', description="Searches the `labels` property of Report objects for the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
+            OpenApiParameter('ai_incident_classification', style='form', explode=False, many=True, description="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", enum=incident_classification_types),
             OpenApiParameter('confidence_min', description="The minimum confidence score of a report `0` is no confidence, `1` is lowest, `100` is highest.", type=OpenApiTypes.NUMBER),
             OpenApiParameter('created_max', description="Maximum value of `created` value to filter by in format `YYYY-MM-DD`."),
             OpenApiParameter('created_min', description="Minimum value of `created` value to filter by in format `YYYY-MM-DD`."),
@@ -484,6 +490,11 @@ class ReportView(viewsets.ViewSet):
         if term := helper.query.get('created_min'):
             bind_vars['created_min'] = term
             filters.append("FILTER doc.created >= @created_min")
+
+        if classifications := helper.query_as_array('ai_incident_classification'):
+            bind_vars['classifications'] = ["txt2stix:"+x.lower().replace(' ', '_') for x in classifications]
+            print(bind_vars['classifications'])
+            filters.append('FILTER @classifications ANY IN doc.labels')
 
         query = """
             FOR doc in @@collection
