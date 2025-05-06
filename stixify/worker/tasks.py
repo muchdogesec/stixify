@@ -45,13 +45,7 @@ def process_post(filename, job_id, *args):
             job.file.ai_incident_summary = processor.incident.explanation
             job.file.ai_incident_classification = processor.incident.incident_classification
 
-        if job.profile.ai_summary_provider:
-            logging.info(f"summarizing report {processor.report_id} using `{job.profile.ai_summary_provider}`")
-            try:
-                summary_extractor = parse_summarizer_model(job.profile.ai_summary_provider)
-                job.file.summary = summary_extractor.summarize(processor.output_md)
-            except BaseException as e:
-                logging.info(f"got err {e}", exc_info=True)
+        job.file.summary = processor.summary
         job.file.markdown_file.save('markdown.md', processor.md_file.open(), save=True)
         
         models.FileImage.objects.filter(report=job.file).delete() # remove old references
