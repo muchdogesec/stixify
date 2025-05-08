@@ -178,6 +178,17 @@ class FileView(
         new_task(job_instance, file_instance)
         return Response(job_serializer.data, status=status.HTTP_201_CREATED)
     
+
+    @extend_schema(
+        summary="show the data .json produced by txt2stix",
+        description="show the data .json produced by txt2stix",
+        responses={200: dict},
+    )
+    @decorators.action(detail=True, methods=["GET"])
+    def extractions(self, request, post_id=None, **kwargs):
+        obj = self.get_object()
+        return Response(obj.txt2stix_data or {})
+    
     
     @extend_schema(
         responses={200:{}, 404: DEFAULT_404_ERROR},

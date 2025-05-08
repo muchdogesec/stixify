@@ -79,7 +79,7 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        exclude = ['profile', "markdown_file"]
+        exclude = ['profile', "markdown_file", "txt2stix_data"]
         read_only_fields = []
 
 class ImageSerializer(serializers.ModelSerializer):
