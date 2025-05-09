@@ -45,6 +45,7 @@ def process_post(filename, job_id, *args):
             job.file.ai_incident_summary = processor.incident.explanation
             job.file.ai_incident_classification = processor.incident.incident_classification
 
+        job.file.txt2stix_data = processor.txt2stix_data.model_dump(mode="json", exclude_defaults=True, exclude_unset=True, exclude_none=True)
         job.file.summary = processor.summary
         job.file.markdown_file.save('markdown.md', processor.md_file.open(), save=True)
         

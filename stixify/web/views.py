@@ -178,6 +178,17 @@ class FileView(
         new_task(job_instance, file_instance)
         return Response(job_serializer.data, status=status.HTTP_201_CREATED)
     
+
+    @extend_schema(
+        summary="show the data .json produced by txt2stix",
+        description="show the data .json produced by txt2stix",
+        responses={200: dict},
+    )
+    @decorators.action(detail=True, methods=["GET"])
+    def extractions(self, request, post_id=None, **kwargs):
+        obj = self.get_object()
+        return Response(obj.txt2stix_data or {})
+    
     
     @extend_schema(
         responses={200:{}, 404: DEFAULT_404_ERROR},
@@ -384,6 +395,7 @@ class ReportView(viewsets.ViewSet):
                 description="Filter the results by one or more STIX Object types",
                 enum=OBJECT_TYPES,
             ),
+            OpenApiParameter('ignore_embedded_sro', type=bool, description="If set to `true` all embedded SROs are removed from the response."),
             
         ],
     )
@@ -525,6 +537,7 @@ class ReportView(viewsets.ViewSet):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
 
         types = helper.query.get('types', "")
+        filters = []
         bind_vars = {
                 "@collection": settings.VIEW_NAME,
                 'report_id': report_id,
@@ -535,6 +548,9 @@ class ReportView(viewsets.ViewSet):
             bind_vars['visible_to'] = q
             bind_vars['marking_visible_to_all'] = TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN], TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR]
             visible_to_filter = 'FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs'
+        if q := helper.query_as_bool('ignore_embedded_sro', default=False):
+            filters.append('FILTER doc._is_ref != TRUE')
+
         query = """
             LET report = FIRST(
                 FOR doc in @@collection
@@ -545,9 +561,10 @@ class ReportView(viewsets.ViewSet):
             FOR doc in @@collection
             SEARCH report != NULL AND doc._stixify_report_id == @report_id
             FILTER NOT @types OR doc.type IN @types
+            #more_filters
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, TRUE))
-        """.replace('#visible_to', visible_to_filter)
+        """.replace('#visible_to', visible_to_filter).replace('#more_filters', '\n'.join(filters))
         return helper.execute_query(query, bind_vars=bind_vars)
 
 @extend_schema_view(
