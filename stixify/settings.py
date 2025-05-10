@@ -223,14 +223,12 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
     "DESCRIPTION": dedent(
         """
         Stixify extracts machine readable intelligence from unstructured data.\n\n
-        [DOGESEC](https://www.dogesec.com/) offer a fully hosted web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).
+        Upload an intelligence report and Stixify will convert it into structured threat intelligence ready for you to integrate with your security tooling.\n\n
+        You are viewing the open-source version of Stixify available at [github.com/muchdogesec/stixify/](https://github.com/muchdogesec/stixify/)\n\n
+        A fully hosted version of Stixify, with many more advanced features can be found at [stixify.com](https://www.stixify.com)
     """
     ),
     "VERSION": "1.0.0",
-    "CONTACT": {
-        "email": "noreply@dogesec.com",
-        "url": "https://github.com/muchdogesec/stixify",
-    },
     "TAGS": [
         {"name": "Files", "description": "Upload files and retrieve uploaded files"},
         {"name": "Reports", "description": "Files are processed into Reports. Search and view created Reports."},
