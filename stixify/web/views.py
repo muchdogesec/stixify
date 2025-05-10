@@ -177,11 +177,16 @@ class FileView(
         job_serializer = JobSerializer(job_instance)
         new_task(job_instance, file_instance)
         return Response(job_serializer.data, status=status.HTTP_201_CREATED)
-    
 
     @extend_schema(
-        summary="show the data .json produced by txt2stix",
-        description="show the data .json produced by txt2stix",
+        summary="Get the extractions performed on this File",
+        description=textwrap.dedent(
+            """
+            When extractions are performed, txt2stix creates an extraction file to show the values extracted, what extractor was used, how relationships between extractions were made (if AI relationship mode used), the AI summary produced (if AI summary enabled), and details about the Attack Flow order detected (if enabled).
+
+            Use this endpoint to view this file which can be useful to understanding how the output for the post was produced.
+            """
+        ),
         responses={200: dict},
     )
     @decorators.action(detail=True, methods=["GET"])
