@@ -24,7 +24,7 @@ def test_delete_identity(identity_uuid, subtests):
     delete_resp = requests.delete(identity_url)
 
     assert delete_resp.status_code == 204, f"unexpected status, body: {delete_resp.text}"
-
+    time.sleep(2)
     get_resp = requests.get(identity_url)
     assert get_resp.status_code == 200
     assert len(get_resp.json()['objects']) == 0, f"identity should already be deleted"
