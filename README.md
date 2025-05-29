@@ -1,5 +1,7 @@
 # Stixify
 
+[![codecov](https://codecov.io/gh/muchdogesec/stixify/graph/badge.svg?token=RGT4J6UILE)](https://codecov.io/gh/muchdogesec/stixify)
+
 ## Before you begin...
 
 We offer a fully hosted web version of Stixify which includes many additional features over those in this codebase. [You can find out more about the web version here](https://www.stixify.com/).

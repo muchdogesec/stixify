@@ -1,4 +1,4 @@
-name: Schemathesis Test
+name: Run tests
 
 on:
   push:
