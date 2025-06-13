@@ -553,6 +553,7 @@ class ReportView(viewsets.ViewSet):
             bind_vars['visible_to'] = q
             bind_vars['marking_visible_to_all'] = TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN], TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR]
             visible_to_filter = 'FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs'
+            
         if q := helper.query_as_bool('ignore_embedded_sro', default=False):
             filters.append('FILTER doc._is_ref != TRUE')
 
