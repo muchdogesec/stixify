@@ -1,0 +1,90 @@
+name: Run Tests
+
+permissions:
+  contents: read
+  
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  test-schema-thesis:
+    runs-on: ubuntu-latest
+    environment: test_pipeline
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+         
+      - name: Start docker-compose
+        uses: hoverkraft-tech/compose-action@v2.0.2
+        id: start_container
+        with:
+          compose-file: |
+            tests/st/docker-compose.yml
+          compose-flags:
+            --env-file tests/tests.env
+            -p stixify-action
+
+      - name: Get IP addresses
+        id: get_ip
+        run: |
+              IP_ADDRESS=$(docker network inspect -f '{{range.IPAM.Config}}{{.Gateway}}{{end}}' stixify-action_default)
+              echo "ip_address=$IP_ADDRESS" >> "$GITHUB_OUTPUT"
+              echo "IP_ADDRESS=$IP_ADDRESS" >> "$GITHUB_OUTPUT"
+              echo "SERVICE_BASE_URL=http://$IP_ADDRESS:18529/" >> "$GITHUB_OUTPUT"
+              cat "$GITHUB_OUTPUT"
+
+    
+
+      - id: set-env
+        run: |
+          pip install -r requirements.txt -r tests/requirements.txt
+          echo ARANGODB_HOST_URL="http://${{ steps.get_ip.outputs.IP_ADDRESS }}:18529" >> tests/tests.env
+          echo POSTGRES_HOST="${{ steps.get_ip.outputs.IP_ADDRESS }}" >> tests/tests.env
+          echo DJANGO_WWW_PATH=$PWD/django_www_path/ >> tests/tests.env
+          echo PYTHONPATH=. >> tests/tests.env
+
+      - name: test all endpoints 1
+        run: |
+          set -a; source tests/tests.env; set +a
+          pytest --cov --cov-branch --cov-report=xml --junitxml=unittest.junit.xml -o junit_family=legacy tests/src
+      
+      - name: test schema
+        if: ${{ failure() || success() }}
+        run: |
+          set -a; source tests/tests.env; set +a
+          pytest --cov --cov-branch --cov-append --cov-report=xml --junitxml=schemathesis.junit.xml -o junit_family=legacy tests/st/test_schemathesis.py
+
+      - name: Upload coverage reports to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: unittest.junit.xml
+          flags: unittest
+
+      
+      - name: Upload schemathesis test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: schemathesis.junit.xml
+          flags: schemathesis

@@ -172,7 +172,7 @@ output/
 
 google_vision_key/key.json
 media/
-*.env
+.env
 Pipfile
 Pipfile.lock
 
