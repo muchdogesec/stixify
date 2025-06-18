@@ -3,6 +3,7 @@ import io
 import logging
 import operator
 import re
+import textwrap
 import uuid
 from django import forms
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
@@ -10,6 +11,7 @@ from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 from django.utils.text import slugify
 from dogesec_commons.objects.helpers import OBJECT_TYPES
 from django.db.models import F, Value, CharField, Func, Q
+from .md_helper import MarkdownImageReplacer
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -32,30 +34,6 @@ import django_filters.rest_framework as filters
 from django_filters import fields as django_filters_fields
 from stixify.worker.tasks import new_task
 from drf_spectacular.utils import extend_schema, extend_schema_view
-
-## markdown helper
-import textwrap
-import mistune, hyperlink
-from mistune.renderers.markdown import MarkdownRenderer
-from mistune.util import unescape
-class MarkdownImageReplacer(MarkdownRenderer):
-    def __init__(self, request, queryset):
-        self.request = request
-        self.queryset = queryset
-        super().__init__()
-    def image(self, token: dict[str, dict], state: mistune.BlockState) -> str:
-        src = token['attrs']['url']
-        if not hyperlink.parse(src).absolute:
-            try:
-                token['attrs']['url'] = self.request.build_absolute_uri(self.queryset.get(name=src).file.url)
-            except Exception as e:
-                pass
-        return super().image(token, state)
-    
-    def codespan(self, token: dict[str, dict], state: mistune.BlockState) -> str:
-        token['raw'] = unescape(token['raw'])
-        return super().codespan(token, state)
-## markdown helper ends
 
 from drf_spectacular.views import SpectacularAPIView
 from rest_framework.response import Response
@@ -151,7 +129,7 @@ class FileView(
 
     class filterset_class(FilterSet):
         id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).", lookup_expr="in")
-        name = Filter(lookup_expr='search', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
+        name = Filter(lookup_expr='icontains', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
         mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
         profile_id = filters.Filter(help_text="Filter by the `id` of the Profile to only include files processed by entered Profile ID. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
         job_state = filters.ChoiceFilter(field_name='job__state', help_text="Job state of the file", choices=JobState.choices)
@@ -167,7 +145,7 @@ class FileView(
         return super().perform_create(serializer)
     
         
-    @extend_schema(responses={200: JobSerializer}, request=FileSerializer)
+    @extend_schema(responses={201: JobSerializer}, request=FileSerializer)
     def create(self, request, *args, **kwargs):
         serializer = FileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -175,7 +153,7 @@ class FileView(
         file_instance = serializer.save(mimetype=temp_file.content_type)
         job_instance =  Job.objects.create(file=file_instance)
         job_serializer = JobSerializer(job_instance)
-        new_task(job_instance, file_instance)
+        new_task(job_instance)
         return Response(job_serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(
@@ -220,8 +198,21 @@ class FileView(
         obj: File = self.get_object()
         if not obj.markdown_file:
             return HttpResponseNotFound("No markdown file")
-        modify_links = mistune.create_markdown(escape=False, renderer=MarkdownImageReplacer(self.request, FileImage.objects.filter(report__id=file_id)))
-        return FileResponse(streaming_content=modify_links(obj.markdown_file.read().decode()), content_type='text/markdown', filename=f'{obj.name}-markdown.md')
+        
+        images = {
+            img.name: img.file.url
+            for img in FileImage.objects.filter(report_id=file_id)
+        }
+        resp_text = MarkdownImageReplacer.get_markdown(
+            request.build_absolute_uri(),
+            obj.markdown_file.read().decode(),
+            images,
+        )
+        return FileResponse(
+            streaming_content=resp_text,
+            content_type="text/markdown",
+            filename="markdown.md",
+        )
     
     @extend_schema(
             responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},
@@ -363,7 +354,7 @@ class ReportView(viewsets.ViewSet):
         reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
             self.fix_report_id(report_id)
         )
-        if not reports.data:
+        if not reports.data['objects']:
             raise exceptions.NotFound(
                 detail=f"report object with id `{report_id}` - not found"
             )
@@ -460,18 +451,6 @@ class ReportView(viewsets.ViewSet):
             db_service.update_is_latest_several_chunked([object_key['_key'].split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection').removesuffix('_edge_collection')+'_edge_collection')
 
 
-    def get_sort_stmt(self, sort_options: 'list[str]', customs={}):
-        finder = re.compile(r"(.+)_((a|de)sc)ending")
-        sort_field = self.request.GET.get('sort')
-        if sort_field not in sort_options:
-            sort_field = sort_options[0]
-        if m := finder.match(sort_field):
-            field = m.group(1)
-            direction = m.group(2).upper()
-            if cfield := customs.get(field):
-                return f"SORT {cfield} {direction}"
-            return f"SORT doc.{field} {direction}"
-
     def get_reports(self, id=None):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
         filters = []
@@ -519,7 +498,6 @@ class ReportView(viewsets.ViewSet):
 
         if classifications := helper.query_as_array('ai_incident_classification'):
             bind_vars['classifications'] = ["txt2stix:"+x.lower().replace(' ', '_') for x in classifications]
-            print(bind_vars['classifications'])
             filters.append('FILTER @classifications ANY IN doc.labels')
 
         query = """
@@ -534,7 +512,7 @@ class ReportView(viewsets.ViewSet):
         """
         return helper.execute_query(
             query.replace('#more_filters', '\n'.join(filters)).replace(
-                '#sort_statement', self.get_sort_stmt(self.SORT_PROPERTIES)
+                '#sort_statement', helper.get_sort_stmt(self.SORT_PROPERTIES)
             )
         , bind_vars=bind_vars)
 
