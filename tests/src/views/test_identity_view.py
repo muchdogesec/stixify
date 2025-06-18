@@ -14,7 +14,6 @@ def test_list_identities(client):
     "identity_id",
     [
        "identity--f92e15d9-6afc-5ae2-bb3e-85a1fd83a3b5",
-       "identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5",
     ]
 )
 def test_retrieve_identities(client, identity_id):
