@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 import io
+from dogesec_commons.objects.db_view_creator import startup_func
 
 
 from functools import lru_cache
@@ -41,11 +42,11 @@ def make_s2a_uploads(
         host_url=settings.ARANGODB_HOST_URL,
         **kwargs,
     )
+    startup_func()
     for bundle in uploads:
         for obj in bundle["objects"]:
             obj["_stixify_report_id"] = bundle["id"].replace("bundle", "report")
         s2a.run(data=bundle)
-
     time.sleep(1)
     yield s2a
 
