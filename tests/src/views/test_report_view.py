@@ -5,6 +5,7 @@ import pytest
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 import io
+from dogesec_commons.objects.db_view_creator import startup_func
 
 
 from functools import lru_cache
@@ -30,7 +31,6 @@ def as_arango2stix_db(db_name):
 @contextlib.contextmanager
 def make_s2a_uploads(
     uploads: list[list[dict]],
-    truncate_collection=False,
     database=settings.ARANGODB_DATABASE,
     **kwargs,
 ):
@@ -42,17 +42,14 @@ def make_s2a_uploads(
         host_url=settings.ARANGODB_HOST_URL,
         **kwargs,
     )
+    startup_func()
     for bundle in uploads:
         for obj in bundle["objects"]:
             obj["_stixify_report_id"] = bundle["id"].replace("bundle", "report")
         s2a.run(data=bundle)
-
     time.sleep(1)
     yield s2a
 
-    if truncate_collection:
-        s2a.arango.db.collection("stixify_vertex_collection").truncate()
-        s2a.arango.db.collection("stixify_edge_collection").truncate()
 
 
 @pytest.fixture(autouse=True, scope="package")
@@ -62,7 +59,6 @@ def upload_arango_objects():
             bundles.BUNDLE_1,
             bundles.BUNDLE_2,
         ],
-        truncate_collection=False,
     ):
         return
 
