@@ -12,6 +12,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import File as DjangoFile
 from django.core.files.base import File as DjangoFile
 import stix2
+
+from stixify.worker import pdf_converter
 POLL_INTERVAL = 1
 
 
@@ -54,6 +56,11 @@ def process_post(job_id, *args):
 
         for image in processor.md_images:
             models.FileImage.objects.create(report=file, file=DjangoFile(image, image.name), name=image.name)
+
+        converted_file_path = processor.tmpdir/'converted_pdf.pdf'
+        pdf_converter.make_conversion(processor.filename, converted_file_path)
+        file.pdf_file.save(converted_file_path.name, open(converted_file_path, mode='rb'))
+
         file.save()
     except Exception as e:
         job.error = "failed to process report"

@@ -57,7 +57,7 @@ def stixifier_profile():
 def stixify_file(stixifier_profile):
     return models.File.objects.create(
         id="dcbeb240-8dd6-4892-8e9e-7b6bda30e454",
-        file=SimpleUploadedFile("file.txt", b"File Content", "text/markdown"),
+        file=SimpleUploadedFile("file.md", b"File Content", "text/markdown"),
         profile=stixifier_profile,
         mode="md",
         name="First file, not special",

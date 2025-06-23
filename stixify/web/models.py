@@ -91,6 +91,7 @@ class File(CommonSTIXProps):
     mimetype = models.CharField(max_length=512)
     mode = models.CharField(max_length=256)
     markdown_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
+    pdf_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
     summary = models.CharField(max_length=65536, null=True, default=None)    
     
     # describe incident
@@ -114,6 +115,12 @@ class File(CommonSTIXProps):
     
     def __str__(self) -> str:
         return f"File(id={self.id})"
+    
+    @property
+    def archived_pdf(self):
+        if self.mode == 'pdf':
+            return self.file
+        return self.pdf_file
     
     # @classmethod
     # def visible_files(cls):
