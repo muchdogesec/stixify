@@ -54,13 +54,13 @@ def test_process_post_job(stixify_job, fake_stixifier_processor):
 
     with (
         patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
-        # patch("stixify.worker.tasks.add_pdf_to_post") as mock_add_pdf_to_post,
+        patch("stixify.worker.pdf_converter.make_conversion") as mock_convert_pdf,
     ):
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         process_post.si(stixify_job.id).delay()
         stixify_job.refresh_from_db()
         file.refresh_from_db()
-        # mock_add_pdf_to_post.assert_called_once_with(str(stixify_job.id), post_id)
+        mock_convert_pdf.assert_called_once()
         mock_stixify_processor_cls.assert_called_once()
         mock_stixify_processor_cls.return_value.setup.assert_called_once()
         assert mock_stixify_processor_cls.return_value.setup.call_args[1]['extra'] == dict(_stixify_file_id=str(file.id))
@@ -98,34 +98,8 @@ def test_process_post_with_incident(stixify_job, fake_stixifier_processor):
 
 @pytest.mark.django_db
 def test_process_post_full(stixify_job):
-    process_post.si(stixify_job.id)
-
-# @pytest.mark.django_db
-# def test_add_pdf_to_post(stixify_job):
-#     post_id = "72e1ad04-8ce9-413d-b620-fe7c75dc0a39"
-#     with (
-#         patch("stixify.worker.tasks.download_pdf") as mock_download_pdf,
-#     ):
-#         mock_download_pdf.return_value = b"assume this is a pdf"
-#         add_pdf_to_post(stixify_job.id, post_id)
-#         mock_download_pdf.assert_called_once_with("https://example.blog/3")
-#         post_file = models.File.objects.get(pk=post_id)
-#         assert post_file.pdf_file.read() == mock_download_pdf.return_value
-
-
-# @pytest.mark.django_db
-# def test_add_pdf_to_post__failure(stixify_job):
-#     post_id = "72e1ad04-8ce9-413d-b620-fe7c75dc0a39"
-#     with (
-#         patch("stixify.worker.tasks.download_pdf") as mock_download_pdf,
-#     ):
-#         mock_download_pdf.side_effect = Exception
-#         add_pdf_to_post(stixify_job.id, post_id)
-#         mock_download_pdf.assert_called_once_with("https://example.blog/3")
-#         stixify_job.refresh_from_db()
-#         assert len(stixify_job.errors) == 1
-
-# @pytest.mark.django_db
-# def test_download_pdf():
-#     result = download_pdf("https://example.com/")
-#     assert tuple(result[:4]) == (0x25,0x50,0x44,0x46)
+    process_post.si(stixify_job.id).delay()
+    file = models.File.objects.get(pk=stixify_job.file_id)
+    stixify_job.refresh_from_db()
+    assert stixify_job.error == None, stixify_job.error
+    assert tuple(file.archived_pdf.read(4)) == (0x25,0x50,0x44,0x46)

@@ -559,6 +559,8 @@ wrapt==1.17.2
     # via
     #   deprecated
     #   llama-index-core
+xlrd==2.0.2
+    # via -r requirements.in
 yarl==1.20.1
     # via aiohttp
 zipp==3.23.0
