@@ -79,7 +79,6 @@ ID = `b03a4828-cca4-5f7e-8e19-fe3f0a04277e`
         "ignore_embedded_relationships_sro": true,
         "ignore_embedded_relationships_smo": true,
         "ai_create_attack_flow": false,
-        "ai_summary_provider": "openai:gpt-4o",
         "ai_content_check_provider": "openai:gpt-4o"
     }
 ```
