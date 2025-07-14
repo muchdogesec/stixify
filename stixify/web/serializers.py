@@ -74,7 +74,6 @@ class FileSerializer(serializers.ModelSerializer):
     ai_incident_summary = serializers.CharField(required=False, read_only=True, allow_null=True)
     ai_incident_classification = serializers.ListField(required=False, read_only=True, allow_null=True)
     summary = serializers.CharField(read_only=True, required=False, allow_null=True)
-    ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True, required=False, allow_null=True)
     archived_pdf = serializers.FileField(use_url=True, read_only=True, allow_null=True)
 
     class Meta:
