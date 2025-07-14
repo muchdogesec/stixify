@@ -351,14 +351,9 @@ class ReportView(viewsets.ViewSet):
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
         report_id = self.validate_report_id(report_id)
-        reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
+        return ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
             self.fix_report_id(report_id)
         )
-        if not reports.data['objects']:
-            raise exceptions.NotFound(
-                detail=f"report object with id `{report_id}` - not found"
-            )
-        return reports
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),

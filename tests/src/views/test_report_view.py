@@ -73,7 +73,7 @@ def upload_arango_objects():
 def test_retrieve(client, report_id):
     resp = client.get(f"/api/v1/reports/{report_id}/")
     assert resp.status_code == 200
-    assert resp.data["objects"][0]["id"] == report_id
+    assert resp.data["id"] == report_id
 
 
 @pytest.mark.parametrize(
