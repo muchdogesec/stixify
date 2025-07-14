@@ -8,7 +8,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
-from dogesec_commons.stixifier.summarizer import parse_summarizer_model
 from rest_framework.exceptions import ValidationError
 
 class RelatedObjectField(serializers.RelatedField):

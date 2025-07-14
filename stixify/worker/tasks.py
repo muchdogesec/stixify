@@ -5,7 +5,6 @@ from stixify.web.models import Job, File
 from stixify.web import models
 from celery import shared_task
 from dogesec_commons.stixifier.stixifier import StixifyProcessor, ReportProperties
-from dogesec_commons.stixifier.summarizer import parse_summarizer_model
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.storage import default_storage
