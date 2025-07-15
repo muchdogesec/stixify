@@ -122,7 +122,7 @@ djangorestframework==3.16.0
     #   -r requirements.in
     #   dogesec-commons
     #   drf-spectacular
-dogesec-commons[stixifier]==1.0.6
+dogesec-commons[stixifier]==1.0.7
     # via -r requirements.in
 drf-spectacular==0.28.0
     # via
