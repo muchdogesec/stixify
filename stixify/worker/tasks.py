@@ -5,7 +5,6 @@ from stixify.web.models import Job, File
 from stixify.web import models
 from celery import shared_task
 from dogesec_commons.stixifier.stixifier import StixifyProcessor, ReportProperties
-from dogesec_commons.stixifier.summarizer import parse_summarizer_model
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.storage import default_storage
@@ -29,7 +28,7 @@ def process_post(job_id, *args):
     try:
         job.state = models.JobState.PROCESSING
         job.save()
-        processor = StixifyProcessor(default_storage.open(file.file.name), job.profile, job_id=job.id, file2txt_mode=file.mode, report_id=file.id, always_extract=True)
+        processor = StixifyProcessor(default_storage.open(file.file.name), job.profile, job_id=job.id, file2txt_mode=file.mode, report_id=file.id)
         report_props = ReportProperties(
             name=file.name,
             identity=stix2.Identity(**file.identity),

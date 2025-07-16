@@ -6,9 +6,9 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.12.13
+aiohttp==3.12.14
     # via llama-index-core
-aiosignal==1.3.2
+aiosignal==1.4.0
     # via aiohttp
 aiosqlite==0.21.0
     # via llama-index-core
@@ -16,7 +16,7 @@ amqp==5.3.1
     # via kombu
 annotated-types==0.7.0
     # via pydantic
-anthropic[bedrock,vertex]==0.55.0
+anthropic[bedrock,vertex]==0.57.1
     # via llama-index-llms-anthropic
 antlr4-python3-runtime==4.9.3
     # via stix2-patterns
@@ -25,7 +25,7 @@ anyio==4.9.0
     #   anthropic
     #   httpx
     #   openai
-asgiref==3.8.1
+asgiref==3.9.1
     # via
     #   django
     #   django-cors-headers
@@ -45,11 +45,11 @@ beautifulsoup4==4.13.4
     #   txt2stix
 billiard==4.2.1
     # via celery
-boto3==1.39.0
+boto3==1.39.4
     # via
     #   anthropic
     #   django-storages
-botocore==1.39.0
+botocore==1.39.4
     # via
     #   anthropic
     #   boto3
@@ -60,7 +60,7 @@ cachetools==5.5.2
     # via google-auth
 celery==5.5.3 ; python_version >= "3.8"
     # via -r requirements.in
-certifi==2025.6.15
+certifi==2025.7.14
     # via
     #   httpcore
     #   httpx
@@ -99,7 +99,7 @@ distro==1.9.0
     # via
     #   anthropic
     #   openai
-django==5.2.3
+django==5.2.4
     # via
     #   -r requirements.in
     #   django-cors-headers
@@ -122,13 +122,13 @@ djangorestframework==3.16.0
     #   -r requirements.in
     #   dogesec-commons
     #   drf-spectacular
-dogesec-commons[stixifier]==1.0.5
+dogesec-commons[stixifier]==1.0.7
     # via -r requirements.in
 drf-spectacular==0.28.0
     # via
     #   -r requirements.in
     #   dogesec-commons
-file2txt==0.0.2
+file2txt==1.0.1
     # via
     #   -r requirements.in
     #   dogesec-commons
@@ -157,7 +157,7 @@ google-api-core[grpc]==2.25.1
     #   google-api-python-client
     #   google-cloud-vision
     #   google-generativeai
-google-api-python-client==2.174.0
+google-api-python-client==2.176.0
     # via google-generativeai
 google-auth[requests]==2.40.3
     # via
@@ -207,7 +207,7 @@ httpx==0.28.1
     #   anthropic
     #   llama-index-core
     #   openai
-huggingface-hub==0.33.1
+huggingface-hub==0.33.4
     # via
     #   tokenizers
     #   transformers
@@ -247,7 +247,7 @@ jsonschema-specifications==2025.4.1
     # via jsonschema
 kombu==5.5.4
     # via celery
-llama-index-core==0.12.45
+llama-index-core==0.12.48
     # via
     #   -r requirements.in
     #   llama-index-llms-anthropic
@@ -258,18 +258,12 @@ llama-index-core==0.12.45
     #   txt2stix
 llama-index-instrumentation==0.2.0
     # via llama-index-workflows
-llama-index-llms-anthropic==0.7.5
-    # via
-    #   -r requirements.in
-    #   txt2stix
+llama-index-llms-anthropic==0.7.6
+    # via -r requirements.in
 llama-index-llms-deepseek==0.1.2
-    # via
-    #   -r requirements.in
-    #   txt2stix
+    # via -r requirements.in
 llama-index-llms-gemini==0.5.0
-    # via
-    #   -r requirements.in
-    #   txt2stix
+    # via -r requirements.in
 llama-index-llms-openai==0.4.7
     # via
     #   -r requirements.in
@@ -279,12 +273,9 @@ llama-index-llms-openai-like==0.4.0
     # via
     #   llama-index-llms-deepseek
     #   llama-index-llms-openrouter
-    #   txt2stix
 llama-index-llms-openrouter==0.3.2
-    # via
-    #   -r requirements.in
-    #   txt2stix
-llama-index-workflows==1.0.1
+    # via -r requirements.in
+llama-index-workflows==1.1.0
     # via llama-index-core
 lxml[html-clean]==6.0.0
     # via
@@ -319,7 +310,7 @@ numpy==2.3.1
     #   llama-index-core
     #   pandas
     #   transformers
-openai==1.93.0
+openai==1.95.1
     # via llama-index-llms-openai
 packaging==25.0
     # via
@@ -329,11 +320,11 @@ packaging==25.0
     #   marshmallow
     #   python-arango
     #   transformers
-pandas==2.3.0
+pandas==2.3.1
     # via file2txt
 pathvalidate==3.3.1
     # via txt2stix
-phonenumbers==9.0.8
+phonenumbers==9.0.9
     # via txt2stix
 pillow==10.4.0
     # via
@@ -389,7 +380,7 @@ pyjwt==2.10.1
     # via python-arango
 pyparsing==3.2.3
     # via httplib2
-python-arango==8.2.0
+python-arango==8.2.1
     # via
     #   dogesec-commons
     #   stix2arango
@@ -448,7 +439,7 @@ requests-file==2.1.0
     # via tldextract
 requests-toolbelt==1.0.0
     # via python-arango
-rpds-py==0.25.1
+rpds-py==0.26.0
     # via
     #   jsonschema
     #   referencing
@@ -487,11 +478,11 @@ stix2==3.0.1
     #   stix2extensions
 stix2-patterns==2.0.0
     # via stix2
-stix2arango==0.0.5
+stix2arango==1.0.2
     # via
     #   -r requirements.in
     #   dogesec-commons
-stix2extensions==0.0.4
+stix2extensions==1.0.0
     # via txt2stix
 tabulate==0.9.0
     # via file2txt
@@ -514,13 +505,13 @@ tqdm==4.67.1
     #   openai
     #   stix2arango
     #   transformers
-transformers==4.53.0
+transformers==4.53.2
     # via llama-index-llms-openai-like
-txt2stix==0.0.4
+txt2stix==1.0.1.post3
     # via
     #   -r requirements.in
     #   dogesec-commons
-typing-extensions==4.14.0
+typing-extensions==4.14.1
     # via
     #   aiosqlite
     #   anthropic

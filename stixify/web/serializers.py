@@ -8,7 +8,6 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
-from dogesec_commons.stixifier.summarizer import parse_summarizer_model
 from rest_framework.exceptions import ValidationError
 
 class RelatedObjectField(serializers.RelatedField):
@@ -75,7 +74,6 @@ class FileSerializer(serializers.ModelSerializer):
     ai_incident_summary = serializers.CharField(required=False, read_only=True, allow_null=True)
     ai_incident_classification = serializers.ListField(required=False, read_only=True, allow_null=True)
     summary = serializers.CharField(read_only=True, required=False, allow_null=True)
-    ai_summary_provider = serializers.CharField(source='profile.ai_summary_provider', read_only=True, required=False, allow_null=True)
     archived_pdf = serializers.FileField(use_url=True, read_only=True, allow_null=True)
 
     class Meta:

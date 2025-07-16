@@ -243,11 +243,11 @@ class FileView(
             summary="Get summary of the file content",
             description=textwrap.dedent(
             """
-            If `ai_summary_provider` was enabled, this endpoint will return a summary of the report. This is useful to get a quick understanding of the contents of the report.
+            If `ai_content_check_provider` was enabled, this endpoint will return a summary of the report. This is useful to get a quick understanding of the contents of the report.
 
-            The prompt used to generate the summary can be seen in [dogesec_commons here](https://github.com/muchdogesec/dogesec_commons/blob/main/dogesec_commons/stixifier/summarizer.py).
+            The prompt used to generate the summary can be seen in [txt2stix here](https://github.com/muchdogesec/txt2stix/blob/main/txt2stix/ai_extractor/prompts.py).
 
-            If you want a summary but `ai_summary_provider` was not enabled during processing, you will need to process the file again.
+            If you want a summary but `ai_content_check_provider` was not enabled during processing, you will need to process the file again.
             """
         ),
     )
@@ -351,14 +351,9 @@ class ReportView(viewsets.ViewSet):
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
         report_id = self.validate_report_id(report_id)
-        reports: Response = ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
+        return ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
             self.fix_report_id(report_id)
         )
-        if not reports.data['objects']:
-            raise exceptions.NotFound(
-                detail=f"report object with id `{report_id}` - not found"
-            )
-        return reports
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),

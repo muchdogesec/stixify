@@ -76,7 +76,6 @@ def test_process_post_job(stixify_job, fake_stixifier_processor):
             job_id=stixify_job.id,
             file2txt_mode=file.mode,
             report_id=file.id,
-            always_extract=True
         )
 
 @pytest.mark.django_db
