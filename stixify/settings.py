@@ -237,6 +237,7 @@ SPECTACULAR_SETTINGS: dict[str, Any] = {
         {"name": "Profiles", "description": "Create and search for extraction profile applied to text Files."},
         {"name": "Extractors", "description": "Search through extractors that can be used in profiles (see txt2stix for more information)"},
         {"name": "Jobs", "description": "Check the status of data retrieval from Files uploaded."},
+        {"name": "Server Status", "description": "Checks health of the server."},
     ]
 }
 
