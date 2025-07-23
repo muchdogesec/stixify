@@ -5,7 +5,7 @@ import uuid
 import schemathesis
 import pytest
 from schemathesis.core.transport import Response as SchemathesisResponse
-from obstracts.wsgi import application as wsgi_app
+from stixify.wsgi import application as wsgi_app
 from rest_framework.response import Response as DRFResponse
 from hypothesis import settings
 from hypothesis import strategies
