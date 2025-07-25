@@ -77,3 +77,10 @@ def stixify_job(stixify_file):
         file=stixify_file, id="164716d9-85af-4a81-8f71-9168db3fadf0"
     )
     return job
+
+
+@pytest.fixture(scope='session')
+def api_schema():
+    import schemathesis
+    from stixify.asgi import application
+    yield schemathesis.openapi.from_asgi("/api/schema/?format=json", application)

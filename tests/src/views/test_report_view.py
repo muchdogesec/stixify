@@ -20,6 +20,7 @@ import contextlib
 from arango.client import ArangoClient
 
 from tests.src.views import bundles
+from tests.utils import Transport
 
 
 def as_arango2stix_db(db_name):
@@ -70,10 +71,12 @@ def upload_arango_objects():
         "report--ed758a1b-34fe-4fca-8178-0c30d93a03ab",
     ],
 )
-def test_retrieve(client, report_id):
+def test_retrieve(client, report_id, api_schema):
     resp = client.get(f"/api/v1/reports/{report_id}/")
     assert resp.status_code == 200
     assert resp.data["id"] == report_id
+    api_schema['/api/v1/reports/{report_id}/']['GET'].validate_response(Transport.get_st_response(resp))
+
 
 
 @pytest.mark.parametrize(
@@ -83,16 +86,18 @@ def test_retrieve(client, report_id):
         "report--ed758a1b-abcd-4fca-8178-0c30d93a03ab",
     ],
 )
-def test_retrieve_bad_kwargs(client, report_id):
+def test_retrieve_bad_kwargs(client, report_id, api_schema):
     resp = client.get(f"/api/v1/reports/{report_id}/")
     assert resp.status_code == 404
+    api_schema['/api/v1/reports/{report_id}/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
-def test_list(client):
+def test_list(client, api_schema):
     resp = client.get(f"/api/v1/reports/")
     assert resp.status_code == 200
     assert resp.data["total_results_count"] == 2
     assert len(resp.data["objects"]) == 2
+    api_schema['/api/v1/reports/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.parametrize(
@@ -127,10 +132,11 @@ def test_list(client):
         ),
     ],
 )
-def test_report_objects(client, report_id, expected_ids):
+def test_report_objects(client, report_id, expected_ids, api_schema):
     resp = client.get(f"/api/v1/reports/{report_id}/objects/")
     assert resp.status_code == 200
     assert {obj["id"] for obj in resp.data["objects"]} == set(expected_ids)
+    api_schema['/api/v1/reports/{report_id}/objects/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.parametrize(
@@ -158,7 +164,7 @@ def test_report_objects(client, report_id, expected_ids):
         ),
     ],
 )
-def test_report_objects_visible_to(client, report_id, visible_to, expects_result):
+def test_report_objects_visible_to(client, report_id, visible_to, expects_result, api_schema):
     resp = client.get(
         f"/api/v1/reports/{report_id}/objects/",
         query_params=dict(visible_to=visible_to),
@@ -168,6 +174,7 @@ def test_report_objects_visible_to(client, report_id, visible_to, expects_result
         assert resp.data["total_results_count"] > 0
     else:
         assert resp.data["total_results_count"] == 0
+    api_schema["/api/v1/reports/{report_id}/objects/"]['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.parametrize(
@@ -187,13 +194,14 @@ def test_report_objects_visible_to(client, report_id, visible_to, expects_result
         ),
     ],
 )
-def test_report_objects_types(client, report_id, types):
+def test_report_objects_types(client, report_id, types, api_schema):
     resp = client.get(
         f"/api/v1/reports/{report_id}/objects/", query_params=dict(types=types)
     )
     assert resp.status_code == 200
     assert {obj["type"] for obj in resp.data["objects"]} == set(types.split(","))
     assert resp.data["total_results_count"] > 0
+    api_schema["/api/v1/reports/{report_id}/objects/"]['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.parametrize(
@@ -281,7 +289,8 @@ def test_report_objects_types(client, report_id, types):
         ),
     ],
 )
-def test_list_filters(client, filters, expected_ids):
+def test_list_filters(client, filters, expected_ids, api_schema):
     resp = client.get(f"/api/v1/reports/", query_params=filters)
     assert resp.status_code == 200
     assert {obj["id"] for obj in resp.data["objects"]} == set(expected_ids)
+    api_schema["/api/v1/reports/"]['GET'].validate_response(Transport.get_st_response(resp))

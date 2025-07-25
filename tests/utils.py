@@ -1,47 +1,70 @@
-from itertools import tee
-from operator import lt
-import os
-import random
+import json
 import time
-from types import SimpleNamespace
-import unittest, pytest
-from urllib.parse import urljoin
-
-base_url = os.environ["SERVICE_BASE_URL"]
+from urllib.parse import urlencode
 import requests
+import schemathesis
+from schemathesis.core.transport import Response as SchemathesisResponse
+from rest_framework.response import Response as DRFResponse
+from django.core.handlers.wsgi import WSGIRequest
+
+from schemathesis.transport.wsgi import (
+    WSGI_TRANSPORT,
+    WSGITransport,
+    REQUESTS_TRANSPORT,
+)
 
 
+class Transport(WSGITransport):
+    def __init__(self):
+        super().__init__()
+        self._copy_serializers_from(WSGI_TRANSPORT)
 
-def remove_unknown_keys(data: dict, known_keys: list):
-    payload = data.copy()
-    for k in list(payload.keys()):
-        if k not in known_keys:
-            payload.pop(k, None)
-    return payload
+    @staticmethod
+    def case_as_request(case):
+        if isinstance(case, schemathesis.Case):
+            r_dict = REQUESTS_TRANSPORT.serialize_case(
+                case,
+                base_url=case.operation.base_url,
+            )
+            return requests.Request(**r_dict).prepare()
+        if isinstance(case, WSGIRequest):
+            return requests.Request(
+                method=case.method,
+                url=case.build_absolute_uri(),
+                headers=case.headers,
+                data=case.POST,
+                files=case.FILES,
+                cookies=case.COOKIES,
+                params=case.GET,
+            ).prepare()
 
+        return case
 
-def wait_for_jobs(job_id):
-    try_count = 0
-    while True:
-        job_data = requests.get(f"{base_url}/api/v1/jobs/{job_id}/").json()
-        job_status = job_data["state"]
-        if job_status in ["completed", "failed"]:
-            assert job_status == "completed", f"response: {job_data}"
-            return job_data
-        try_count += 1
-        assert try_count < 30, "stopped after 30 retries"
-        time.sleep(10)
+    def send(self, case: schemathesis.Case, *args, **kwargs):
+        t = time.time()
+        case.headers.pop("Authorization", "")
+        serialized_request = WSGI_TRANSPORT.serialize_case(case)
+        serialized_request.update(
+            QUERY_STRING=urlencode(serialized_request["query_string"]),
+        )
+        if json_data := serialized_request.pop("json", None):
+            serialized_request.update(data=json.dumps(json_data))
+        import django.test
 
-def random_list(l: list, k=5):
-    l = list(l)[:]
-    random.shuffle(l)
-    return l[:k]
+        client = django.test.Client()
+        response: DRFResponse = client.generic(**serialized_request)
+        elapsed = time.time() - t
+        return self.get_st_response(response, case, elapsed)
 
-
-def is_sorted(iterable, key=None, reverse=False):
-    it = iterable if (key is None) else map(key, iterable)
-    a, b = tee(it)
-    next(b, None)
-    if reverse:
-        b, a = a, b
-    return not any(map(lt, b, a))
+    @classmethod
+    def get_st_response(self, response: DRFResponse, case=None, elapsed=1):
+        if not case:
+            case = response.wsgi_request
+        return SchemathesisResponse(
+            response.status_code,
+            headers={k: [v] for k, v in response.headers.items()},
+            content=response.getvalue(),
+            request=self.case_as_request(case),
+            elapsed=elapsed,
+            verify=True,
+        )

@@ -6,10 +6,11 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 import io
 from stixify.web.md_helper import MarkdownImageReplacer
+from tests.utils import Transport
 
 
 @pytest.mark.django_db
-def test_create(client, stixifier_profile):
+def test_create(client, stixifier_profile, api_schema):
     payload = dict(
         file=SimpleUploadedFile(name="name.pdf", content=b"file content"),
         profile_id=stixifier_profile.id,
@@ -19,9 +20,6 @@ def test_create(client, stixifier_profile):
     )
     with (
         patch(
-            "stixify.web.views.FileSerializer", side_effect=FileSerializer
-        ) as mock_file_serializer_cls,
-        patch(
             "stixify.web.views.JobSerializer", side_effect=JobSerializer
         ) as mock_job_serializer_cls,
         patch("stixify.web.views.new_task") as mock_new_task,
@@ -30,15 +28,16 @@ def test_create(client, stixifier_profile):
         assert resp.status_code == 201, resp.content
         job = models.Job.objects.get(pk=resp.data["id"])
         file = models.File.objects.get(pk="567681d6-2817-4d84-84fb-87b2f059b92e")
-        mock_job_serializer_cls.assert_called_once_with(job)
-        mock_file_serializer_cls.assert_called_once()
+        mock_job_serializer_cls.assert_called_once_with(job, **mock_job_serializer_cls.call_args[1])
         mock_new_task.assert_called_once_with(job)
         assert resp.data["file"]["id"] == "567681d6-2817-4d84-84fb-87b2f059b92e"
         assert file.file.read() == b"file content"
+        resp.wsgi_request.FILES.clear()
+        api_schema['/api/v1/files/']['POST'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.django_db
-def test_file_extractions(client, stixify_file):
+def test_file_extractions(client, stixify_file, api_schema):
     post = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
     post.txt2stix_data = {"data": "here"}
     post.save()
@@ -49,10 +48,11 @@ def test_file_extractions(client, stixify_file):
     )
     assert resp.status_code == 200, resp.content
     assert resp.data == post.txt2stix_data
+    api_schema['/api/v1/files/{file_id}/extractions/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.django_db
-def test_file_extractions_no_data(client, stixify_file):
+def test_file_extractions_no_data(client, stixify_file, api_schema):
     post = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
 
     resp = client.get(
@@ -62,10 +62,11 @@ def test_file_extractions_no_data(client, stixify_file):
     )
     assert resp.status_code == 200, resp.content
     assert resp.data == {}
+    api_schema['/api/v1/files/{file_id}/extractions/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.django_db
-def test_file_markdown(client, stixify_file):
+def test_file_markdown(client, stixify_file, api_schema):
     post_file = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
     post_file.markdown_file.save("markdown.md", io.StringIO("My markdown"))
     images = [
@@ -94,10 +95,11 @@ def test_file_markdown(client, stixify_file):
             "My markdown",
             {im.name: im.file.url for im in images},
         )
+        api_schema['/api/v1/files/{file_id}/markdown/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.django_db
-def test_file_images(client, stixify_file):
+def test_file_images(client, stixify_file, api_schema):
     post = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
     models.FileImage.objects.create(
         report=post, file=SimpleUploadedFile("nb", b"f1"), name="image1"
@@ -112,10 +114,11 @@ def test_file_images(client, stixify_file):
     assert resp.status_code == 200, resp.content
     assert "images" in resp.data
     assert len(resp.data["images"]) == 2
+    api_schema['/api/v1/files/{file_id}/images/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.django_db
-def test_file_images_no_images(client, stixify_file):
+def test_file_images_no_images(client, stixify_file, api_schema):
     post = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
 
     resp = client.get(
@@ -124,10 +127,11 @@ def test_file_images_no_images(client, stixify_file):
     assert resp.status_code == 200, resp.content
     assert "images" in resp.data
     assert len(resp.data["images"]) == 0
+    api_schema['/api/v1/files/{file_id}/images/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.django_db
-def test_retrieve_file(client, stixify_file):
+def test_retrieve_file(client, stixify_file, api_schema):
     resp = client.get(
         "/api/v1/files/dcbeb240-8dd6-4892-8e9e-7b6bda30e454/",
     )
@@ -138,16 +142,18 @@ def test_retrieve_file(client, stixify_file):
         "/api/v1/files/abcdb240-8dd6-4892-8e9e-7b6bda30e454/",
     )
     assert resp.status_code == 404, resp.content
+    api_schema['/api/v1/files/{file_id}/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.mark.django_db
-def test_list_files(client, stixify_file, more_files):
+def test_list_files(client, stixify_file, more_files, api_schema):
     resp = client.get(
         "/api/v1/files/",
     )
     assert resp.status_code == 200, resp.content
     assert resp.data["total_results_count"] == 4
     assert len(resp.data["files"]) == 4
+    api_schema['/api/v1/files/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
 @pytest.fixture
@@ -244,8 +250,10 @@ def more_files(stixifier_profile):
     ],
 )
 @pytest.mark.django_db
-def test_list_posts_filter(client, stixify_file, more_files, filters, expected_ids):
+def test_list_posts_filter(client, stixify_file, more_files, filters, expected_ids, api_schema):
     resp = client.get("/api/v1/files/", query_params=filters)
     assert resp.status_code == 200, resp.content
     assert {post["id"] for post in resp.data["files"]} == set(expected_ids)
     assert resp.data["total_results_count"] == len(expected_ids)
+    api_schema['/api/v1/files/']['GET'].validate_response(Transport.get_st_response(resp))
+
