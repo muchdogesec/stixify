@@ -22,48 +22,11 @@ profile_ids  = strategies.sampled_from([uuid.uuid4() for _ in range(3)]+["26fce5
 
 
 @pytest.fixture(autouse=True)
-def override_transport(monkeypatch, client):
-    from schemathesis.transport.wsgi import WSGI_TRANSPORT, WSGITransport
-
-    class Transport(WSGITransport):
-        def __init__(self):
-            super().__init__()
-            self._copy_serializers_from(WSGI_TRANSPORT)
-
-        @staticmethod
-        def case_as_request(case):
-            from schemathesis.transport.requests import REQUESTS_TRANSPORT
-            import requests
-
-            r_dict = REQUESTS_TRANSPORT.serialize_case(
-                case,
-                base_url=case.operation.base_url,
-            )
-            return requests.Request(**r_dict).prepare()
-
-        def send(self, case: schemathesis.Case, *args, **kwargs):
-            t = time.time()
-            case.headers.pop("Authorization", "")
-            serialized_request = WSGI_TRANSPORT.serialize_case(case)
-            serialized_request.update(
-                QUERY_STRING=urlencode(serialized_request["query_string"])
-            )
-            response: DRFResponse = client.generic(**serialized_request)
-            elapsed = time.time() - t
-            return SchemathesisResponse(
-                response.status_code,
-                headers={k: [v] for k, v in response.headers.items()},
-                content=response.content,
-                request=self.case_as_request(case),
-                elapsed=elapsed,
-                verify=True,
-            )
-
+def override_transport(monkeypatch):
     ## patch transport.get
     from schemathesis import transport
-
+    from tests.utils import Transport
     monkeypatch.setattr(transport, "get", lambda _: Transport())
-
 
 
 @pytest.fixture(autouse=True)
@@ -76,9 +39,22 @@ def module_setup(stixifier_profile, stixify_job):
     profile_id=profile_ids,
     job_id=job_ids
 )
-@schema.exclude(method=["POST", "PATCH"]).parametrize()
-@settings(max_examples=30)
+@schema.exclude(method=["POST"]).exclude(method="DELETE", path="/api/v1/profiles/{profile_id}/").parametrize()
 def test_api(case: schemathesis.Case, **kwargs):
+    for k, v in kwargs.items():
+        if k in case.path_parameters:
+            case.path_parameters[k] = v
+    case.call_and_validate(excluded_checks=[negative_data_rejection, positive_data_acceptance])
+
+
+@pytest.mark.django_db(transaction=True)
+@schema.given(
+    post_id=file_ids,
+    profile_id=profile_ids,
+    job_id=job_ids
+)
+@schema.include(method=["POST"]).parametrize()
+def test_upload(case: schemathesis.Case, **kwargs):
     for k, v in kwargs.items():
         if k in case.path_parameters:
             case.path_parameters[k] = v

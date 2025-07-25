@@ -152,7 +152,7 @@ class FileView(
         temp_file = request.FILES['file']
         file_instance = serializer.save(mimetype=temp_file.content_type)
         job_instance =  Job.objects.create(file=file_instance)
-        job_serializer = JobSerializer(job_instance)
+        job_serializer = JobSerializer(job_instance, context={"request": request})
         new_task(job_instance)
         return Response(job_serializer.data, status=status.HTTP_201_CREATED)
 
