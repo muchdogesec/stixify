@@ -1,7 +1,7 @@
 import logging
 from rest_framework import serializers, validators
+from dogesec_commons.utils.serializers import JSONSchemaSerializer
 
-from dogesec_commons.stixifier.serializers import ProfileSerializer
 from dogesec_commons.stixifier.models import Profile
 from .models import File, FileImage, Job
 from django.core.exceptions import ObjectDoesNotExist
@@ -102,3 +102,85 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
         exclude = []
 
+
+class AttackNavigatorSerializer(serializers.Serializer):
+    mobile = serializers.BooleanField(default=False)
+    ics = serializers.BooleanField(default=False)
+    enterprise = serializers.BooleanField(default=False)
+
+
+class AttackNavigatorDomainSerializer(JSONSchemaSerializer):
+    json_schema = {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "MITRE ATT&CK Navigator Layer v4.5",
+        "type": "object",
+        "required": ["version", "name", "domain", "techniques"],
+        "properties": {
+            "version": {"type": "string", "enum": ["4.5"]},
+            "name": {"type": "string"},
+            "domain": {
+                "type": "string",
+                "enum": ["enterprise-attack", "mobile-attack", "ics-attack"],
+            },
+            "description": {"type": "string"},
+            "gradient": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["color", "minValue", "maxValue"],
+                    "properties": {
+                        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                        "minValue": {"type": "number"},
+                        "maxValue": {"type": "number"},
+                    },
+                },
+            },
+            "legendItems": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "label": {"type": "string"},
+                        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                        "value": {"type": "number"},
+                    },
+                },
+            },
+            "showTacticsRowBackground": {"type": "boolean"},
+            "techniques": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "required": ["techniqueID"],
+                    "properties": {
+                        "techniqueID": {"type": "string"},
+                        "score": {"type": ["number", "null"]},
+                        "color": {"type": "string", "pattern": "^#[0-9A-Fa-f]{6}$"},
+                        "comment": {"type": "string"},
+                        "enabled": {"type": "boolean"},
+                        "links": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "href": {"type": "string", "format": "uri"},
+                                    "text": {"type": "string"},
+                                },
+                                "required": ["href", "text"],
+                            },
+                        },
+                    },
+                    "additionalProperties": False,
+                },
+            },
+            "tacticUseIds": {"type": "array", "items": {"type": "string"}},
+            "filters": {
+                "type": "object",
+                "properties": {
+                    "includeSubtechniques": {"type": "boolean"},
+                    "showOnlyVisibleTechniques": {"type": "boolean"},
+                },
+            },
+        },
+        "additionalProperties": True,
+    }

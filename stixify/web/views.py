@@ -26,7 +26,7 @@ from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, TLP_Levels, JobState
-from .serializers import FileSerializer, ImageSerializer, JobSerializer
+from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, FileSerializer, ImageSerializer, JobSerializer
 from .utils import Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -52,6 +52,7 @@ class SchemaViewCached(SpectacularAPIView):
         )
     
 incident_classification_types = ['other', 'apt_group', 'vulnerability', 'data_leak', 'malware', 'ransomware', 'infostealer', 'threat_actor', 'campaign', 'exploit', 'cyber_crime', 'indicators_of_compromise', 'ttps']
+ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
 
 # Create your views here.
 @extend_schema_view(
@@ -102,6 +103,14 @@ incident_classification_types = ['other', 'apt_group', 'vulnerability', 'data_le
             The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
             """
         ),
+    ),
+    list_attack_navigators=extend_schema(
+        summary="Show available attack navigators domains", description="list attack navigator domains"
+    ),
+    retrieve_attack_navigators=extend_schema(
+        summary="retrieve attack navigator",
+        description="retrieve attack navigator for domain",
+        parameters=[OpenApiParameter("attack_domain", enum=ATTACK_DOMAINS, location=OpenApiParameter.PATH)],
     ),
 )
 class FileView(
@@ -171,6 +180,42 @@ class FileView(
     def extractions(self, request, post_id=None, **kwargs):
         obj = self.get_object()
         return Response(obj.txt2stix_data or {})
+    
+    @decorators.action(
+        detail=True,
+        methods=["GET"],
+        url_path="attack-navigator",
+        serializer_class=AttackNavigatorSerializer,
+    )
+    def list_attack_navigators(self, request, post_id=None, **kwargs):
+        post_file: File = self.get_object()
+        layers = (post_file.txt2stix_data or {}).get("navigator_layer") or []
+        s = AttackNavigatorSerializer(
+            data={layer["domain"].removesuffix("-attack"): True for layer in layers}
+        )
+        s.is_valid()
+        return Response(s.data)
+
+    @decorators.action(
+        detail=True,
+        methods=["GET"],
+        url_path="attack-navigator/(?P<attack_domain>ics|mobile|enterprise)",
+        serializer_class=AttackNavigatorDomainSerializer,
+    )
+    def retrieve_attack_navigators(
+        self, request, post_id=None, attack_domain=None, **kwargs
+    ):
+        if attack_domain not in ATTACK_DOMAINS:
+            raise exceptions.NotFound({"error": "unknown attack domain"})
+        post_file: File = self.get_object()
+        layers = (post_file.txt2stix_data or {}).get("navigator_layer") or []
+        layers = {layer["domain"].removesuffix("-attack"): layer for layer in layers}
+        if not layers.get(attack_domain):
+            raise exceptions.NotFound(
+                {"error": "no navigator for this domain", "domains": list(layers)}
+            )
+        return Response(layers[attack_domain])
+
     
     
     @extend_schema(
