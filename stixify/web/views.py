@@ -105,11 +105,24 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
         ),
     ),
     list_attack_navigators=extend_schema(
-        summary="Show available attack navigators domains", description="list attack navigator domains"
+        summary="Show available ATT&CK Navigator Domains",
+        description=textwrap.dedent(
+            """
+            This endpoint will return available ATT&CK Navigator layers for this post.
+
+            An ATT&CK Navigator layer will only be generated if `ai_create_attack_navigator_layer` is set to true, and you enable ATT&CK Enterprise/ICS/Mobile extractions (which extract data).
+            """
+        ),
     ),
     retrieve_attack_navigators=extend_schema(
-        summary="retrieve attack navigator",
-        description="retrieve attack navigator for domain",
+        summary="Retrieve the ATT&CK Navigator layer",
+        description=textwrap.dedent(
+            """
+            This endpoint will return the ATT&CK Navigator layer for the specified domain. The layer file produced can be imported directly to the ATT&CK Navigator.
+
+            Note, if no ATT&CK Navigator layer exists for the specified domain, for the post, a 404 will be returned. You can check if a layer exists using the show available layers endpoint.
+            """
+        ),
         parameters=[OpenApiParameter("attack_domain", enum=ATTACK_DOMAINS, location=OpenApiParameter.PATH)],
     ),
 )

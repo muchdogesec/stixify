@@ -1,9 +1,50 @@
-ID = `f6e7b4e4-e0df-5232-80e0-7bc5b8e0c7a6`
+## Test pdf
+
+`c800d962-a205-534f-8f4e-e9e8ed772349`
 
 ```json
     {
         "identity_id": "identity--1cdc8321-5e67-42de-b2bf-c9505a891492",
-        "name": "Pattern Only",
+        "name": "Test PDF",
+        "extractions": [
+            "pattern_ipv4_address_only",
+            "pattern_ipv6_address_only",
+            "pattern_domain_name_only",
+            "pattern_url",
+            "pattern_file_name",
+            "pattern_file_hash_md5",
+            "pattern_file_hash_sha_1",
+            "pattern_file_hash_sha_256",
+            "pattern_file_hash_sha_512",
+            "pattern_email_address",
+            "pattern_mac_address"
+        ],
+        "relationship_mode": "ai",
+        "ai_settings_relationships": "openai:gpt-4o",
+        "extract_text_from_image": false,
+        "defang": true,
+        "ignore_image_refs": true,
+        "ignore_link_refs": true,
+        "ignore_extraction_boundary": false,
+        "ignore_embedded_relationships": false,
+        "ignore_embedded_relationships_sro": true,
+        "ignore_embedded_relationships_smo": true,
+        "ai_content_check_provider": "openai:gpt-4o",
+        "ai_extract_if_no_incidence": true,
+        "ai_create_attack_flow":false,
+        "ai_create_attack_navigator_layer": false,
+        "generate_pdf": true
+    }
+```
+
+## Pattern AI rel
+
+`942cb852-617f-5b5c-af5f-48040ef80914`
+
+```json
+    {
+        "identity_id": "identity--1cdc8321-5e67-42de-b2bf-c9505a891492",
+        "name": "Pattern with AI relationships",
         "extractions": [
             "pattern_ipv4_address_only",
             "pattern_ipv4_address_port",
@@ -39,19 +80,23 @@ ID = `f6e7b4e4-e0df-5232-80e0-7bc5b8e0c7a6`
             "pattern_iban_number",
             "pattern_phone_number"
         ],
-        "relationship_mode": "standard",
+        "relationship_mode": "ai",
+        "ai_settings_relationships": "openai:gpt-4o",
         "extract_text_from_image": false,
         "defang": true,
         "ignore_image_refs": true,
         "ignore_link_refs": true,
         "ignore_extraction_boundary": false,
         "ignore_embedded_relationships": false,
-        "ignore_embedded_relationships_sro": false,
-        "ignore_embedded_relationships_smo": false,
-        "ai_create_attack_flow": false
+        "ignore_embedded_relationships_sro": true,
+        "ignore_embedded_relationships_smo": true,
+        "ai_content_check_provider": "openai:gpt-4o",
+        "ai_extract_if_no_incidence": true,
+        "ai_create_attack_flow": true,
+        "ai_create_attack_navigator_layer": true,
+        "generate_pdf": true
     }
 ```
-
 
 
 
