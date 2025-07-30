@@ -75,6 +75,7 @@ class CommonSTIXProps(models.Model):
 def upload_to_func(instance: 'File|FileImage', filename):
     if isinstance(instance, FileImage):
         instance = instance.report
+    filename = str(instance.id) + '_' + filename
     return os.path.join(str(instance.identity['id']), str(instance.report_id), filename)
 
 def validate_file(file: InMemoryUploadedFile, mode: str):
@@ -90,8 +91,8 @@ class File(CommonSTIXProps):
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
     mimetype = models.CharField(max_length=512)
     mode = models.CharField(max_length=256)
-    markdown_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
-    pdf_file = models.FileField(max_length=256, upload_to=upload_to_func, null=True)
+    markdown_file = models.FileField(max_length=1024, upload_to=upload_to_func, null=True)
+    pdf_file = models.FileField(max_length=1024, upload_to=upload_to_func, null=True)
     summary = models.CharField(max_length=65536, null=True, default=None)    
     
     # describe incident
@@ -134,7 +135,7 @@ def remove_reports_on_delete(sender, instance: File, **kwargs):
 
 class FileImage(models.Model):
     report = models.ForeignKey(File, related_name='images', on_delete=models.CASCADE)
-    file = models.ImageField(upload_to=upload_to_func, max_length=256)
+    file = models.ImageField(upload_to=upload_to_func, max_length=1024)
     name = models.CharField(max_length=256)
 
 

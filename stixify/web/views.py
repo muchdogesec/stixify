@@ -6,6 +6,7 @@ import re
 import textwrap
 import uuid
 from django import forms
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
 from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 from django.utils.text import slugify
@@ -104,27 +105,6 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
             """
         ),
     ),
-    list_attack_navigators=extend_schema(
-        summary="Show available ATT&CK Navigator Domains",
-        description=textwrap.dedent(
-            """
-            This endpoint will return available ATT&CK Navigator layers for this post.
-
-            An ATT&CK Navigator layer will only be generated if `ai_create_attack_navigator_layer` is set to true, and you enable ATT&CK Enterprise/ICS/Mobile extractions (which extract data).
-            """
-        ),
-    ),
-    retrieve_attack_navigators=extend_schema(
-        summary="Retrieve the ATT&CK Navigator layer",
-        description=textwrap.dedent(
-            """
-            This endpoint will return the ATT&CK Navigator layer for the specified domain. The layer file produced can be imported directly to the ATT&CK Navigator.
-
-            Note, if no ATT&CK Navigator layer exists for the specified domain, for the post, a 404 will be returned. You can check if a layer exists using the show available layers endpoint.
-            """
-        ),
-        parameters=[OpenApiParameter("attack_domain", enum=ATTACK_DOMAINS, location=OpenApiParameter.PATH)],
-    ),
 )
 class FileView(
     mixins.CreateModelMixin, mixins.DestroyModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
@@ -193,44 +173,7 @@ class FileView(
     def extractions(self, request, post_id=None, **kwargs):
         obj = self.get_object()
         return Response(obj.txt2stix_data or {})
-    
-    @decorators.action(
-        detail=True,
-        methods=["GET"],
-        url_path="attack-navigator",
-        serializer_class=AttackNavigatorSerializer,
-    )
-    def list_attack_navigators(self, request, post_id=None, **kwargs):
-        post_file: File = self.get_object()
-        layers = (post_file.txt2stix_data or {}).get("navigator_layer") or []
-        s = AttackNavigatorSerializer(
-            data={layer["domain"].removesuffix("-attack"): True for layer in layers}
-        )
-        s.is_valid()
-        return Response(s.data)
 
-    @decorators.action(
-        detail=True,
-        methods=["GET"],
-        url_path="attack-navigator/(?P<attack_domain>ics|mobile|enterprise)",
-        serializer_class=AttackNavigatorDomainSerializer,
-    )
-    def retrieve_attack_navigators(
-        self, request, post_id=None, attack_domain=None, **kwargs
-    ):
-        if attack_domain not in ATTACK_DOMAINS:
-            raise exceptions.NotFound({"error": "unknown attack domain"})
-        post_file: File = self.get_object()
-        layers = (post_file.txt2stix_data or {}).get("navigator_layer") or []
-        layers = {layer["domain"].removesuffix("-attack"): layer for layer in layers}
-        if not layers.get(attack_domain):
-            raise exceptions.NotFound(
-                {"error": "no navigator for this domain", "domains": list(layers)}
-            )
-        return Response(layers[attack_domain])
-
-    
-    
     @extend_schema(
         responses={200:{}, 404: DEFAULT_404_ERROR},
         summary="Get the processed markdown for a File",
@@ -383,6 +326,29 @@ class JobView(
             This endpoint returns all STIX objects that were extracted from the uploaded File linked to this report.
             """
         ),
+    ),
+    list_attack_navigators=extend_schema(
+        summary="Show available ATT&CK Navigator Domains",
+        description=textwrap.dedent(
+            """
+            This endpoint will return available ATT&CK Navigator layers for this post.
+
+            An ATT&CK Navigator layer will only be generated if `ai_create_attack_navigator_layer` is set to true, and you enable ATT&CK Enterprise/ICS/Mobile extractions (which extract data).
+            """
+        ),
+        responses={200: AttackNavigatorSerializer},
+    ),
+    retrieve_attack_navigators=extend_schema(
+        summary="Retrieve the ATT&CK Navigator layer",
+        description=textwrap.dedent(
+            """
+            This endpoint will return the ATT&CK Navigator layer for the specified domain. The layer file produced can be imported directly to the ATT&CK Navigator.
+
+            Note, if no ATT&CK Navigator layer exists for the specified domain, for the post, a 404 will be returned. You can check if a layer exists using the show available layers endpoint.
+            """
+        ),
+        parameters=[OpenApiParameter("attack_domain", enum=ATTACK_DOMAINS, location=OpenApiParameter.PATH)],
+        responses={200: AttackNavigatorDomainSerializer},
     ),
 )
 class ReportView(viewsets.ViewSet):
@@ -603,6 +569,43 @@ class ReportView(viewsets.ViewSet):
             RETURN KEEP(doc, KEYS(doc, TRUE))
         """.replace('#visible_to', visible_to_filter).replace('#more_filters', '\n'.join(filters))
         return helper.execute_query(query, bind_vars=bind_vars)
+    
+        
+    @decorators.action(
+        detail=True,
+        methods=["GET"],
+        url_path="attack-navigator",
+    )
+    def list_attack_navigators(self, request, report_id=None, **kwargs):
+        post_file: File = get_object_or_404(File, pk=report_id[8:])
+        layers = (post_file.txt2stix_data or {}).get("navigator_layer") or []
+        s = AttackNavigatorSerializer(
+            data={layer["domain"].removesuffix("-attack"): True for layer in layers}
+        )
+        s.is_valid()
+        return Response(s.data)
+
+    @decorators.action(
+        detail=True,
+        methods=["GET"],
+        url_path="attack-navigator/(?P<attack_domain>ics|mobile|enterprise)",
+    )
+    def retrieve_attack_navigators(
+        self, request, report_id=None, attack_domain=None, **kwargs
+    ):
+        post_file: File = get_object_or_404(File, pk=report_id[8:])
+        if attack_domain not in ATTACK_DOMAINS:
+            raise exceptions.NotFound({"error": "unknown attack domain"})
+        layers = (post_file.txt2stix_data or {}).get("navigator_layer") or []
+        layers = {layer["domain"].removesuffix("-attack"): layer for layer in layers}
+        if not layers.get(attack_domain):
+            raise exceptions.NotFound(
+                {"error": "no navigator for this domain", "domains": list(layers)}
+            )
+        return Response(layers[attack_domain])
+
+    
+    
 
 @extend_schema_view(
     destroy=extend_schema(
