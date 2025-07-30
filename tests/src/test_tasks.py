@@ -2,6 +2,7 @@
 
 import io
 from unittest.mock import MagicMock, patch, call
+import uuid
 import pytest
 from stixify.worker.tasks import job_completed_with_error, new_task, process_post
 from stixify.web import models
@@ -102,3 +103,23 @@ def test_process_post_full(stixify_job):
     stixify_job.refresh_from_db()
     assert stixify_job.error == None, stixify_job.error
     assert tuple(file.archived_pdf.read(4)) == (0x25,0x50,0x44,0x46)
+
+
+@pytest.mark.django_db
+def test_job_completed_with_error__failed(stixify_job):
+    stixify_job.error = "failed"
+    stixify_job.save()
+    file = stixify_job.file
+    job_completed_with_error(stixify_job.id)
+    stixify_job.refresh_from_db()
+    assert stixify_job.file == None
+    assert stixify_job.state == models.JobState.FAILED
+
+
+@pytest.mark.django_db
+def test_job_completed_with_error__success(stixify_job):
+    file = stixify_job.file
+    job_completed_with_error(stixify_job.id)
+    stixify_job.refresh_from_db()
+    assert stixify_job.file.pk == uuid.UUID(file.pk)
+    assert stixify_job.state == models.JobState.COMPLETED
