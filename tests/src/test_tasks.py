@@ -109,17 +109,19 @@ def test_process_post_full(stixify_job):
 def test_job_completed_with_error__failed(stixify_job):
     stixify_job.error = "failed"
     stixify_job.save()
-    file = stixify_job.file
+    file_id = stixify_job.file.pk
     job_completed_with_error(stixify_job.id)
     stixify_job.refresh_from_db()
     assert stixify_job.file == None
     assert stixify_job.state == models.JobState.FAILED
+    with pytest.raises(models.File.DoesNotExist):
+        models.File.objects.get(pk=file_id)
 
 
 @pytest.mark.django_db
 def test_job_completed_with_error__success(stixify_job):
-    file = stixify_job.file
+    file_id = uuid.UUID(stixify_job.file.pk)
     job_completed_with_error(stixify_job.id)
     stixify_job.refresh_from_db()
-    assert stixify_job.file.pk == uuid.UUID(file.pk)
+    assert stixify_job.file.pk == file_id
     assert stixify_job.state == models.JobState.COMPLETED
