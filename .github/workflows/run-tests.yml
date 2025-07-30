@@ -27,7 +27,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
          
       - name: Start docker-compose
         uses: hoverkraft-tech/compose-action@v2.0.2
@@ -48,9 +47,7 @@ jobs:
               echo "SERVICE_BASE_URL=http://$IP_ADDRESS:18529/" >> "$GITHUB_OUTPUT"
               cat "$GITHUB_OUTPUT"
 
-    
-
-      - id: set-env-and-install-dependencies
+      - id: Setup environment
         run: |
           pip install -r requirements.txt -r tests/requirements.txt
           sudo bash ./install_deps.sh
@@ -60,12 +57,12 @@ jobs:
           echo DJANGO_WWW_PATH=$PWD/django_www_path/ >> tests/tests.env
           echo PYTHONPATH=. >> tests/tests.env
 
-      - name: test all endpoints 1
+      - name: Test endpoints
         run: |
           set -a; source tests/tests.env; set +a
           pytest --cov --cov-branch --cov-report=xml --junitxml=unittest.junit.xml -o junit_family=legacy tests/src
       
-      - name: test schema
+      - name: Test schema
         if: ${{ failure() || success() }}
         run: |
           set -a; source tests/tests.env; set +a
@@ -85,7 +82,6 @@ jobs:
           files: unittest.junit.xml
           flags: unittest
 
-      
       - name: Upload schemathesis test results to Codecov
         if: ${{ !cancelled() }}
         uses: codecov/test-results-action@v1
