@@ -42,7 +42,6 @@ class Transport(WSGITransport):
 
     def send(self, case: schemathesis.Case, *args, **kwargs):
         t = time.time()
-        case.headers.pop("Authorization", "")
         serialized_request = WSGI_TRANSPORT.serialize_case(case)
         serialized_request.update(
             QUERY_STRING=urlencode(serialized_request["query_string"]),
