@@ -145,7 +145,7 @@ class JobState(models.TextChoices):
     COMPLETED = "completed"
 
 class Job(models.Model):
-    file = models.OneToOneField(File, on_delete=models.CASCADE)
+    file = models.OneToOneField(File, on_delete=models.SET_NULL, null=True)
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     state = models.CharField(choices=JobState.choices, max_length=20, default=JobState.PENDING)
     error = models.CharField(max_length=65536, null=True)

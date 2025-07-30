@@ -59,7 +59,6 @@ def process_post(job_id, *args):
         converted_file_path = processor.tmpdir/'converted_pdf.pdf'
         pdf_converter.make_conversion(processor.filename, converted_file_path)
         file.pdf_file.save(converted_file_path.name, open(converted_file_path, mode='rb'))
-
         file.save()
     except Exception as e:
         job.error = "failed to process report"
@@ -72,7 +71,9 @@ def process_post(job_id, *args):
 @shared_task
 def job_completed_with_error(job_id):
     job = Job.objects.get(pk=job_id)
-    job.state = models.JobState.COMPLETED
+    state = models.JobState.COMPLETED
     if job.error:
-        job.state = models.JobState.FAILED
-    job.save()
+        state = models.JobState.FAILED
+        job.file.delete()
+    Job.objects.filter(pk=job_id).update(state=state)
+    
