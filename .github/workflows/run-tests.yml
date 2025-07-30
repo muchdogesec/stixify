@@ -13,7 +13,7 @@ on:
       - synchronize
 
 jobs:
-  test-schema-thesis:
+  test-pipeline:
     runs-on: ubuntu-latest
     environment: test_pipeline
 
