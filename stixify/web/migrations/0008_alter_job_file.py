@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('stixify_core', '0006_file_pdf_file'),
+        ('stixify_core', '0007_alter_file_markdown_file_alter_file_pdf_file_and_more'),
     ]
 
     operations = [
