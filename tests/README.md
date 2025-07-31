@@ -35,15 +35,3 @@ You can then execute these tests as follows;
 ```shell
 act -W .github/workflows/schemathesis_test.yml --secret-file secrets.env
 ```
-
-## Manual tests
-
-Download the files used for tests:
-
-```shell
-python3 download_test_files.py
-```
-
-These files will be stored in `/tests/files/`
-
-You can then use these files to test uploads to Stixify manually.
