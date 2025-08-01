@@ -20,7 +20,7 @@ from django.urls import path, include
 from rest_framework import routers
 from dogesec_commons.objects import views as arango_views
 from dogesec_commons.stixifier.views import ProfileView, ExtractorsView
-from .web.views import FileView, IdentityView, JobView, ReportView, SchemaViewCached, health_check
+from .web.views import FileView, IdentityView, JobView, ReportView, SchemaViewCached, HealthCheckView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf.urls.static import static
 
@@ -50,8 +50,11 @@ router.register('objects/sdos', arango_views.SDOView, "object-view-sdo")
 # txt2stix views
 router.register('extractors', ExtractorsView, "extractors-view")
 
+healthcheck = routers.SimpleRouter(use_regex_path=False)
+healthcheck.register('', HealthCheckView, "service-status-view")
+
 urlpatterns = [
-    path(f'api/healthcheck/', health_check),
+    path(f'api/healthcheck/', include(healthcheck.urls)),
     path(f'api/{API_VERSION}/', include(router.urls)),
     path('admin/', admin.site.urls),
     # YOUR PATTERNS

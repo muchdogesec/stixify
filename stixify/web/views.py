@@ -27,7 +27,7 @@ from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, TLP_Levels, JobState
-from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, FileSerializer, ImageSerializer, JobSerializer
+from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, FileSerializer, HealthCheckSerializer, ImageSerializer, JobSerializer
 from .utils import Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -734,16 +734,33 @@ class IdentityView(viewsets.ViewSet):
         return helper.execute_query(query, bind_vars=binds)
 
 
-@extend_schema(
-    responses={204:{}},
-    tags=["Server Status"],
-    summary="Check if the service is running",
-    description=textwrap.dedent(
-        """
+@extend_schema_view(
+    list=extend_schema(
+        responses={204: {}},
+        summary="Check if the service is running",
+        description=textwrap.dedent(
+            """
         If this endpoint returns a 204, the service is running as expected.
         """
         ),
-    )
-@decorators.api_view(["GET"])
-def health_check(request):
-   return Response(status=status.HTTP_204_NO_CONTENT)
+    ),
+    service=extend_schema(
+        responses={200: HealthCheckSerializer},
+        summary="Check the status of all external dependencies",
+        description="Check the status of all external dependencies",
+    ),
+)
+class HealthCheckView(viewsets.ViewSet):
+    openapi_tags = ["Server Status"]
+
+    def list(self, request, *args, **kwargs):
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @decorators.action(detail=False)
+    def service(self, request, *args, **kwargs):
+        return Response(status=200, data=self.check_status())
+
+    @staticmethod
+    def check_status():
+        from txt2stix.credential_checker import check_statuses
+        return check_statuses(test_llms=True)
