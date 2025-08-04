@@ -189,6 +189,44 @@ def more_files(stixifier_profile):
         ),
     ]
 
+@pytest.fixture()
+def search_files(stixifier_profile):
+    files = [
+        {
+            "id": "a2bf2303-d38e-472a-a94b-9eeaae945ae1",
+            "name": "Stixify Tool Overview for Automated CTI Extraction",
+            "summary": "Overview of Stixify, a tool that automates CTI indicator extraction from files. Covers conversion to markdown, extraction profiles, STIX bundle generation, API access, and basic usage instructions.",
+            "ai_incident_summary": "Technical overview of Stixify’s functionality and setup; no specific threat intelligence incidents described.",
+        },
+        {
+            "id": "0a3214ee-39e1-4e00-8907-11cb82de6076",
+            "name": "2025 Threat Landscape: Emerging Cyber Risks and Mitigation",
+            "summary": "Outlines key cyber risks like data breaches and evolving threats. Emphasizes proactive security and potential business impact of cyberattacks.",
+            "ai_incident_summary": "General cybersecurity analysis; not specific to any individual threat actor or campaign.",
+        },
+        {
+            "id": "2bd196b5-cc59-491d-99ee-ed5ea2002d61",
+            "name": "Local STIX Extraction from DOCX: Field Report",
+            "summary": "Internal document analyzing local DOCX-based threat indicator extraction using txt2stix tools.",
+            "ai_incident_summary": None,
+        },
+        {
+            "id": "213cec34-da3b-4bcc-a049-477f1c08561e",
+            "name": "Markdown-Based Intelligence Parsing Notes",
+            "summary": "Preliminary notes on handling markdown files for threat intel parsing; used for internal tooling and experimentation.",
+            "ai_incident_summary": None,
+        },
+    ]
+    for file in files:
+        models.File.objects.create(
+            file=SimpleUploadedFile(
+                "portable.pdf", b"File Portable 3", "application/pdf"
+            ),
+            profile=stixifier_profile,
+            **file,
+            mode="pdf",
+        )
+
 
 @pytest.mark.parametrize(
     "filters,expected_ids",
@@ -257,3 +295,24 @@ def test_list_posts_filter(client, stixify_file, more_files, filters, expected_i
     assert {post["id"] for post in resp.data["files"]} == set(expected_ids)
     assert resp.data["total_results_count"] == len(expected_ids)
     api_schema['/api/v1/files/']['GET'].validate_response(Transport.get_st_response(resp))
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ["text", "expected_ids"],
+[
+  ["automated indicator extraction tool", ["a2bf2303-d38e-472a-a94b-9eeaae945ae1"]],
+  ["markdown parsing AND intelligence", ["213cec34-da3b-4bcc-a049-477f1c08561e"]],
+  ["data breaches OR business impact", ["0a3214ee-39e1-4e00-8907-11cb82de6076"]],
+  ["local docx stix extractions", ["2bd196b5-cc59-491d-99ee-ed5ea2002d61"]],
+  ["cybersecurity OR technical", ["a2bf2303-d38e-472a-a94b-9eeaae945ae1", "0a3214ee-39e1-4e00-8907-11cb82de6076"]],
+  ["internal tooling markdown", ["213cec34-da3b-4bcc-a049-477f1c08561e"]],
+  ["APT29 OR ransomware", []],
+  ["stix AND markdown AND api", ["a2bf2303-d38e-472a-a94b-9eeaae945ae1"]],
+  ["internal document", ["2bd196b5-cc59-491d-99ee-ed5ea2002d61"]],
+]
+)
+def test_search_text(client, search_files, api_schema, text, expected_ids):
+    resp = client.get("/api/v1/files/", query_params=dict(text=text))
+    assert resp.status_code == 200
+    assert {r['id'] for r in resp.data['files']} == set(expected_ids)

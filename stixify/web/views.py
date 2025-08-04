@@ -138,6 +138,18 @@ class FileView(
 
         ai_describes_incident = filters.BooleanFilter(help_text="If `ai_content_check_provider` set in profile used to process report, AI will answer if file describes security incident. Default will show all reports, can filter those that only describe incident by setting to true.")
         ai_incident_classification = filters.MultipleChoiceFilter(choices=[(c, c) for c in incident_classification_types], help_text="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", method='ai_incident_classification_filter')
+
+        text = filters.CharFilter(
+            method="semantic_search",
+            help_text="Search in file's title and AI generated summaries",
+
+        )
+        def semantic_search(self, queryset, name, text):
+            from django.contrib.postgres.search import SearchQuery, SearchVector
+            queryset = queryset.annotate(
+                text=SearchVector("name", "summary", "ai_incident_summary"),
+            )
+            return queryset.filter(text=SearchQuery(text, search_type="websearch"))
         
         def ai_incident_classification_filter(self, queryset, name, value):
             filter = reduce(operator.or_, [Q(ai_incident_classification__icontains=s) for s in value])
