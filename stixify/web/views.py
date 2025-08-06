@@ -141,7 +141,7 @@ class FileView(
 
         text = filters.CharFilter(
             method="semantic_search",
-            help_text="Search in file's title and AI generated summaries",
+            help_text="Search the file `name` and `summary`. Similar to the `name` filter, but allows you to run in one query to include description.",
 
         )
         def semantic_search(self, queryset, name, text):
