@@ -122,7 +122,7 @@ djangorestframework==3.16.0
     #   -r requirements.in
     #   dogesec-commons
     #   drf-spectacular
-dogesec-commons[stixifier]==1.1.4
+dogesec-commons[stixifier]==1.1.8
     # via -r requirements.in
 drf-spectacular==0.28.0
     # via
@@ -507,7 +507,7 @@ tqdm==4.67.1
     #   transformers
 transformers==4.53.2
     # via llama-index-llms-openai-like
-txt2stix==1.0.6
+txt2stix==1.0.9
     # via
     #   -r requirements.in
     #   dogesec-commons
