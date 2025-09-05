@@ -1,4 +1,4 @@
-name: Create and publish the Docker image for Stixify Web Staging
+name: Create and publish the Docker image for Stixify Web Test
 
 on:
   push:
@@ -6,13 +6,13 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}_web_staging
-  PACKAGE_NAME: ${{ github.event.repository.name }}_web_staging
+  IMAGE_NAME: ${{ github.repository }}_web_test
+  PACKAGE_NAME: ${{ github.event.repository.name }}_web_test
 
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
-    environment: stixify_web_staging
+    environment: ${{ github.event.repository.name }}_web_test
     permissions:
       contents: read
       packages: write
