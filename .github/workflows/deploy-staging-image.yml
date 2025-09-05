@@ -12,7 +12,6 @@ env:
 jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
-    environment: stixify_web_staging
     permissions:
       contents: read
       packages: write
