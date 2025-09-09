@@ -99,7 +99,7 @@ distro==1.9.0
     # via
     #   anthropic
     #   openai
-django==5.2.4
+django==5.2.6
     # via
     #   -r requirements.in
     #   django-cors-headers
