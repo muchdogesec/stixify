@@ -230,12 +230,12 @@ class FileView(
     
     @extend_schema(
         responses={(200, "application/pdf"): OpenApiTypes.BINARY, 404: DEFAULT_404_ERROR},
-        summary="Get the archived pdf file",
+        summary="Get the archived PDF copy of the File",
         description=textwrap.dedent(
             """
             Whan a file is uploaded, it is converted to pdf and saved.
             
-            This endpoint is useful for manually inspecting report objects
+            This endpoint is useful for loading the file in a generic pdf viewer (vs. trying to work with different filetypes of the original input).
             """
         ),
     )
