@@ -20,8 +20,6 @@ ENV ARANGODB_HOST_URL=http://host.docker.internal:8529
 ENV POSTGRES_USER=stixify
 ENV POSTGRES_DB=stixify_database
 ENV POSTGRES_HOST=host.docker.internal
-ENV R2_ENDPOINT_URL=https://34fe0652772b226d5f06050bf5050738.r2.cloudflarestorage.com
-ENV R2_CUSTOM_DOMAIN=""
 ENV SRO_OBJECTS_ONLY_LATEST=False
 
 WORKDIR /usr/src/app
