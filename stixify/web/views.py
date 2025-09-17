@@ -13,6 +13,7 @@ from django.utils.text import slugify
 from dogesec_commons.objects.helpers import OBJECT_TYPES
 from django.db.models import F, Value, CharField, Func, Q
 from .md_helper import MarkdownImageReplacer
+from django.http.response import HttpResponse
 
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
@@ -28,7 +29,7 @@ if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, TLP_Levels, JobState
 from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, FileSerializer, HealthCheckSerializer, ImageSerializer, JobSerializer
-from .utils import Response, MinMaxDateFilter
+from .utils import PDFRenderer, Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
 import django_filters.rest_framework as filters
@@ -226,6 +227,27 @@ class FileView(
             content_type="text/markdown",
             filename="markdown.md",
         )
+    
+    @extend_schema(
+        responses={(200, "application/pdf"): OpenApiTypes.BINARY, 404: DEFAULT_404_ERROR},
+        summary="Get the archived PDF copy of the File",
+        description=textwrap.dedent(
+            """
+            Whan a file is uploaded, it is converted to pdf and saved.
+            
+            This endpoint is useful for loading the file in a generic pdf viewer (vs. trying to work with different filetypes of the original input).
+            """
+        ),
+    )
+    @decorators.action(detail=True, methods=["GET"], renderer_classes=[PDFRenderer])
+    def pdf(self, request, *args, file_id=None, **kwargs):
+        obj: File = self.get_object()
+        if not obj.archived_pdf:
+            return HttpResponseNotFound("No pdf file")
+        _, _, name = obj.archived_pdf.name.rpartition('/')
+        response = HttpResponse(obj.archived_pdf.open(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="{name}"'
+        return response
     
     @extend_schema(
             responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},

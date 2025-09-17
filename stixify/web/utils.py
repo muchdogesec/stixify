@@ -5,6 +5,7 @@ from django.utils.encoding import force_str
 from django.db.models import Q
 from datetime import datetime
 from rest_framework import response
+from rest_framework.renderers import BaseRenderer
 
 
 class MinMaxDateFilter(BaseFilterBackend):
@@ -67,3 +68,13 @@ class Response(response.Response):
 class ErrorResp(Response):
     def __init__(self, status, title, details=None):
         super().__init__({"message": title, "code": status}, status=status)
+
+
+class PDFRenderer(BaseRenderer):
+    media_type = 'application/pdf'
+    format = 'pdf'
+    charset = None
+    render_style = 'binary'
+
+    def render(self, data, media_type=None, renderer_context=None):
+        return data  # You must return raw bytes here (PDF content)
