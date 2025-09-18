@@ -229,7 +229,7 @@ class FileView(
         )
     
     @extend_schema(
-        responses={(200, "application/pdf"): OpenApiTypes.BINARY, 404: DEFAULT_404_ERROR},
+        responses={(200, "application/pdf"): OpenApiTypes.BINARY, (404, "application/json"): DEFAULT_404_ERROR},
         summary="Get the archived PDF copy of the File",
         description=textwrap.dedent(
             """
