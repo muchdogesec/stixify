@@ -550,7 +550,7 @@ class ReportView(viewsets.ViewSet):
             filters.append("FILTER doc.created >= @created_min")
 
         if classifications := helper.query_as_array('ai_incident_classification'):
-            bind_vars['classifications'] = ["txt2stix:"+x.lower().replace(' ', '_') for x in classifications]
+            bind_vars['classifications'] = ["classification."+x.lower().replace(' ', '_') for x in classifications]
             filters.append('FILTER @classifications ANY IN doc.labels')
 
         query = """
