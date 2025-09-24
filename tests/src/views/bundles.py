@@ -66,8 +66,8 @@ BUNDLE_1 = {
                 "relationship--a582943e-e5cf-598c-b8f9-52037eb06f2c",
             ],
             "labels": [
-                "txt2stix:indicator_of_compromise",
-                "txt2stix:infostealer",
+                "classification.indicator_of_compromise",
+                "classification.infostealer",
             ],
             "confidence": 91,
             "external_references": [
@@ -266,10 +266,10 @@ BUNDLE_2 = {
                 "relationship--81a3e593-b36f-5da8-bc98-8e8b92e1730b"
             ],
             "labels": [
-                "txt2stix:vulnerability",
-                "txt2stix:exploit",
-                "txt2stix:ttp",
-                "txt2stix:cyber_crime"
+                "classification.vulnerability",
+                "classification.exploit",
+                "classification.ttp",
+                "classification.cyber_crime"
             ],
             "confidence": 17,
             "external_references": [
