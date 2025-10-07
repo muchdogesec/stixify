@@ -29,6 +29,20 @@ def process_post(job_id, *args):
         job.state = models.JobState.PROCESSING
         job.save()
         processor = StixifyProcessor(default_storage.open(file.file.name), job.profile, job_id=job.id, file2txt_mode=file.mode, report_id=file.id)
+        external_refs = [
+            dict(
+                source_name="stixify_profile_id",
+                external_id=str(job.profile.id),
+            )
+        ]
+        for source in file.sources or []:
+            source_ref = dict(source_name='stixify')
+            if source.startswith('http://') or source.startswith('https://'):
+                source_ref.update(url=source)
+            else:
+                source_ref.update(description=source)
+            external_refs.append(source_ref)
+
         report_props = ReportProperties(
             name=file.name,
             identity=stix2.Identity(**file.identity),
@@ -36,9 +50,9 @@ def process_post(job_id, *args):
             confidence=file.confidence,
             labels=file.labels,
             created=file.created,
-            kwargs=dict(external_references=[
-                dict(source_name='stixify_profile_id', external_id=str(job.profile.id)),
-            ])
+            kwargs=dict(
+                external_references=external_refs
+            ),
         )
         processor.setup(report_prop=report_props, extra=dict(_stixify_file_id=str(file.id)))
         processor.process()
@@ -50,7 +64,7 @@ def process_post(job_id, *args):
         file.txt2stix_data = processor.txt2stix_data.model_dump(mode="json", exclude_defaults=True, exclude_unset=True, exclude_none=True)
         file.summary = processor.summary
         file.markdown_file.save('markdown.md', processor.md_file.open(), save=True)
-        
+
         models.FileImage.objects.filter(report=file).delete() # remove old references
 
         for image in processor.md_images:
@@ -76,4 +90,3 @@ def job_completed_with_error(job_id):
         state = models.JobState.FAILED
         job.file.delete()
     Job.objects.filter(pk=job_id).update(state=state)
-    
