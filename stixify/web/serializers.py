@@ -76,6 +76,7 @@ class FileSerializer(serializers.ModelSerializer):
     ai_incident_classification = serializers.ListField(required=False, read_only=True, allow_null=True)
     summary = serializers.CharField(read_only=True, required=False, allow_null=True)
     archived_pdf = serializers.FileField(use_url=True, read_only=True, allow_null=True)
+    sources = CharacterSeparatedField(required=False, allow_null=True, help_text="You can use this to add one or more sources to the `external_references` property of the Report object created. Useful for tracking locations (i.e. URLs) where the report was sourced.", child=serializers.CharField(max_length=1024))
 
     class Meta:
         model = File

@@ -101,6 +101,7 @@ class File(CommonSTIXProps):
     ai_incident_classification = ArrayField(base_field=models.CharField(default=None, max_length=256, null=True), null=True, blank=True)
 
     txt2stix_data = models.JSONField(default=None, null=True)
+    sources = ArrayField(base_field=models.CharField(default=None, max_length=256), null=True, default=None)
     
     @property
     def report_id(self):
