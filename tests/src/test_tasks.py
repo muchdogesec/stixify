@@ -116,6 +116,7 @@ def test_job_completed_with_error__failed(stixify_job):
     assert stixify_job.state == models.JobState.FAILED
     with pytest.raises(models.File.DoesNotExist):
         models.File.objects.get(pk=file_id)
+    assert stixify_job.completion_time != None
 
 
 @pytest.mark.django_db
@@ -125,3 +126,5 @@ def test_job_completed_with_error__success(stixify_job):
     stixify_job.refresh_from_db()
     assert stixify_job.file.pk == file_id
     assert stixify_job.state == models.JobState.COMPLETED
+    assert stixify_job.completion_time != None
+

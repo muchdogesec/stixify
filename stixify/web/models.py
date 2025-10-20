@@ -155,8 +155,6 @@ class Job(models.Model):
     completion_time = models.DateTimeField(null=True, default=None)
 
     def save(self, *args, **kwargs) -> None:
-        if not self.completion_time and self.state in [JobState.COMPLETED, JobState.FAILED]:
-            self.completion_time = datetime.now(timezone.utc)
         return super().save(*args, **kwargs)
     
     @property
