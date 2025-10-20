@@ -45,7 +45,7 @@ def process_post(job_id, *args):
             )
         ]
         for source in file.sources or []:
-            source_ref = dict(source_name="stixify")
+            source_ref = dict(source_name="stixify_source")
             if source.startswith("http://") or source.startswith("https://"):
                 source_ref.update(url=source)
             else:
