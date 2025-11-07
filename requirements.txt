@@ -545,7 +545,7 @@ tqdm==4.67.1
     #   transformers
 transformers==4.57.0
     # via llama-index-llms-openai-like
-txt2stix==1.1.7
+txt2stix==1.1.9
     # via
     #   -r requirements.in
     #   dogesec-commons
