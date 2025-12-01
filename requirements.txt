@@ -131,7 +131,7 @@ djangorestframework==3.16.1
     #   drf-spectacular
 docstring-parser==0.17.0
     # via anthropic
-dogesec-commons[stixifier]==1.2.8
+dogesec-commons[stixifier]==1.2.9
     # via -r requirements.in
 drf-spectacular==0.29.0
     # via
