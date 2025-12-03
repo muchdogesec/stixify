@@ -146,10 +146,17 @@ class JobState(models.TextChoices):
     FAILED = "failed"
     COMPLETED = "completed"
 
+class JobType(models.TextChoices):
+    IMPORT_FILE = "import-file"
+    SYNC_VULNERABILITIES = "sync-vulnerabilities"
+
+
 class Job(models.Model):
     file = models.OneToOneField(File, on_delete=models.SET_NULL, null=True)
+    type = models.CharField(max_length=64, choices=JobType.choices, default=JobType.IMPORT_FILE)
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     state = models.CharField(choices=JobState.choices, max_length=20, default=JobState.PENDING)
+    extra = models.JSONField(default=None, null=True)
     error = models.CharField(max_length=65536, null=True)
     run_datetime = models.DateTimeField(auto_now_add=True)
     completion_time = models.DateTimeField(null=True, default=None)

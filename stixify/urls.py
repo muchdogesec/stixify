@@ -20,7 +20,7 @@ from django.urls import path, include
 from rest_framework import routers
 from dogesec_commons.objects import views as arango_views
 from dogesec_commons.stixifier.views import ProfileView, ExtractorsView
-from .web.views import FileView, IdentityView, JobView, ReportView, SchemaViewCached, HealthCheckView
+from .web.views import FileView, IdentityView, JobView, ReportView, SchemaViewCached, HealthCheckView, TasksView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf.urls.static import static
 
@@ -38,6 +38,7 @@ router = routers.SimpleRouter(use_regex_path=True)
 # profile view
 router.register('profiles', ProfileView, 'profile-view')
 router.register('files', FileView, 'file-view')
+router.register('tasks', TasksView, 'tasks-view')
 router.register('jobs', JobView, 'job-view')
 router.register('reports', ReportView, 'report-view')
 router.register('identities', IdentityView, "identity-view")

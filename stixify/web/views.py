@@ -12,6 +12,8 @@ from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 from django.utils.text import slugify
 from dogesec_commons.objects.helpers import OBJECT_TYPES
 from django.db.models import F, Value, CharField, Func, Q
+
+from stixify.worker import tasks
 from .md_helper import MarkdownImageReplacer
 from django.http.response import HttpResponse
 
@@ -27,7 +29,7 @@ from dogesec_commons.objects.helpers import ArangoDBHelper
 from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
-from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, TLP_Levels, JobState
+from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, JobType, TLP_Levels, JobState
 from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, FileSerializer, HealthCheckSerializer, ImageSerializer, JobSerializer
 from .utils import PDFRenderer, Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
@@ -766,6 +768,48 @@ class IdentityView(viewsets.ViewSet):
         RETURN KEEP(doc, KEYS(doc, TRUE))
         """
         return helper.execute_query(query, bind_vars=binds)
+
+
+
+
+@extend_schema_view(
+    sync_vulnerabilities=extend_schema(
+        summary="Update local vulnerabilities",
+        description=textwrap.dedent(
+            """
+            Connect to remote vulmatch server and update all vulnerabilities
+            """
+        ),
+        request=None,
+        responses={
+            201: JobSerializer,
+            404: DEFAULT_404_ERROR,
+        },
+    ),
+)
+class TasksView(viewsets.GenericViewSet):
+    serializer_class = JobSerializer
+    openapi_tags = ["Tasks"]
+    lookup_url_kwarg = "task_id"
+    filter_backends = [DjangoFilterBackend, Ordering]
+    ordering_fields = ["created"]
+    ordering = "created_descending"
+    pagination_class = Pagination("jobs")
+
+    @decorators.action(methods=["PATCH"], detail=False, url_path="sync-vulnerabilities")
+    def sync_vulnerabilities(self, request, *args, **kwargs):
+        job = Job.objects.create(
+            id=uuid.uuid4(),
+            type=JobType.SYNC_VULNERABILITIES,
+            state=JobState.PROCESSING,
+        )
+        t = tasks.update_vulnerabilities.si(job.id) | tasks.job_completed_with_error.si(job.id)
+        t.apply_async()
+        self.kwargs.update(job_id=job.id)
+        obj = Job.objects.get(id=job.id)
+        s = JobSerializer(obj)
+        return Response(s.data, status=status.HTTP_201_CREATED)
+
 
 
 @extend_schema_view(

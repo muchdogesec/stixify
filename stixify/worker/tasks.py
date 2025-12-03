@@ -13,7 +13,7 @@ from django.core.files.base import File as DjangoFile
 from django.core.files.base import File as DjangoFile
 import stix2
 
-from stixify.worker import pdf_converter
+from stixify.worker import helpers, pdf_converter
 
 POLL_INTERVAL = 1
 
@@ -103,5 +103,14 @@ def job_completed_with_error(job_id):
     state = models.JobState.COMPLETED
     if job.error:
         state = models.JobState.FAILED
-        job.file.delete()
+        job.file and job.file.delete()
     Job.objects.filter(pk=job_id).update(state=state, completion_time=datetime.now(UTC))
+
+@shared_task
+def update_vulnerabilities(job_id):
+    job = models.Job.objects.get(pk=job_id)
+    try:
+        helpers.run_on_collections(job)
+    except Exception as e:
+        job.error = str(e)
+    job.save(update_fields=["error"])

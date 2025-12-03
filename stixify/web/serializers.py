@@ -99,7 +99,7 @@ class ImageSerializer(serializers.ModelSerializer):
 
 
 class JobSerializer(serializers.ModelSerializer):
-    file = RelatedObjectField(read_only=True,  serializer=FileSerializer())
+    file = RelatedObjectField(read_only=True,  serializer=FileSerializer(allow_null=True), required=False,)
     class Meta:
         model = Job
         exclude = []
