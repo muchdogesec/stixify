@@ -12,6 +12,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.utils import timezone
 from stixify.web import models
 from django.core.files.uploadedfile import SimpleUploadedFile
+from dogesec_commons.objects.db_view_creator import startup_func
 
 
 def pytest_sessionstart():
@@ -22,17 +23,17 @@ def pytest_sessionstart():
         password=settings.ARANGODB_PASSWORD,
     )
     db_name: str = settings.ARANGODB_DATABASE + "_database"
-    if not sys_db.has_database(db_name):
-        sys_db.create_database(db_name)
+    assert 'test' in db_name # dont mistakenly remove a non-test db
+    sys_db.delete_database(db_name, ignore_missing=True)
+    sys_db.create_database(db_name)
     db = client.db(
         db_name,
         username=settings.ARANGODB_USERNAME,
         password=settings.ARANGODB_PASSWORD,
     )
-    for c in db.collections():
-        c_name = c["name"]
-        if c_name.endswith("_collection"):
-            db.collection(c_name).truncate()
+    db.create_collection("stixify_vertex_collection")
+    startup_func()
+
 
 
 @pytest.fixture

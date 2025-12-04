@@ -14,7 +14,7 @@ from stixify.web import models
 STIXIFY_COLLECTION = "stixify_vertex_collection"
 
 
-@pytest.fixture(autouse=True, scope='session')
+@pytest.fixture(autouse=True, scope='module')
 def stixify_db():
     helper = ArangoDBHelper("", None)
 
@@ -69,6 +69,7 @@ def fake_retriever():
         yield
 
 
+@pytest.mark.django_db
 def test_get_vulnerabilities(stixify_db):
     r1 = helpers.get_vulnerabilities(STIXIFY_COLLECTION)
     assert r1 == {
@@ -78,6 +79,7 @@ def test_get_vulnerabilities(stixify_db):
     assert len(r1["CVE-2011-2462"]) == 10
 
 
+@pytest.mark.django_db
 def test_get_updates(fake_retriever):
     vulnerabilities = {
         "CVE-2011-2462": [
