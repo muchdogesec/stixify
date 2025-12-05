@@ -10,15 +10,10 @@ from dogesec_commons.stixifier.stixifier import StixifyProcessor
 
 from stixify.worker import tasks
 
-@pytest.fixture(autouse=True, scope="module")
-def celery_eager():
-    from stixify.worker.celery import app
 
-    app.conf.task_always_eager = True
-    app.conf.broker_url = None
+@pytest.fixture(autouse=True)
+def always_eager(celery_eager):
     yield
-    app.conf.task_always_eager = False
-
 
 @pytest.mark.django_db
 def test_new_task(stixify_job):
