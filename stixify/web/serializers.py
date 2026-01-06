@@ -10,6 +10,7 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
 from rest_framework.exceptions import ValidationError
+from django.utils.translation import gettext_lazy
 
 class RelatedObjectField(serializers.RelatedField):
     lookup_key = 'pk'
@@ -50,6 +51,31 @@ class CharacterSeparatedField(serializers.ListField):
             retval.extend(s.split(self.separator))
         return super().to_internal_value(retval)
 
+    
+class IdentityIDField(serializers.PrimaryKeyRelatedField):
+    def __init__(self, **kwargs):
+        from dogesec_commons.identity.models import Identity
+        super().__init__(
+            queryset=Identity.objects,
+            error_messages={
+                "required": gettext_lazy("This field is required."),
+                "does_not_exist": gettext_lazy(
+                    'Invalid identity with id "{pk_value}" - object does not exist.'
+                ),
+                "incorrect_type": gettext_lazy(
+                    "Incorrect type. Expected identity id (uuid), received {data_type}."
+                ),
+            },
+            **kwargs,
+        )
+
+    def to_internal_value(self, data):
+        return super().to_internal_value(data).pk
+
+    def to_representation(self, value):
+        if isinstance(value, str):
+            return value
+        return super().to_representation(value)
 
 class ReportIDField(serializers.CharField):
     def to_internal_value(self, data: str):
@@ -66,6 +92,7 @@ class FileSerializer(serializers.ModelSerializer):
     report_id = ReportIDField(source='id', help_text="If you want to define the UUID of the STIX Report object you can use this property. Pass the entire report id, e.g. `report--26dd4dcb-0ebc-4a71-8d37-ffd88faed163`. The UUID part will also be used for the file ID. If not passed, this UUID will be randomly generated. Must be unique.", validators=[
         validators.UniqueValidator(queryset=File.objects.all()),
     ], required=False)
+    identity_id = IdentityIDField(help_text="The ID of the Identity you want to use as the `created_by_ref` for the STIX Report object created. This must be the ID of an existing Identity in the system.")
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`. Check the Profile endpoints for more info about Profiles."), use_raw_value=True, queryset=Profile.objects)
     mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed) to control the markdown output created. This is a file2txt setting.")
@@ -80,8 +107,12 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        exclude = ['profile', "markdown_file", "txt2stix_data", "pdf_file"]
+        exclude = ['profile', "markdown_file", "txt2stix_data", "pdf_file", "identity"]
         read_only_fields = []
+
+    def validate(self, attrs):
+        print(attrs)
+        return super().validate(attrs)
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()

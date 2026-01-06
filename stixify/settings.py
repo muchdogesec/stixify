@@ -48,6 +48,7 @@ STIXIFY_APPS = [
     'dogesec_commons.objects',
     'dogesec_commons.stixifier',
     'django.contrib.postgres',
+    'dogesec_commons.identity',
     'stixify.web',
     'django_cleanup.apps.CleanupConfig',
 ]
