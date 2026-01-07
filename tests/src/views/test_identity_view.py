@@ -21,5 +21,3 @@ def test_delete_identity(client, stixify_file, api_schema):
         stixify_file.refresh_from_db()
     api_schema['/api/v1/identities/{identity_id}/']['DELETE'].validate_response(Transport.get_st_response(resp))
     
-    
-    
