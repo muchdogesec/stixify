@@ -12,6 +12,7 @@ from django.core.files.uploadedfile import InMemoryUploadedFile
 import stix2
 from file2txt.parsers.core import BaseParser
 from dogesec_commons.stixifier.models import Profile
+from dogesec_commons.identity.models import Identity
 
 
 if typing.TYPE_CHECKING:
@@ -76,7 +77,7 @@ def upload_to_func(instance: 'File|FileImage', filename):
     if isinstance(instance, FileImage):
         instance = instance.report
     filename = str(instance.id) + '_' + filename
-    return os.path.join(str(instance.identity['id']), str(instance.report_id), filename)
+    return os.path.join(str(instance.identity.id), str(instance.report_id), filename)
 
 def validate_file(file: InMemoryUploadedFile, mode: str):
     _, ext = os.path.splitext(file.name)
@@ -88,6 +89,7 @@ def validate_file(file: InMemoryUploadedFile, mode: str):
 class File(CommonSTIXProps):
     id = models.UUIDField(unique=True, max_length=64, primary_key=True, default=uuid.uuid4)
     file = models.FileField(max_length=1024, upload_to=upload_to_func)
+    identity = models.ForeignKey(Identity, on_delete=models.CASCADE, default=None)
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
     mimetype = models.CharField(max_length=512)
     mode = models.CharField(max_length=256)

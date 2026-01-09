@@ -23,7 +23,7 @@ def pytest_sessionstart():
         password=settings.ARANGODB_PASSWORD,
     )
     db_name: str = settings.ARANGODB_DATABASE + "_database"
-    assert 'test' in db_name # dont mistakenly remove a non-test db
+    assert "test" in db_name  # dont mistakenly remove a non-test db
     sys_db.delete_database(db_name, ignore_missing=True)
     sys_db.create_database(db_name)
     db = client.db(
@@ -33,7 +33,6 @@ def pytest_sessionstart():
     )
     db.create_collection("stixify_vertex_collection")
     startup_func()
-
 
 
 @pytest.fixture
@@ -54,21 +53,31 @@ def stixifier_profile():
 
 
 @pytest.fixture
-def stixify_file(stixifier_profile):
+def identity():
+    from dogesec_commons.identity.models import Identity
+
+    identity = Identity.objects.create(
+        id="identity--c5f27ca2-a580-4fee-9bb9-753e2b563a30",
+        created=timezone.now(),
+        modified=timezone.now(),
+        stix=dict(
+            name="dummy identity",
+            identity_class="individual",
+            created_by_ref="identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5",
+        ),
+    )
+    yield identity
+
+
+@pytest.fixture
+def stixify_file(stixifier_profile, identity):
     return models.File.objects.create(
         id="dcbeb240-8dd6-4892-8e9e-7b6bda30e454",
         file=SimpleUploadedFile("file.md", b"File Content", "text/markdown"),
         profile=stixifier_profile,
         mode="md",
         name="First file, not special",
-        identity={
-            "type": "identity",
-            "id": "identity--c5f27ca2-a580-4fee-9bb9-753e2b563a30",
-            "created": "2025-06-17T14:26:48.932Z",
-            "modified": "2025-06-17T14:26:48.932Z",
-            "name": "dummy identity",
-            "identity_class": "individual",
-        },
+        identity=identity,
     )
 
 
@@ -80,8 +89,9 @@ def stixify_job(stixify_file):
     return job
 
 
-@pytest.fixture(scope='session')
+@pytest.fixture(scope="session")
 def api_schema():
     import schemathesis
     from stixify.asgi import application
+
     yield schemathesis.openapi.from_asgi("/api/schema/?format=json", application)
