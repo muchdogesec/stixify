@@ -141,7 +141,7 @@ file2txt==1.0.6
     # via
     #   -r requirements.in
     #   dogesec-commons
-filelock==3.20.0
+filelock==3.20.3
     # via
     #   huggingface-hub
     #   tldextract
