@@ -54,7 +54,7 @@ def process_post(job_id, *args):
 
         report_props = ReportProperties(
             name=file.name,
-            identity=stix2.Identity(**file.identity),
+            identity=file.identity.identity,
             tlp_level=file.tlp_level,
             confidence=file.confidence,
             labels=file.labels,

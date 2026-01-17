@@ -17,13 +17,14 @@ STIXIFY_COLLECTION = "stixify_vertex_collection"
 @pytest.fixture(autouse=True, scope='module')
 def stixify_db():
     helper = ArangoDBHelper("", None)
-
     helper.db.collection(STIXIFY_COLLECTION).insert_many(
         FAKE_VULNERABILITIES, raise_on_document_error=True
     )
-    yield helper.db
-    helper.db.collection(STIXIFY_COLLECTION).truncate()
-    helper.db.collection(STIXIFY_COLLECTION).truncate()
+    try:
+        yield helper.db
+    finally:
+        helper.db.collection(STIXIFY_COLLECTION).truncate()
+        helper.db.collection(STIXIFY_COLLECTION).truncate()
 
 
 VULNS = [
@@ -38,13 +39,14 @@ VULNS = [
     ("CVE-2020-25506", "vulnerability--48ac0edb-984a-55e3-94aa-017c696366b5"),
     ("CVE-2020-26919", "vulnerability--0957b9de-2d8b-5f8b-817d-6a34b7b7f10a"),
 ]
+t = time.time()
 FAKE_VULNERABILITIES = [
     dict(
         _key=id + "+" + str(index),
         name=name,
         type="vulnerability",
         id=id,
-        _md5_hash=id + str(index),
+        _record_md5_hash=id + str(index) + str(t),
     )
     for name, id in VULNS
     for index in range(10)
