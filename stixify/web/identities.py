@@ -6,26 +6,36 @@ from dogesec_commons.identity.views import IdentityView as BaseIdentityView
 
 @extend_schema_view(
     destroy=extend_schema(
-        summary="Delete all objects associated with identity",
+        summary="Delete an Identity and all its Files and Reports",
         description=textwrap.dedent(
             """
-            This endpoint will delete all Files, Reports, and any other STIX objects created using this identity.
+            Delete an Identity object and ALL Files and Reports linked to it
+
+            IMPORTANT: make sure this is the request you want to run. It will delete all data related to the Identity ID, including the Identity object, all Reports belonging to the Identity object, all objects belonging to the Identity Object and all objects within those feeds.
+
+            You cannot delete an Identity uploaded to a Feed using this endpoint. You must update it using the Feed objects endpoints.
             """
         ),
     ),
     list=extend_schema(
-        summary="Search identity objects",
+        summary="List Identities",
         description=textwrap.dedent(
             """
-            This endpoint will allow you to search for all identities that exist.
+            List all STIX Identity objects that can be used to create reports.
+
+            You can create an Identity using the POST Identities endpoint.
+
+            This request will not return Identity objects that have been extracted from Reports.
             """
         ),
     ),
     retrieve=extend_schema(
-        summary="GET identity object by STIX ID",
+        summary="Retrieve an Identity",
         description=textwrap.dedent(
             """
-            This endpoint will allow you to GET an identity object by its STIX ID.
+            Retrieve a STIX Identity object by its ID.
+
+            This request will not return Identity objects that have been extracted from Reports.
             """
         ),
     ),
