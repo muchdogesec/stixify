@@ -11,10 +11,11 @@ from tests.utils import Transport
 
 
 @pytest.mark.django_db
-def test_create(client, stixifier_profile, api_schema):
+def test_create(client, stixifier_profile, api_schema, identity):
     payload = dict(
         file=SimpleUploadedFile(name="name.pdf", content=b"file content"),
         profile_id=stixifier_profile.id,
+        identity_id=identity.id,
         mode="md",
         name="Upload test",
         report_id="report--567681d6-2817-4d84-84fb-87b2f059b92e",
@@ -158,7 +159,7 @@ def test_list_files(client, stixify_file, more_files, api_schema):
 
 
 @pytest.fixture
-def more_files(stixifier_profile):
+def more_files(stixifier_profile, identity):
     return [
         models.File.objects.create(
             id="f3848d80-b14d-4aa6-b3a6-94bce54b217e",
@@ -167,6 +168,7 @@ def more_files(stixifier_profile):
             mode="md",
             ai_describes_incident=True,
             name="First file, special",
+            identity=identity,
         ),
         models.File.objects.create(
             id="aadbe23d-192c-488d-8ce9-96aa2613453f",
@@ -175,6 +177,7 @@ def more_files(stixifier_profile):
             mode="txt",
             ai_incident_classification=["other", "apt_group", "data_leak"],
             name="second file, not breakable",
+            identity=identity,
         ),
         models.File.objects.create(
             id="bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
@@ -186,11 +189,12 @@ def more_files(stixifier_profile):
             mode="pdf",
             ai_incident_classification=["data_leak", "vulnerability"],
             name="Forth file, special, breakable",
+            identity=identity,
         ),
     ]
 
 @pytest.fixture()
-def search_files(stixifier_profile):
+def search_files(stixifier_profile, identity):
     files = [
         {
             "id": "a2bf2303-d38e-472a-a94b-9eeaae945ae1",
@@ -223,6 +227,7 @@ def search_files(stixifier_profile):
                 "portable.pdf", b"File Portable 3", "application/pdf"
             ),
             profile=stixifier_profile,
+            identity=identity,
             **file,
             mode="pdf",
         )
