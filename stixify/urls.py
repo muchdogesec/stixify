@@ -20,9 +20,10 @@ from django.urls import path, include
 from rest_framework import routers
 from dogesec_commons.objects import views as arango_views
 from dogesec_commons.stixifier.views import ProfileView, ExtractorsView
-from .web.views import FileView, IdentityView, JobView, ReportView, SchemaViewCached, HealthCheckView, TasksView
+from .web.views import FileView, JobView, ReportView, SchemaViewCached, HealthCheckView, TasksView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf.urls.static import static
+from stixify.web.identities import IdentityView
 
 from django.http import JsonResponse
 def handler404(*args, **kwargs):
