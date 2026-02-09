@@ -384,7 +384,7 @@ proto-plus==1.26.1
     #   google-ai-generativelanguage
     #   google-api-core
     #   google-cloud-vision
-protobuf==5.29.5
+protobuf==5.29.6
     # via
     #   google-ai-generativelanguage
     #   google-api-core
@@ -568,7 +568,7 @@ tqdm==4.67.1
     #   transformers
 transformers==4.57.1
     # via llama-index-llms-openai-like
-txt2stix[llms]==1.1.15
+txt2stix[llms]==1.2.5
     # via
     #   -r requirements.in
     #   dogesec-commons
