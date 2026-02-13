@@ -32,10 +32,10 @@ def process_post(job_id, *args):
         job.state = models.JobState.PROCESSING
         job.save()
         processor = StixifyProcessor(
-            default_storage.open(file.file.name),
+            file.process_file,
             job.profile,
             job_id=job.id,
-            file2txt_mode=file.mode,
+            file2txt_mode=file.process_mode,
             report_id=file.id,
         )
         external_refs = [

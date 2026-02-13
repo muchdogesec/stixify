@@ -27,3 +27,9 @@ def test_make_conversion(file):
     with open(output_path, 'rb') as ff:
         assert tuple(ff.read(4)) == (0x25,0x50,0x44,0x46)
     os.remove(output_path)
+
+def test_convert_mhtml_to_pdf():
+    mhtml_path = "tests/example_files/sample.mhtml"
+    pdf_bytes = pdf_converter.convert_mhtml_to_pdf(mhtml_path)
+    assert isinstance(pdf_bytes, bytes)
+    assert pdf_bytes[:4] == b"%PDF"

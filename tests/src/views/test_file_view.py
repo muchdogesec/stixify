@@ -39,6 +39,38 @@ def test_create(client, stixifier_profile, api_schema, identity):
 
 
 @pytest.mark.django_db
+def test_create_mhtml_pdf(client, stixifier_profile, api_schema, identity):
+    payload = dict(
+        file=SimpleUploadedFile(name="name.mhtml", content=b"file content"),
+        profile_id=stixifier_profile.id,
+        identity_id=identity.id,
+        mode="mhtml-pdf",
+        name="Upload test mhtml",
+        report_id="report--567681d6-2817-4d84-84fb-87b2f059b92e",
+    )
+    with (
+        patch(
+            "stixify.web.views.JobSerializer", side_effect=JobSerializer
+        ) as mock_job_serializer_cls,
+        patch("stixify.web.views.new_task") as mock_new_task,
+        patch(
+            "stixify.web.serializers.pdf_converter.convert_mhtml_to_pdf",
+            return_value=b"pdf bytes",
+        ) as mock_convert_mhtml_to_pdf,
+    ):
+        resp = client.post("/api/v1/files/", data=payload)
+        assert resp.status_code == 201, resp.content
+        file = models.File.objects.get(pk="567681d6-2817-4d84-84fb-87b2f059b92e")
+        assert file.file.read() == b"file content"
+        assert file.pdf_file.read() == b"pdf bytes"
+        mock_convert_mhtml_to_pdf.assert_called_once()
+        resp.wsgi_request.FILES.clear()
+        api_schema["/api/v1/files/"]["POST"].validate_response(
+            Transport.get_st_response(resp)
+        )
+
+
+@pytest.mark.django_db
 def test_file_extractions(client, stixify_file, api_schema):
     post = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
     post.txt2stix_data = {"data": "here"}

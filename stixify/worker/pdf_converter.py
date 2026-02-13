@@ -73,10 +73,37 @@ def make_conversion(input_file: Path, output_file: Path):
             convert_csv_to_pdf(input_file, output_file)
         elif ext in markdown_formats:
             convert_md_to_pdf(input_file, output_file)
-        elif ext == '.pdf':
+        elif ext == ".pdf":
             shutil.copy(input_file, output_file)
         else:
             raise ConversionError(f"Unsupported file extension: {ext}")
     except Exception as e:
         raise ConversionError(f"failed to convert {input_file.name}") from e
     return output_file
+
+
+def convert_mhtml_to_pdf(input_file: Path):
+    from playwright.sync_api import sync_playwright
+
+    input_file = Path(input_file)
+    input_file = Path(input_file)
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        url = f"file://{input_file.resolve()}"
+        page.goto(url, wait_until="domcontentloaded")
+        dimensions = page.evaluate(
+            """
+        function(){
+            const rect = document.body.getBoundingClientRect();
+            return {
+                "width": rect.width.toString(),
+                "height": rect.height.toString(),
+            }
+        }
+        """
+        )
+        pdf_bytes = page.pdf(**dimensions)
+        browser.close()
+        return bytes(pdf_bytes)

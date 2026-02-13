@@ -126,6 +126,20 @@ class File(CommonSTIXProps):
             return self.file
         return self.pdf_file
     
+    @property
+    def process_file(self):
+        f = self.file
+        if self.mode == 'mhtml-pdf':
+            f = self.pdf_file
+        return f.open('rb')
+    
+    @property
+    def process_mode(self):
+        if self.mode == 'mhtml-pdf':
+            return 'pdf'
+        return self.mode
+        
+    
     # @classmethod
     # def visible_files(cls):
     #     return cls.objects.filter(job__state=JobState.COMPLETED)
