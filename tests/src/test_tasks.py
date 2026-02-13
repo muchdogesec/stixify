@@ -7,6 +7,7 @@ import pytest
 from stixify.worker.tasks import job_completed_with_error, new_task, process_post
 from stixify.web import models
 from dogesec_commons.stixifier.stixifier import StixifyProcessor
+from django.core.files.base import ContentFile
 
 from stixify.worker import tasks
 
@@ -73,6 +74,30 @@ def test_process_post_job(stixify_job, fake_stixifier_processor):
             file2txt_mode=file.mode,
             report_id=file.id,
         )
+
+@pytest.mark.django_db
+def test_process_post_mhtml_pdf_mode(stixify_job, fake_stixifier_processor):
+    stixify_job.refresh_from_db()
+    file = stixify_job.file
+    file.mode = "mhtml-pdf"
+    file.pdf_file = ContentFile(b"PDF content", name="test.pdf")
+    file.save()
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
+        patch("stixify.worker.pdf_converter.convert_mhtml_to_pdf") as mock_convert_pdf,
+    ):
+        mock_stixify_processor_cls.return_value = fake_stixifier_processor
+        process_post.si(stixify_job.id).delay()
+        process_stream: io.BytesIO = mock_stixify_processor_cls.call_args[0][0]
+        process_stream.seek(0)
+        mock_stixify_processor_cls.assert_called_once_with(
+            process_stream,
+            stixify_job.profile,
+            job_id=stixify_job.id,
+            file2txt_mode="pdf",
+            report_id=file.id,
+        )
+        assert process_stream.read() == b"PDF content"
 
 @pytest.mark.django_db
 def test_process_post_with_incident(stixify_job, fake_stixifier_processor):
