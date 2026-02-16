@@ -11,6 +11,13 @@ from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
 from rest_framework.exceptions import ValidationError
 from django.utils.translation import gettext_lazy
+from stixify.worker import pdf_converter
+from django.core.files.base import ContentFile
+import tempfile
+from pathlib import Path
+
+F2T_PARSERS = list(f2t_core.BaseParser.PARSERS.keys())
+F2T_PARSERS.append("mhtml-pdf")
 
 class RelatedObjectField(serializers.RelatedField):
     lookup_key = 'pk'
@@ -95,7 +102,7 @@ class FileSerializer(serializers.ModelSerializer):
     identity_id = IdentityIDField(help_text="The ID of the Identity you want to use as the `created_by_ref` for the STIX Report object created. This must be the ID of an existing Identity in the system. Use the POST Identity object to add a new Identity.")
     mimetype = serializers.CharField(read_only=True)
     profile_id =  RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`. Check the Profile endpoints for more info about Profiles."), use_raw_value=True, queryset=Profile.objects)
-    mode = serializers.ChoiceField(choices=list(f2t_core.BaseParser.PARSERS.keys()), help_text="Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed) to control the markdown output created. This is a file2txt setting.")
+    mode = serializers.ChoiceField(choices=F2T_PARSERS, help_text="Generally the mode should match the filetype of file selected. Except for HTML documents where you can use html mode (processes entirety of HTML page) and html_article mode (where only the article on the page will be processed) to control the markdown output created. This is a file2txt setting.")
     download_url = serializers.FileField(source='file', use_url=True, read_only=True, allow_null=True)
     file = serializers.FileField(write_only=True, help_text="This is the file to be processed. The mimetype of the file uploaded must match that expected by the `mode` selected.")
     ai_describes_incident = serializers.BooleanField(required=False, read_only=True, allow_null=True)
@@ -113,6 +120,26 @@ class FileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         print(attrs)
         return super().validate(attrs)
+    
+    def create(self, validated_data):
+        # Extract the uploaded file
+        uploaded_file = validated_data.get('file')
+        mode = validated_data.get('mode')
+        
+        # Handle mhtml-pdf conversion
+        if mode == 'mhtml-pdf':
+            # Save uploaded file to temporary location
+            with tempfile.NamedTemporaryFile(delete=True, suffix='.mhtml') as temp_file:
+                for chunk in uploaded_file.chunks():
+                    temp_file.write(chunk)
+                temp_path = Path(temp_file.name)
+            
+                # Convert mhtml to pdf
+                pdf_bytes = pdf_converter.convert_mhtml_to_pdf(temp_path)
+                # Replace the file with the converted PDF
+                pdf_filename = uploaded_file.name.rsplit('.', 1)[0] + '.pdf'
+                validated_data['pdf_file'] = ContentFile(pdf_bytes, name=pdf_filename)
+        return super().create(validated_data)
 
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
