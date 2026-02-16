@@ -6,6 +6,7 @@ RUN --mount=type=cache,target=/root/.cache \
     pip install -r requirements.txt
 
 COPY install_deps.sh .
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
 RUN --mount=type=cache,target=/var/cache/apt/archives/ \
     bash install_deps.sh
 
