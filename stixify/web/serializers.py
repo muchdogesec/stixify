@@ -58,7 +58,7 @@ class CharacterSeparatedField(serializers.ListField):
             retval.extend(s.split(self.separator))
         return super().to_internal_value(retval)
 
-    
+
 class IdentityIDField(serializers.PrimaryKeyRelatedField):
     def __init__(self, **kwargs):
         from dogesec_commons.identity.models import Identity
@@ -93,7 +93,7 @@ class ReportIDField(serializers.CharField):
     
     def to_representation(self, value):
         return "report--"+serializers.UUIDField().to_representation(value)
-    
+
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     report_id = ReportIDField(source='id', help_text="If you want to define the UUID of the STIX Report object you can use this property. Pass the entire report id, e.g. `report--26dd4dcb-0ebc-4a71-8d37-ffd88faed163`. The UUID part will also be used for the file ID. If not passed, this UUID will be randomly generated. Must be unique.", validators=[
@@ -111,6 +111,13 @@ class FileSerializer(serializers.ModelSerializer):
     summary = serializers.CharField(read_only=True, required=False, allow_null=True)
     archived_pdf = serializers.FileField(use_url=True, read_only=True, allow_null=True)
     sources = CharacterSeparatedField(required=False, allow_null=True, help_text="You can use this to add one or more sources to the `external_references` property of the Report object created. Useful for tracking locations (i.e. URLs) where the report was sourced.", child=serializers.CharField(max_length=1024))
+    confidence = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=0,
+        max_value=100,
+        help_text="A value between `0`-`100`. This value is determined by the content check module of the profile used to process the file. If a confidence value is set on the File object, that value will be used instead.",
+    )
 
     class Meta:
         model = File
@@ -120,12 +127,12 @@ class FileSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         print(attrs)
         return super().validate(attrs)
-    
+
     def create(self, validated_data):
         # Extract the uploaded file
         uploaded_file = validated_data.get('file')
         mode = validated_data.get('mode')
-        
+
         # Handle mhtml-pdf conversion
         if mode == 'mhtml-pdf':
             # Save uploaded file to temporary location
@@ -133,7 +140,7 @@ class FileSerializer(serializers.ModelSerializer):
                 for chunk in uploaded_file.chunks():
                     temp_file.write(chunk)
                 temp_path = Path(temp_file.name)
-            
+
                 # Convert mhtml to pdf
                 pdf_bytes = pdf_converter.convert_mhtml_to_pdf(temp_path)
                 # Replace the file with the converted PDF
@@ -246,8 +253,6 @@ class AttackNavigatorDomainSerializer(JSONSchemaSerializer):
     }
 
 
-
-
 class HealthCheckChoices(StrEnum):
     AUTHORIZED = auto()
     UNAUTHORIZED = auto()
@@ -260,7 +265,7 @@ class HealthCheckChoiceField(serializers.ChoiceField):
     def __init__(self, **kwargs):
         choices = [m.value for m in HealthCheckChoices]
         super().__init__(choices, **kwargs)
-        
+
 class HealthCheckLLMs(serializers.Serializer):
     openai = HealthCheckChoiceField()
     deepseek = HealthCheckChoiceField()
@@ -274,4 +279,3 @@ class HealthCheckSerializer(serializers.Serializer):
     btcscan = HealthCheckChoiceField()
     binlist = HealthCheckChoiceField()
     llms = HealthCheckLLMs()
-
