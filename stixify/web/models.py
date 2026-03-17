@@ -183,3 +183,24 @@ class Job(models.Model):
     @property
     def profile(self):
         return self.file.profile
+
+
+class ObjectValue(models.Model):
+    """Store extracted values from STIX objects for efficient querying."""
+    
+    stix_id = models.CharField(max_length=256, db_index=True)
+    type = models.CharField(max_length=256, db_index=True)
+    ttp_type = models.CharField(max_length=64, db_index=True, null=True, blank=True)
+    values = models.JSONField()
+    file = models.ForeignKey(File, on_delete=models.CASCADE, related_name='object_values')
+    created = models.DateTimeField(default=None, null=True)
+    modified = models.DateTimeField(default=None, null=True)
+
+    class Meta:
+        unique_together = [('stix_id', 'file')]
+        indexes = [
+            models.Index(fields=['stix_id', 'type'], name='stixify_s_stix_id_type_idx'),
+        ]
+
+    def __str__(self) -> str:
+        return f"ObjectValue(stix_id={self.stix_id}, type={self.type})"
