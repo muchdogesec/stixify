@@ -24,7 +24,7 @@ from .web.views import FileView, JobView, ReportView, SchemaViewCached, HealthCh
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from django.conf.urls.static import static
 from stixify.web.identities import IdentityView
-from stixify.web.values import SDOValueView, SCOValueView
+from stixify.web.values import SDOValueView, SCOValueView, statistics
 
 from django.http import JsonResponse
 def handler404(*args, **kwargs):
@@ -53,6 +53,8 @@ router.register('objects/sdos', arango_views.SDOView, "object-view-sdo")
 # values
 router.register('values/scos', SCOValueView, "values-view-sco")
 router.register('values/sdos', SDOValueView, "values-view-sdo")
+# statistics
+router.register('statistics', statistics.StatisticsView, "statistics-view")
 # txt2stix views
 router.register('extractors', ExtractorsView, "extractors-view")
 
