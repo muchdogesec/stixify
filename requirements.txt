@@ -16,7 +16,7 @@ amqp==5.3.1
     # via kombu
 annotated-types==0.7.0
     # via pydantic
-anthropic[bedrock,vertex]==0.84.0
+anthropic[bedrock,vertex]==0.85.0
     # via llama-index-llms-anthropic
 antlr4-python3-runtime==4.13.2
     # via stix2-patterns
@@ -48,11 +48,11 @@ beautifulsoup4==4.14.3
     #   txt2stix
 billiard==4.2.4
     # via celery
-boto3==1.42.66
+boto3==1.42.69
     # via
     #   anthropic
     #   django-storages
-botocore==1.42.66
+botocore==1.42.69
     # via
     #   anthropic
     #   boto3
@@ -70,7 +70,7 @@ cffi==2.0.0
     # via cryptography
 chardet==7.1.0
     # via readability-lxml
-charset-normalizer==3.4.5
+charset-normalizer==3.4.6
     # via requests
 click==8.3.1
     # via
@@ -174,7 +174,7 @@ google-api-core[grpc]==2.30.0
     #   google-generativeai
 google-api-python-client==2.192.0
     # via google-generativeai
-google-auth[requests]==2.49.0
+google-auth[requests]==2.49.1
     # via
     #   anthropic
     #   google-ai-generativelanguage
@@ -188,7 +188,7 @@ google-auth-httplib2==0.3.0
     # via google-api-python-client
 google-cloud-vision==3.12.1
     # via file2txt
-google-genai==1.66.0
+google-genai==1.67.0
     # via llama-index-llms-google-genai
 google-generativeai==0.8.6
     # via llama-index-llms-gemini
@@ -221,7 +221,7 @@ gunicorn==23.0.0
     # via -r requirements.in
 h11==0.16.0
     # via httpcore
-hf-xet==1.4.0
+hf-xet==1.4.2
     # via huggingface-hub
 httpcore==1.0.9
     # via httpx
@@ -270,7 +270,7 @@ jmespath==1.1.0
     #   botocore
 joblib==1.5.3
     # via nltk
-json-repair==0.58.5
+json-repair==0.58.6
     # via txt2stix
 jsonpointer==3.0.0
     # via jsonschema
@@ -285,7 +285,7 @@ kombu==5.6.2
     # via celery
 lark==1.3.1
     # via rfc3987-syntax
-llama-index-core==0.14.16
+llama-index-core==0.14.18
     # via
     #   -r requirements.in
     #   llama-index-llms-anthropic
@@ -295,13 +295,13 @@ llama-index-core==0.14.16
     #   llama-index-llms-openai-like
     #   llama-index-llms-openrouter
     #   txt2stix
-llama-index-instrumentation==0.4.3
+llama-index-instrumentation==0.5.0
     # via llama-index-workflows
-llama-index-llms-anthropic==0.10.11
+llama-index-llms-anthropic==0.11.1
     # via
     #   -r requirements.in
     #   txt2stix
-llama-index-llms-deepseek==0.2.2
+llama-index-llms-deepseek==0.3.0
     # via
     #   -r requirements.in
     #   txt2stix
@@ -318,11 +318,11 @@ llama-index-llms-openai-like==0.5.3
     # via
     #   llama-index-llms-deepseek
     #   llama-index-llms-openrouter
-llama-index-llms-openrouter==0.4.4
+llama-index-llms-openrouter==0.5.0
     # via
     #   -r requirements.in
     #   txt2stix
-llama-index-workflows==2.16.0
+llama-index-workflows==2.16.1
     # via llama-index-core
 lxml[html-clean]==6.0.2
     # via
@@ -359,7 +359,7 @@ numpy==2.4.3
     #   llama-index-core
     #   pandas
     #   transformers
-openai==2.26.0
+openai==2.28.0
     # via llama-index-llms-openai
 packaging==26.0
     # via
@@ -373,7 +373,7 @@ pandas==3.0.1
     # via file2txt
 pathvalidate==3.3.1
     # via txt2stix
-phonenumbers==9.0.25
+phonenumbers==9.0.26
     # via txt2stix
 pillow==10.4.0
     # via
@@ -411,10 +411,8 @@ psycopg2-binary==2.9.11
     # via
     #   -r requirements.in
     #   dogesec-commons
-pyasn1==0.6.2
-    # via
-    #   pyasn1-modules
-    #   rsa
+pyasn1==0.6.3
+    # via pyasn1-modules
 pyasn1-modules==0.4.2
     # via google-auth
 pycountry==26.2.16
@@ -436,7 +434,7 @@ pydantic-core==2.41.5
     # via pydantic
 pyee==13.0.1
     # via playwright
-pyjwt==2.12.0
+pyjwt==2.12.1
     # via python-arango
 pyparsing==3.3.2
     # via httplib2
@@ -511,8 +509,6 @@ rpds-py==0.30.0
     # via
     #   jsonschema
     #   referencing
-rsa==4.9.1
-    # via google-auth
 rstr==3.2.2
     # via schwifty
 s3transfer==0.16.0
@@ -552,7 +548,7 @@ stix2-patterns==2.1.2
     #   stix2-validator
 stix2-validator==3.2.0
     # via txt2stix
-stix2arango==1.2.0
+stix2arango==1.2.1
     # via
     #   -r requirements.in
     #   dogesec-commons
@@ -566,7 +562,7 @@ tenacity==9.1.4
     #   llama-index-core
 tiktoken==0.12.0
     # via llama-index-core
-tinytag==2.2.0
+tinytag==2.2.1
     # via llama-index-core
 tld==0.13.2
     # via txt2stix
