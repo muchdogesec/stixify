@@ -411,7 +411,7 @@ psycopg2-binary==2.9.11
     # via
     #   -r requirements.in
     #   dogesec-commons
-pyasn1==0.6.2
+pyasn1==0.6.3
     # via
     #   pyasn1-modules
     #   rsa
