@@ -29,6 +29,17 @@ def as_arango2stix_db(db_name):
         return "_".join(db_name.split("_")[:-1])
     return db_name
 
+@contextlib.contextmanager
+def disconnect_s2a_signals():
+    from stix2arango.stix2arango import Stix2Arango
+    preupload_hooks = Stix2Arango._pre_upload_hooks
+    postupload_hooks = Stix2Arango._post_upload_hooks
+
+    Stix2Arango._pre_upload_hooks.clear()
+    Stix2Arango._post_upload_hooks.clear()
+    yield
+    Stix2Arango._pre_upload_hooks = preupload_hooks
+    Stix2Arango._post_upload_hooks = postupload_hooks
 
 @contextlib.contextmanager
 def make_s2a_uploads(
@@ -56,7 +67,7 @@ def make_s2a_uploads(
 
 @pytest.fixture(autouse=True, scope="package")
 def upload_arango_objects():
-    with make_s2a_uploads(
+    with disconnect_s2a_signals(), make_s2a_uploads(
         [
             bundles.BUNDLE_1,
             bundles.BUNDLE_2,

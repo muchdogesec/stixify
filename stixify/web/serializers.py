@@ -125,7 +125,6 @@ class FileSerializer(serializers.ModelSerializer):
         read_only_fields = []
 
     def validate(self, attrs):
-        print(attrs)
         return super().validate(attrs)
 
     def create(self, validated_data):
