@@ -22,7 +22,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="ipv4-addr--ba6b3f21-d818-4e7c-bfff-765805177512",
         type="ipv4-addr",
-        ttp_type=None,
+        knowledgebase=None,
         values={"value": "192.168.1.1"},
         file=files[0],
     )
@@ -30,7 +30,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="ipv4-addr--ba6b3f21-d818-4e7c-bfff-765805177512",
         type="ipv4-addr",
-        ttp_type=None,
+        knowledgebase=None,
         values={"value": "192.168.1.1"},
         file=files[1],  # Same IP in different post
     )
@@ -38,7 +38,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="ipv4-addr--cc7b4f32-e929-5c8d-cfff-876916288623",
         type="ipv4-addr",
-        ttp_type=None,
+        knowledgebase=None,
         values={"value": "10.0.0.1"},
         file=files[0],
     )
@@ -47,7 +47,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="domain-name--dd8c5e43-fa3a-6d9e-dfff-987027399734",
         type="domain-name",
-        ttp_type=None,
+        knowledgebase=None,
         values={"value": "malicious.example.com"},
         file=files[0],
     )
@@ -55,7 +55,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="domain-name--ee9d6f54-gb4b-7e0f-efff-098138400845",
         type="domain-name",
-        ttp_type=None,
+        knowledgebase=None,
         values={"value": "phishing.example.net"},
         file=files[1],
     )
@@ -64,7 +64,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="url--ff0e7g65-hc5c-8f1g-ffff-109249511956",
         type="url",
-        ttp_type=None,
+        knowledgebase=None,
         values={"value": "https://malicious.example.com/payload.exe"},
         file=files[0],
     )
@@ -73,7 +73,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="attack-pattern--0f4a0c76-ab2d-4cb0-85d3-3f0efb8cba4d",
         type="attack-pattern",
-        ttp_type="enterprise-attack",
+        knowledgebase="enterprise-attack",
         values={"name": "Spearphishing Link", "aliases": ["T1566.002"]},
         file=files[0],
         created=timezone.now(),
@@ -83,7 +83,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="attack-pattern--0f4a0c76-ab2d-4cb0-85d3-3f0efb8cba4d",
         type="attack-pattern",
-        ttp_type="enterprise-attack",
+        knowledgebase="enterprise-attack",
         values={"name": "Spearphishing Link", "aliases": ["T1566.002"]},
         file=files[2],  # Same attack pattern in different post
         created=timezone.now(),
@@ -94,7 +94,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="malware--1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
         type="malware",
-        ttp_type=None,
+        knowledgebase=None,
         values={"name": "WannaCry", "x_mitre_aliases": ["WannaCryptor", "WCry"]},
         file=files[1],
         created=timezone.now(),
@@ -105,7 +105,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="vulnerability--2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
         type="vulnerability",
-        ttp_type="cve",
+        knowledgebase="cve",
         values={"name": "CVE-2021-44228"},
         file=files[0],
         created=timezone.now(),
@@ -116,7 +116,7 @@ def values(more_files):
     ObjectValue.objects.create(
         stix_id="location--3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
         type="location",
-        ttp_type="location",
+        knowledgebase="location",
         values={"name": "United States", "country": "US", "region": "northern-america"},
         file=files[1],
         created=timezone.now(),
@@ -294,6 +294,46 @@ class TestSCOValueView:
         
         stix_ids = [obj['id'] for obj in data['values']]
         assert stix_ids == sorted(stix_ids)
+
+    
+    def test_ordering_by_value_uses_first_key(self, client, values, more_files):
+        """Test value ordering uses the first key alphabetically from values JSON."""
+        
+
+        ObjectValue.objects.create(
+            stix_id="vulnerability--11111111-1111-1111-1111-111111111111",
+            type="vulnerability",
+            knowledgebase="cve",
+            values={"z_key": "cve-z", "a_key": "cve-a"},
+            file=more_files[0],
+            created=timezone.now(),
+            modified=timezone.now(),
+        )
+        ObjectValue.objects.create(
+            stix_id="vulnerability--22222222-2222-2222-2222-222222222222",
+            type="vulnerability",
+            knowledgebase="cve",
+            values={"z_key": "cve-a", "a_key": "cve-z"},
+            file=more_files[1],
+            created=timezone.now(),
+            modified=timezone.now(),
+        )
+        ObjectValue.objects.create(
+            stix_id="attack-pattern--33333333-3333-3333-3333-333333333333",
+            type="attack-pattern",
+            knowledgebase=None,
+            values={"a_key": "aaa.example", "z_key": "zzz.example"},
+            file=more_files[1],
+        )
+
+        response = client.get('/api/v1/values/sdos/?types=vulnerability,attack-pattern&sort=value_ascending')
+
+        assert response.status_code == 200
+        data = response.json()
+
+        normalized_values = [list(obj['values'].values())[0].lower() for obj in data['values']]
+        assert len(normalized_values) >= 3
+        assert normalized_values == sorted(normalized_values)
     
     def test_pagination(self, client, values):
         """Test pagination of results."""
@@ -316,7 +356,7 @@ class TestSCOValueView:
         
         for obj in data['values']:
             # ttp_type should not be present (null fields are removed)
-            assert 'ttp_type' not in obj
+            assert "kb_name" not in obj
 
 
 @pytest.mark.django_db
@@ -357,27 +397,27 @@ class TestSDOValueView:
     def test_filter_by_ttp_type(self, client, values):
         """Test filtering by TTP type."""
         
-        response = client.get('/api/v1/values/sdos/?ttp_types=enterprise-attack')
+        response = client.get('/api/v1/values/sdos/?knowledgebases=enterprise-attack')
         
         assert response.status_code == 200
         data = response.json()
         
         # Should return only enterprise-attack objects (1)
         assert data['total_results_count'] == 1
-        assert data['values'][0]['ttp_type'] == 'enterprise-attack'
+        assert data['values'][0]['knowledgebase'] == 'enterprise-attack'
     
-    def test_filter_by_multiple_ttp_types(self, client, values):
+    def test_filter_by_multiple_knowledgebase(self, client, values):
         """Test filtering by multiple TTP types."""
         
-        response = client.get('/api/v1/values/sdos/?ttp_types=cve,location')
+        response = client.get('/api/v1/values/sdos/?knowledgebases=cve,location')
         
         assert response.status_code == 200
         data = response.json()
         
         # Should return CVE (1) + location (1) = 2 objects
         assert data['total_results_count'] == 2
-        ttp_types = [obj['ttp_type'] for obj in data['values']]
-        assert all(t in ['cve', 'location'] for t in ttp_types)
+        knowledgebase = [obj['knowledgebase'] for obj in data['values']]
+        assert all(t in ['cve', 'location'] for t in knowledgebase)
     
     def test_filter_by_value_searches_name(self, client, values):
         """Test that value filter searches name field using substring matching."""
@@ -492,31 +532,30 @@ class TestSDOValueView:
     def test_ttp_type_present_when_applicable(self, client, values):
         """Test that ttp_type is present when it exists."""
         
-        response = client.get('/api/v1/values/sdos/?ttp_types=cve')
+        response = client.get('/api/v1/values/sdos/?knowledgebases=cve')
         
         assert response.status_code == 200
         data = response.json()
         
         assert data['total_results_count'] == 1
-        assert 'ttp_type' in data['values'][0]
-        assert data['values'][0]['ttp_type'] == 'cve'
+        assert data['values'][0]['knowledgebase'] == 'cve'
     
     def test_ordering_by_ttp_type(self, client, values):
         """Test ordering results by ttp_type."""
         
-        response = client.get('/api/v1/values/sdos/?sort=ttp_type_ascending')
+        response = client.get('/api/v1/values/sdos/?sort=knowledgebase_ascending')
         
         assert response.status_code == 200
         data = response.json()
         
-        # Extract ttp_types, treating None as z string for sorting (None values should come last)
-        ttp_types = [obj.get('ttp_type', 'z') or 'z' for obj in data['values']]
-        assert ttp_types == sorted(ttp_types)
+        # Extract knowledgebase, treating None as z string for sorting (None values should come last)
+        knowledgebase = [obj.get('ttp_type', 'z') or 'z' for obj in data['values']]
+        assert knowledgebase == sorted(knowledgebase)
     
     def test_combined_filters(self, client, values):
         """Test combining multiple filters."""
         
-        response = client.get('/api/v1/values/sdos/?types=vulnerability&ttp_types=cve')
+        response = client.get('/api/v1/values/sdos/?types=vulnerability&knowledgebase=cve')
         
         assert response.status_code == 200
         data = response.json()
@@ -524,7 +563,7 @@ class TestSDOValueView:
         assert data['total_results_count'] == 1
         obj = data['values'][0]
         assert obj['type'] == 'vulnerability'
-        assert obj['ttp_type'] == 'cve'
+        assert obj['knowledgebase'] == 'cve'
     
     def test_created_modified_timestamps(self, client, values):
         """Test that created and modified timestamps are returned."""
@@ -822,7 +861,7 @@ class TestVisibleToFilter:
         ObjectValue.objects.create(
             stix_id="attack-pattern--file1",
             type="attack-pattern",
-            ttp_type="enterprise-attack",
+            knowledgebase="enterprise-attack",
             values={"name": "Attack 1"},
             file=visibility_test_data["file1_red"],
             created=timezone.now(),
@@ -832,7 +871,7 @@ class TestVisibleToFilter:
         ObjectValue.objects.create(
             stix_id="attack-pattern--file2",
             type="attack-pattern",
-            ttp_type="enterprise-attack",
+            knowledgebase="enterprise-attack",
             values={"name": "Attack 2"},
             file=visibility_test_data["file2_clear"],
             created=timezone.now(),
