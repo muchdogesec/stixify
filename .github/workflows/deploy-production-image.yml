@@ -41,7 +41,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            DJANGO_DEBUG=False
             R2_ACCESS_KEY=4ed3b9a3634abd694f034580086b8445
             R2_BUCKET_NAME=stixify-web-core-production
       - name: Generate artifact attestation
