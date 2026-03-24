@@ -6,7 +6,7 @@ class ObjectValueSerializer(serializers.Serializer):
     
     id = serializers.CharField(source='stix_id')
     type = serializers.CharField()
-    ttp_type = serializers.CharField(required=False)
+    knowledgebase = serializers.CharField(read_only=True, required=False)
     values = serializers.JSONField(read_only=True)
     matched_files = serializers.ListField(child=serializers.UUIDField())
     created = serializers.DateTimeField(required=False)

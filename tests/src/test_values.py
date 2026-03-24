@@ -13,7 +13,7 @@ from stixify.web.values.values import (
     get_file_values,
     get_location_values,
     get_values,
-    get_ttp_type,
+    guess_kb_data,
     extract_object_metadata,
     process_uploaded_objects_hook,
     sco_value_map,
@@ -156,7 +156,7 @@ class TestHelperFunctions:
 
 
 class TestGetTTPType:
-    """Tests for the get_ttp_type function that determines TTP classification."""
+    """Tests for the guess_kb_data function that determines TTP classification."""
     
     def test_vulnerability_returns_cve(self):
         """Test that vulnerability objects return 'cve' as ttp_type."""
@@ -164,9 +164,9 @@ class TestGetTTPType:
             "type": "vulnerability",
             "external_references": [{"source_name": "cve", "external_id": "CVE-2021-44228"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "cve"
-        assert extra == {"ttp_id": "CVE-2021-44228"}
+        assert extra == {"kb_id": "CVE-2021-44228"}
     
     def test_weakness_returns_cwe(self):
         """Test that weakness objects return 'cwe' as ttp_type."""
@@ -174,27 +174,27 @@ class TestGetTTPType:
             "type": "weakness",
             "external_references": [{"source_name": "cwe", "external_id": "CWE-79"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "cwe"
-        assert extra == {"ttp_id": "CWE-79"}
+        assert extra == {"kb_id": "CWE-79"}
     
     def test_location_returns_location(self):
         """Test that location objects return 'location' as ttp_type."""
         obj = {"type": "location", "name": "United States"}
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "location"
         assert extra == {}
     
     def test_enterprise_attack_from_x_mitre_domains(self):
         """Test that enterprise-attack is detected from x_mitre_domains."""
         obj = {
-            "type": "attack-pattern",
+            "type": "intrusion-set",
             "x_mitre_domains": ["enterprise-attack"],
-            "external_references": [{"source_name": "mitre-attack", "external_id": "T1566.002"}]
+            "external_references": [{"source_name": "mitre-attack", "external_id": "M1012"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "enterprise-attack"
-        assert extra == {"ttp_id": "T1566.002"}
+        assert extra == {"kb_id": "M1012", "kb_type": "Group"}
     
     def test_mobile_attack_from_x_mitre_domains(self):
         """Test that mobile-attack is detected from x_mitre_domains."""
@@ -202,7 +202,7 @@ class TestGetTTPType:
             "type": "attack-pattern",
             "x_mitre_domains": ["mobile-attack"]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "mobile-attack"
     
     def test_ics_attack_from_x_mitre_domains(self):
@@ -211,7 +211,7 @@ class TestGetTTPType:
             "type": "attack-pattern",
             "x_mitre_domains": ["ics-attack"]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "ics-attack"
     
     def test_capec_from_external_references(self):
@@ -220,19 +220,20 @@ class TestGetTTPType:
             "type": "attack-pattern",
             "external_references": [{"source_name": "capec", "external_id": "CAPEC-63"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "capec"
-        assert extra == {"ttp_id": "CAPEC-63"}
+        assert extra == {"kb_id": "CAPEC-63", "kb_type": "Technique"}
     
     def test_atlas_from_external_references(self):
         """Test that ATLAS is detected from external_references."""
         obj = {
             "type": "attack-pattern",
+            "x_mitre_is_subtechnique": True,
             "external_references": [{"source_name": "mitre-atlas", "external_id": "AML.T0001"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "atlas"
-        assert extra == {"ttp_id": "AML.T0001"}
+        assert extra == {"kb_id": "AML.T0001", "kb_type": "Sub-technique"}
     
     def test_disarm_from_external_references(self):
         """Test that DISARM is detected from external_references."""
@@ -240,9 +241,9 @@ class TestGetTTPType:
             "type": "attack-pattern",
             "external_references": [{"source_name": "DISARM", "external_id": "T0001"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "disarm"
-        assert extra == {"ttp_id": "T0001"}
+        assert extra == {"kb_id": "T0001", "kb_type": "Technique"}
     
     def test_sector_from_external_references(self):
         """Test that sector is detected from external_references."""
@@ -250,14 +251,14 @@ class TestGetTTPType:
             "type": "identity",
             "external_references": [{"source_name": "sector2stix", "external_id": "financial"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "sector"
-        assert extra == {"ttp_id": "financial"}
+        assert extra == {"kb_id": "financial"}
     
     def test_non_ttp_returns_none(self):
         """Test that non-TTP objects return None."""
         obj = {"type": "indicator", "name": "Malicious IP"}
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type is None
         assert extra == {}
     
@@ -267,7 +268,7 @@ class TestGetTTPType:
             "type": "vulnerability",
             "external_references": [{"source_name": "cve", "url": "http://example.com"}]
         }
-        ttp_type, extra = get_ttp_type(obj)
+        ttp_type, extra = guess_kb_data(obj)
         assert ttp_type == "cve"
         assert extra == {}
 
@@ -286,7 +287,7 @@ class TestExtractObjectMetadata:
         result = extract_object_metadata(obj)
         assert result["stix_id"] == "ipv4-addr--123"
         assert result["type"] == "ipv4-addr"
-        assert result["ttp_type"] is None
+        assert result["knowledgebase"] is None
         assert result["values"] == {"value": "192.168.1.1"}
         assert result["created"] == "2021-01-01T00:00:00.000Z"
         assert result["modified"] == "2021-01-01T00:00:00.000Z"
@@ -337,10 +338,10 @@ class TestExtractObjectMetadata:
         result = extract_object_metadata(obj)
         assert result["stix_id"] == "attack-pattern--abc"
         assert result["type"] == "attack-pattern"
-        assert result["ttp_type"] == "enterprise-attack"
+        assert result["knowledgebase"] == "enterprise-attack"
         assert result["values"]["name"] == "Spearphishing Link"
         assert result["values"]["aliases"] == "['T1566.002']"
-        assert result["values"]["ttp_id"] == "T1566.002"
+        assert result["values"]["kb_id"] == "T1566.002"
     
     def test_extract_vulnerability_metadata(self):
         """Test extracting metadata from a vulnerability object."""
@@ -357,9 +358,9 @@ class TestExtractObjectMetadata:
         result = extract_object_metadata(obj)
         assert result["stix_id"] == "vulnerability--def"
         assert result["type"] == "vulnerability"
-        assert result["ttp_type"] == "cve"
+        assert result["knowledgebase"] == "cve"
         assert result["values"]["name"] == "CVE-2021-44228"
-        assert result["values"]["ttp_id"] == "CVE-2021-44228"
+        assert result["values"]["kb_id"] == "CVE-2021-44228"
     
     def test_extract_malware_metadata(self):
         """Test extracting metadata from a malware object."""
@@ -393,7 +394,7 @@ class TestExtractObjectMetadata:
         result = extract_object_metadata(obj)
         assert result["stix_id"] == "location--jkl"
         assert result["type"] == "location"
-        assert result["ttp_type"] == "location"
+        assert result["knowledgebase"] == "location"
         assert result["values"]["name"] == "United States"
         assert result["values"]["region"] == "northern-america"
         assert result["values"]["alpha-3"] == "USA"
@@ -606,18 +607,18 @@ class TestProcessUploadedObjectsHook:
         
         # Verify SCO
         ipv4_obj = ObjectValue.objects.get(stix_id="ipv4-addr--123")
-        assert ipv4_obj.ttp_type is None
+        assert ipv4_obj.knowledgebase is None
         
         # Verify SDO with TTP type
         attack_obj = ObjectValue.objects.get(stix_id="attack-pattern--abc")
-        assert attack_obj.ttp_type == "enterprise-attack"
-        assert attack_obj.values["ttp_id"] == "T1566"
+        assert attack_obj.knowledgebase == "enterprise-attack"
+        assert attack_obj.values["kb_id"] == "T1566"
         assert attack_obj.created is not None
         
         # Verify vulnerability
         vuln_obj = ObjectValue.objects.get(stix_id="vulnerability--def")
-        assert vuln_obj.ttp_type == "cve"
-        assert vuln_obj.values["ttp_id"] == "CVE-2021-1234"
+        assert vuln_obj.knowledgebase == "cve"
+        assert vuln_obj.values["kb_id"] == "CVE-2021-1234"
     
     def test_hook_logs_processing_info(self, stixifier_profile, identity, caplog):
         """Test that the hook logs appropriate information."""

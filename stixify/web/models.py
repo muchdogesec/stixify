@@ -190,7 +190,7 @@ class ObjectValue(models.Model):
     
     stix_id = models.CharField(max_length=256, db_index=True)
     type = models.CharField(max_length=256, db_index=True)
-    ttp_type = models.CharField(max_length=64, db_index=True, null=True, blank=True)
+    knowledgebase = models.CharField(max_length=64, db_index=True, null=True, blank=True)
     values = models.JSONField()
     file = models.ForeignKey(File, on_delete=models.CASCADE, related_name='object_values')
     created = models.DateTimeField(default=None, null=True)
