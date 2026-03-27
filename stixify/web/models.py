@@ -1,3 +1,4 @@
+import logging
 import os
 from django.conf import settings
 from django.db.models.signals import post_delete
@@ -5,6 +6,8 @@ from django.dispatch import receiver
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 import uuid, typing
+from stixify.classifier.models import Cluster, DocumentEmbedding
+from stixify.classifier.tasks import compute_embedding_for_document, create_embedding_text
 import txt2stix, txt2stix.extractions
 from django.core.exceptions import ValidationError
 from datetime import datetime, timezone
@@ -13,6 +16,9 @@ import stix2
 from file2txt.parsers.core import BaseParser
 from dogesec_commons.stixifier.models import Profile
 from dogesec_commons.identity.models import Identity
+
+from sklearn.metrics.pairwise import cosine_similarity
+from pgvector.django import CosineDistance
 
 
 if typing.TYPE_CHECKING:
@@ -104,6 +110,7 @@ class File(CommonSTIXProps):
 
     txt2stix_data = models.JSONField(default=None, null=True)
     sources = ArrayField(base_field=models.CharField(default=None, max_length=256), null=True, default=None)
+    embedding = models.OneToOneField(DocumentEmbedding, on_delete=models.SET_NULL, null=True)
     
     @property
     def report_id(self):
@@ -140,9 +147,62 @@ class File(CommonSTIXProps):
         return self.mode
         
     
-    # @classmethod
-    # def visible_files(cls):
-    #     return cls.objects.filter(job__state=JobState.COMPLETED)
+    @property
+    def similar_posts(file):
+        if not file.embedding:
+            return []
+
+        files_qs = (
+            File.objects.exclude(pk=file.pk)
+            .filter(embedding__isnull=False)
+            .select_related("embedding")
+        )
+        # get top 5 most similar posts based on embedding similarity, excluding self
+        similar_files = files_qs.annotate(
+            distance=CosineDistance("embedding__embedding", file.embedding.embedding)
+        ).order_by("distance")[:5]
+        results = []
+        for sfile in similar_files:
+            similarity_score = cosine_similarity(
+                file.embedding.embedding.reshape(1, -1),
+                sfile.embedding.embedding.reshape(1, -1),
+            )[0][0]
+            shared_topics = list(
+                set(file.embedding.clusters.values_list("id", flat=True))
+                & set(sfile.embedding.clusters.values_list("id", flat=True))
+            )
+            results.append(
+                {
+                    "file_id": sfile.id,
+                    "file_title": sfile.name,  # or get from related file
+                    "similarity_score": similarity_score,
+                    "shared_topics": list(
+                        Cluster.objects.filter(id__in=shared_topics).values_list(
+                            "label", flat=True
+                        )
+                    )[:3],
+                    "identity_id": sfile.identity_id,
+                    "added": sfile.created,
+                }
+            )
+        return results
+
+    def create_embedding(file, force=False, include_non_incident=False):
+        should_embed = file.ai_describes_incident or include_non_incident
+        if force or (file.embedding is None and should_embed):
+            logging.info(f"creating embedding for file {file.id}")
+            file.embedding, _ = DocumentEmbedding.objects.get_or_create(
+                id=file.pk,
+                defaults=dict(
+                    text=create_embedding_text(
+                        file.name, file.summary, file.ai_incident_summary
+                    )
+                ),
+            )
+            compute_embedding_for_document(file.embedding)
+            logging.info(f"created embedding for file {file.id}")
+            file.save(update_fields=["embedding"])
+
 
 @receiver(post_delete, sender=File)
 def remove_reports_on_delete(sender, instance: File, **kwargs):
@@ -165,6 +225,8 @@ class JobState(models.TextChoices):
 class JobType(models.TextChoices):
     IMPORT_FILE = "import-file"
     SYNC_VULNERABILITIES = "sync-vulnerabilities"
+    BUILD_CLUSTERS = "build-clusters"
+    BUILD_EMBEDDINGS = "build-embeddings"
 
 
 class Job(models.Model):

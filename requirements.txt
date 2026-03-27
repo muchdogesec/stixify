@@ -221,6 +221,8 @@ gunicorn==23.0.0
     # via -r requirements.in
 h11==0.16.0
     # via httpcore
+hdbscan==0.8.41
+    # via -r requirements.in
 hf-xet==1.4.2
     # via huggingface-hub
 httpcore==1.0.9
@@ -269,7 +271,10 @@ jmespath==1.1.0
     #   boto3
     #   botocore
 joblib==1.5.3
-    # via nltk
+    # via
+    #   hdbscan
+    #   nltk
+    #   scikit-learn
 json-repair==0.58.6
     # via txt2stix
 jsonpointer==3.0.0
@@ -356,8 +361,12 @@ nltk==3.9.3
     # via llama-index-core
 numpy==2.4.3
     # via
+    #   hdbscan
     #   llama-index-core
     #   pandas
+    #   pgvector
+    #   scikit-learn
+    #   scipy
     #   transformers
 openai==2.28.0
     # via llama-index-llms-openai
@@ -373,6 +382,8 @@ pandas==3.0.1
     # via file2txt
 pathvalidate==3.3.1
     # via txt2stix
+pgvector==0.4.2
+    # via -r requirements.in
 phonenumbers==9.0.26
     # via txt2stix
 pillow==10.4.0
@@ -517,6 +528,14 @@ safetensors==0.7.0
     # via transformers
 schwifty==2026.3.0
     # via txt2stix
+scikit-learn==1.8.0
+    # via
+    #   -r requirements.in
+    #   hdbscan
+scipy==1.17.1
+    # via
+    #   hdbscan
+    #   scikit-learn
 simplejson==3.20.2
     # via
     #   stix2
@@ -560,6 +579,8 @@ tenacity==9.1.4
     # via
     #   google-genai
     #   llama-index-core
+threadpoolctl==3.6.0
+    # via scikit-learn
 tiktoken==0.12.0
     # via llama-index-core
 tinytag==2.2.1

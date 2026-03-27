@@ -2,8 +2,6 @@
 services:
   arangodb:
     image: arangodb/arangodb
-    volumes:
-      - arangodb_data:/var/lib/arangodb3
     environment:
       ARANGO_ROOT_PASSWORD: ${ARANGODB_PASSWORD}
     ports:
@@ -15,7 +13,7 @@ services:
       start_period: 10s
       timeout: 10s
   pgdb2:
-    image: postgres
+    image: pgvector/pgvector:pg18-trixie
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -28,5 +26,3 @@ services:
       timeout: 10s
     ports:
       - "15432:5432"
-volumes:
-  arangodb_data:

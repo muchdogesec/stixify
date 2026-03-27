@@ -14,6 +14,8 @@ from django.core.files.base import File as DjangoFile
 import stix2
 
 from stixify.worker import helpers, pdf_converter
+from django.conf import settings
+
 
 POLL_INTERVAL = 1
 
@@ -85,6 +87,7 @@ def process_post(job_id, *args):
 
         converted_file_path = processor.tmpdir / "converted_pdf.pdf"
         pdf_converter.make_conversion(processor.filename, converted_file_path)
+        file.create_embedding(include_non_incident=settings.CREATE_EMBEDDING_INCLUDE_NON_INCIDENT)
         file.pdf_file.save(
             converted_file_path.name, open(converted_file_path, mode="rb")
         )
