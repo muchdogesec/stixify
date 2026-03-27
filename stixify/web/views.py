@@ -30,7 +30,7 @@ from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, JobType, TLP_Levels, JobState
-from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, FileSerializer, HealthCheckSerializer, ImageSerializer, JobSerializer
+from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, BaseJobSerializer, FileSerializer, HealthCheckSerializer, ImageSerializer, JobSerializer
 from .utils import PDFRenderer, Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -145,8 +145,12 @@ class FileView(
         text = filters.CharFilter(
             method="semantic_search",
             help_text="Search the file `name` and `summary`. Similar to the `name` filter, but allows you to run in one query to include description.",
-
         )
+        topic_id = filters.UUIDFilter(
+            field_name="embedding__clusters",
+            help_text="Filter files by topic ID. This is the `id` of the Cluster object linked to the file's embedding. You can find this ID in the `topics` list returned in the GET Topics endpoint.",
+        )
+
         def semantic_search(self, queryset, name, text):
             from django.contrib.postgres.search import SearchQuery, SearchVector
             queryset = queryset.annotate(
@@ -651,13 +655,13 @@ class ReportView(viewsets.ViewSet):
         ),
         request=None,
         responses={
-            201: JobSerializer,
+            201: BaseJobSerializer,
             404: DEFAULT_404_ERROR,
         },
     ),
 )
 class TasksView(viewsets.GenericViewSet):
-    serializer_class = JobSerializer
+    serializer_class = BaseJobSerializer
     openapi_tags = ["Tasks"]
     lookup_url_kwarg = "task_id"
     filter_backends = [DjangoFilterBackend, Ordering]
@@ -676,7 +680,7 @@ class TasksView(viewsets.GenericViewSet):
         t.apply_async()
         self.kwargs.update(job_id=job.id)
         obj = Job.objects.get(id=job.id)
-        s = JobSerializer(obj)
+        s = self.get_serializer(obj)
         return Response(s.data, status=status.HTTP_201_CREATED)
 
 

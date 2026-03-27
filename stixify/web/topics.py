@@ -1,0 +1,150 @@
+import textwrap
+import uuid
+
+from django.db.models import Count
+from django_filters.rest_framework import FilterSet, filters
+from drf_spectacular.utils import extend_schema, extend_schema_field, extend_schema_view
+from rest_framework import decorators, mixins, status, viewsets, serializers
+from rest_framework.response import Response
+from stixify.web.serializers import BaseJobSerializer
+
+from stixify.classifier.models import Cluster
+from stixify.worker.topics import build_topic_clusters
+
+from . import autoschema as api_schema
+from . import models
+from dogesec_commons.utils import Pagination, Ordering
+from django_filters.rest_framework import DjangoFilterBackend
+
+
+class TopicBaseSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Cluster
+        exclude = ["members", "created_at"]
+
+
+class TopicSerializer(TopicBaseSerializer):
+    files_count = serializers.IntegerField(read_only=True, required=False)
+
+
+class TopicPostSerializer(serializers.ModelSerializer):
+    id = serializers.UUIDField(source="pk")
+    title = serializers.CharField(source="name")
+
+    class Meta:
+        model = models.File
+        fields = ["id", "title", "identity_id"]
+
+
+class TopicDetailSerializer(TopicSerializer):
+    files = serializers.SerializerMethodField()
+
+    @extend_schema_field(TopicPostSerializer(many=True))
+    def get_files(self, obj):
+        files = (
+            models.File.objects.filter(embedding__in=obj.members.all())
+            .distinct()
+        )
+        return TopicPostSerializer(files, many=True).data
+
+
+class TopicBuildSerializer(serializers.Serializer):
+    force = serializers.BooleanField(default=False, help_text="Force regeneration even when embeddings/clusters already exist.")
+
+
+@extend_schema_view(
+    list=extend_schema(
+        summary="Search Topics",
+        description=textwrap.dedent(
+            """
+            Returns all topics (clusters) produced by the classifier. Use the `label`
+            filter for a case-insensitive partial-match search on the topic label.
+            """
+        ),
+        responses={
+            200: TopicSerializer,
+            400: api_schema.DEFAULT_400_ERROR,
+        },
+    ),
+    retrieve=extend_schema(
+        summary="Get a Topic",
+        description=textwrap.dedent(
+            """
+            Returns a single topic by its UUID, including the list of files
+            that belong to that topic.
+            """
+        ),
+        responses={
+            200: TopicDetailSerializer,
+            404: api_schema.DEFAULT_404_ERROR,
+        },
+    ),
+    build_clusters=extend_schema(
+        summary="Build topic clusters",
+        description=textwrap.dedent(
+            """
+            When a new file is added, the existing clusters remain fixed and the app predicts where a new point would land, instead of changing the clusters every time.
+
+            This will create a background job that runs topic clustering from available embeddings.
+
+            The following parameters are available to pass in the body;
+
+            * `force` (boolean, default `false`), setting to `true` will force a regeneration of clusters across all indexed files. Note, file topic IDs will change. You should only run as `true` if you want to destroy everything that exists, else `false` will regenerate the clusters but persist old topics.
+            """
+        ),
+        request=TopicBuildSerializer,
+        responses={201: BaseJobSerializer, 400: api_schema.DEFAULT_400_ERROR},
+    ),
+)
+class TopicView(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
+):
+    openapi_tags = ["Topics"]
+    pagination_class = Pagination("topics")
+    lookup_url_kwarg = "topic_id"
+    filter_backends = [DjangoFilterBackend, Ordering]
+    ordering_fields = ["label", "files_count"]
+    ordering = "files_count_descending"
+
+
+    class filterset_class(FilterSet):
+        label = filters.CharFilter(
+            field_name="label",
+            lookup_expr="icontains",
+            help_text="Case-insensitive partial match search on topic label.",
+        )
+
+    def get_queryset(self):
+        qs = Cluster.objects.annotate(
+            files_count=Count("members__file", distinct=True),
+        )
+        return qs
+
+    def get_serializer_class(self):
+        if self.action == "retrieve":
+            return TopicDetailSerializer
+        return TopicSerializer
+
+
+    @decorators.action(methods=["PATCH"], detail=False, url_path="build_clusters")
+    def build_clusters(self, request, *args, **kwargs):
+        from .serializers import JobSerializer
+
+        s = TopicBuildSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+
+        job = models.Job.objects.create(
+            id=uuid.uuid4(),
+            type=models.JobType.BUILD_CLUSTERS,
+            state=models.JobState.PROCESSING,
+        )
+        t = build_topic_clusters.si(
+            job.id,
+            force=s.validated_data["force"],
+        )
+        t.apply_async()
+        obj = models.Job.objects.get(id=job.id)
+        return Response(JobSerializer(obj).data, status=status.HTTP_201_CREATED)

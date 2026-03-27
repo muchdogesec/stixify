@@ -116,6 +116,26 @@ def test_process_post_with_incident(stixify_job, fake_stixifier_processor):
         assert file.ai_incident_summary == incident.explanation
         assert file.ai_incident_classification == incident.incident_classification
 
+@pytest.mark.parametrize(
+    'settings_value',
+    [
+        True,
+        False,
+    ]
+)
+@pytest.mark.django_db
+def test_process_post__creates_embedding(stixify_job, fake_stixifier_processor, settings_value, settings):
+    settings.CREATE_EMBEDDING_INCLUDE_NON_INCIDENT = settings_value
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
+        patch.object(models.File, "create_embedding") as mock_create_embedding,
+        patch("stixify.worker.pdf_converter.make_conversion") as mock_convert_pdf,
+    ):
+        mock_stixify_processor_cls.return_value = fake_stixifier_processor
+        process_post.si(stixify_job.id).delay()
+        
+        mock_create_embedding.assert_called_once_with(include_non_incident=settings_value)
+
 @pytest.mark.django_db
 def test_process_post_full(stixify_job):
     process_post.si(stixify_job.id).delay()

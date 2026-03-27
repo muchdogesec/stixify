@@ -49,6 +49,7 @@ STIXIFY_APPS = [
     'dogesec_commons.stixifier',
     'django.contrib.postgres',
     'dogesec_commons.identity',
+    'stixify.classifier',
     'stixify.web',
     'django_cleanup.apps.CleanupConfig',
 ]
@@ -258,3 +259,10 @@ if not GOOGLE_VISION_API_KEY:
     logging.warning("GOOGLE_VISION_API_KEY not set")
 INPUT_TOKEN_LIMIT = int(os.environ["INPUT_TOKEN_LIMIT"])
 SRO_OBJECTS_ONLY_LATEST = os.getenv('SRO_OBJECTS_ONLY_LATEST', False)
+
+
+CLASSIFIER_MIN_CLUSTER_SIZE = int(os.getenv("CLASSIFIER_MIN_CLUSTER_SIZE", 5))
+CLASSIFIER_LABEL_SAMPLE_SIZE = int(os.getenv("CLASSIFIER_LABEL_SAMPLE_SIZE", 10))
+CLASSIFIER_MODEL_PATH = os.getenv("CLASSIFIER_MODEL_PATH", os.path.join(BASE_DIR, "classifier_hdbscan.joblib"))
+CLASSIFIER_CONCURRENCY = int(os.getenv("CLASSIFIER_CONCURRENCY", 12))
+CREATE_EMBEDDING_INCLUDE_NON_INCIDENT = bool(os.getenv("CREATE_EMBEDDING_INCLUDE_NON_INCIDENT", False))

@@ -121,7 +121,7 @@ class FileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = File
-        exclude = ['profile', "markdown_file", "txt2stix_data", "pdf_file", "identity"]
+        exclude = ['profile', "markdown_file", "txt2stix_data", "pdf_file", "identity", "embedding"]
         read_only_fields = []
 
     def validate(self, attrs):
@@ -162,11 +162,13 @@ class ImageSerializer(serializers.ModelSerializer):
         return None
 
 
-class JobSerializer(serializers.ModelSerializer):
-    file = RelatedObjectField(read_only=True,  serializer=FileSerializer(allow_null=True), required=False,)
+class BaseJobSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         exclude = []
+
+class JobSerializer(BaseJobSerializer):
+    file = RelatedObjectField(read_only=True,  serializer=FileSerializer(allow_null=True), required=False,)
 
 
 class AttackNavigatorSerializer(serializers.Serializer):
