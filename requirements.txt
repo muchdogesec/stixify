@@ -357,7 +357,7 @@ nest-asyncio==1.6.0
     # via llama-index-core
 networkx==3.6.1
     # via llama-index-core
-nltk==3.9.3
+nltk==3.9.4
     # via llama-index-core
 numpy==2.4.3
     # via
