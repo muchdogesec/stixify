@@ -31,6 +31,12 @@ services:
         depends_on:
             - django
             - redis
+        environment:
+            - CLASSIFIER_MODEL_PATH=/opt/clusters/classfier_hdbscan.joblib
+        volumes:
+            - clusters:/opt/clusters/
     redis:
         image: "redis:alpine"
-        
+
+volumes:
+    clusters:
