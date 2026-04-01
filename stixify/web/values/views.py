@@ -1,3 +1,5 @@
+from functools import reduce
+import operator
 import textwrap
 from rest_framework import viewsets, filters, mixins
 from rest_framework.response import Response
@@ -21,7 +23,7 @@ from django.contrib.postgres.aggregates import ArrayAgg
 
 from stixify.web.models import ObjectValue, TLP_Levels
 from .values import sco_value_map, sdo_value_map, KB_TYPES
-from stixify.web.values.filters import NormalizeDict
+from stixify.web.values.filters import DictFirstValue
 from .serializers import ObjectValueSerializer
 from dogesec_commons.utils import Ordering, Pagination
 
@@ -153,15 +155,19 @@ class BaseObjectValueView(mixins.ListModelMixin, viewsets.GenericViewSet):
         if self.allowed_types:
             queryset = queryset.filter(type__in=self.allowed_types)
 
-        # Aggregate all file_ids for each unique stix_id
-        queryset = queryset.values("stix_id").annotate(
-            type=F("type"),
-            knowledgebase=F("knowledgebase"),
-            values=F("values"),
-            matched_files=ArrayAgg("file__id", distinct=True),
-            created=Min("created"),
-            modified=Max("modified"),
-            value=NormalizeDict(F("values")),
+        from django.db.models import F, Window
+        from django.db.models.functions import RowNumber
+        # Aggregate all post_ids for each unique stix_id
+        queryset = queryset.annotate(
+            rn=Window(
+                expression=RowNumber(),
+                partition_by=[F("stix_id")],
+                order_by=F("stix_id").desc(),
+            )
+        ).filter(
+            rn=1
+        ).annotate(
+            value=DictFirstValue(F("values")),
         )
 
         return queryset
@@ -275,6 +281,20 @@ class SDOValueView(BaseObjectValueView):
         )
         kb_id = BaseCSVFilter(
             field_name="values__kb_id",
-            lookup_expr="in",
+            method="filter_kb_id",
             help_text="Filter results by knowledge base ID. Can be used in conjunction with kb_type filter. For example, `CVE-2021-44228` for kb_type `cve`.",
         )
+
+        def filter_kb_id(self, queryset, name, value):
+            if not value:
+                return queryset
+
+            # BaseCSVFilter provides a list; normalize to lowercase for case-insensitive matching.
+            filter = reduce(
+                operator.or_,
+                [
+                    Q(values__kb_id__iexact=s)
+                    for s in value
+                ],
+            )
+            return queryset.filter(filter)

@@ -95,7 +95,7 @@ def values(more_files):
         stix_id="malware--1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
         type="malware",
         knowledgebase=None,
-        values={"name": "WannaCry", "x_mitre_aliases": ["WannaCryptor", "WCry"]},
+        values={"name": "WannaCry", "x_mitre_aliases": ["WannaCryptor", "WCry"], "kb_id": "M1010"},
         file=files[1],
         created=timezone.now(),
         modified=timezone.now(),
@@ -106,7 +106,7 @@ def values(more_files):
         stix_id="vulnerability--2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
         type="vulnerability",
         knowledgebase="cve",
-        values={"name": "CVE-2021-44228"},
+        values={"name": "CVE-2021-44228", "kb_id": "CVE-2021-44228"},
         file=files[0],
         created=timezone.now(),
         modified=timezone.now(),
@@ -225,9 +225,6 @@ class TestSCOValueView:
         # 2 unique IPs, 1 domain, 1 URL = 4 unique objects
         assert data['total_results_count'] == 4
         
-        # Verify all returned objects have this file in matched_files
-        for obj in data['values']:
-            assert str(file_id) in [str(f) for f in obj['matched_files']]
     
     def test_filter_by_file_id_multiple(self, client, values):
         """Test that we can filter and get results from multiple files."""
@@ -254,22 +251,6 @@ class TestSCOValueView:
         
         assert data['total_results_count'] == 1
         assert data['values'][0]['id'] == stix_id
-    
-    def test_matched_files_aggregation(self, client, values):
-        """Test that matched_files aggregates all files containing the object."""
-        
-        
-        # Query for the IP that appears in 2 files
-        response = client.get('/api/v1/values/scos/?value=192.168.1.1&value_exact=true')
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data['total_results_count'] == 1
-        obj = data['values'][0]
-        
-        # Should have 2 files in matched_files
-        assert len(obj['matched_files']) == 2
     
     def test_sdo_types_not_returned(self, client, values):
         """Test that SDO types are not returned in SCO endpoint."""
@@ -471,9 +452,6 @@ class TestSDOValueView:
         # Should return SDOs from second file (2: malware, location)
         assert data['total_results_count'] == 2
         
-        # Verify all returned objects have this file in matched_files
-        for obj in data['values']:
-            assert str(file_id) in [str(f) for f in obj['matched_files']]
     
     def test_filter_by_file_id_all(self, client, values):
         """Test querying all SDOs without file filter."""
@@ -500,21 +478,6 @@ class TestSDOValueView:
         assert data['total_results_count'] == 1
         assert data['values'][0]['id'] == stix_id
     
-    def test_matched_files_aggregation(self, client, values):
-        """Test that matched_files aggregates all files containing the object."""
-        
-        
-        # Query for the attack pattern that appears in 2 files
-        response = client.get('/api/v1/values/sdos/?value=Spearphishing')
-        
-        assert response.status_code == 200
-        data = response.json()
-        
-        assert data['total_results_count'] == 1
-        obj = data['values'][0]
-        
-        # Should have 2 files in matched_files
-        assert len(obj['matched_files']) == 2
     
     def test_sco_types_not_returned(self, client, values):
         """Test that SCO types are not returned in SDO endpoint."""
@@ -577,6 +540,18 @@ class TestSDOValueView:
             assert 'created' in obj
             assert 'modified' in obj
 
+    def test_kb_id_case_insensitive_search(self, client, values):
+        """Test that kb_id filter is case-insensitive."""
+        
+        response = client.get('/api/v1/values/sdos/?kb_id=cVe-2021-44228,M1010')
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Should return the CVE vulnerability even with uppercase filter
+        assert data['total_results_count'] == 2
+        assert {obj['values']['kb_id'] for obj in data['values']} == {'CVE-2021-44228', 'M1010'}
+
 
 @pytest.mark.django_db
 class TestValuesViewEdgeCases:
@@ -637,7 +612,6 @@ class TestValuesViewEdgeCases:
         # Should return only IPv4 addresses from that specific file
         for obj in data['values']:
             assert obj['type'] == 'ipv4-addr'
-            assert str(file_id) in [str(f) for f in obj['matched_files']]
 
 
 @pytest.mark.django_db
