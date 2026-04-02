@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from django.db.models import Count
 
-from rest_framework import serializers, viewsets
+from rest_framework import exceptions, serializers, viewsets
 from rest_framework.response import Response
 
 from drf_spectacular.utils import extend_schema, extend_schema_serializer
@@ -33,20 +33,22 @@ def _top10(knowledgebase: str, since: datetime, until: datetime):
     )
 
 
-def _build_categories(now: datetime, days: int):
+def _build_category(category_label: str, knowledgebase: str, now: datetime, days: int):
     since = now - timedelta(days=days)
-    return [
-        {
-            "label": label,
-            "knowledgebase": knowledgebase,
-            "results": [
-                {"stix_id": row["stix_id"], "values": row["values"], "count": row["count"]}
-                for row in _top10(knowledgebase, since, now)
-            ],
-        }
-        for knowledgebase, label in STATISTICS_KNOWLEDGEBASES.items()
-    ]
+    return {
+        "label": category_label,
+        "knowledgebase": knowledgebase,
+        "results": [
+            {"stix_id": row["stix_id"], "values": row["values"], "count": row["count"]}
+            for row in _top10(knowledgebase, since, now)
+        ],
+    }
 
+def _build_categories(now: datetime, days: int, category_labels=STATISTICS_KNOWLEDGEBASES):
+    return [
+        _build_category(STATISTICS_KNOWLEDGEBASES[knowledgebase], knowledgebase, now, days)
+        for knowledgebase in category_labels
+    ]
 
 class TrendingEntrySerializer(serializers.Serializer):
     stix_id = serializers.CharField()
@@ -94,13 +96,19 @@ class StatisticsView(viewsets.ViewSet):
     )
     def list(self, request):
         now = timezone.now()
+        knowledgebases = list(STATISTICS_KNOWLEDGEBASES.keys())
+        if "knowledgebase" in request.query_params:
+            kb_filter = request.query_params["knowledgebase"]
+            if kb_filter not in knowledgebases:
+                raise exceptions.ValidationError(f"Invalid knowledgebase filter: {kb_filter}")
+            knowledgebases = [kb_filter]
 
         def _period(days):
             return {
                 "period_days": days,
                 "period_start": now - timedelta(days=days),
                 "period_end": now,
-                "categories": _build_categories(now, days),
+                "categories": _build_categories(now, days, knowledgebases),
             }
 
         data = {
