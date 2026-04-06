@@ -5,6 +5,8 @@ These tests verify the functionality of the /api/v1/values/scos/ and /api/v1/val
 endpoints which provide efficient querying of STIX object values extracted from posts.
 """
 
+from unittest.mock import patch
+
 import pytest
 from django.utils import timezone
 from stixify.web.models import ObjectValue, File
@@ -12,7 +14,25 @@ from rest_framework.test import APIClient
 
 
 @pytest.fixture
-def values(more_files):
+def override_save_method():
+    """Mark duplicates during tests when ObjectValue instances are saved individually."""
+    original_save = ObjectValue.save
+
+    with patch.object(ObjectValue, 'save', autospec=True) as mock_save:
+        def new_save(self, *args, **kwargs):
+            if not self.is_dupe:
+                existing = ObjectValue.objects.filter(stix_id=self.stix_id)
+                if self.pk:
+                    existing = existing.exclude(pk=self.pk)
+                self.is_dupe = existing.exists()
+            return original_save(self, *args, **kwargs)
+
+        mock_save.side_effect = new_save
+        yield
+
+
+@pytest.fixture
+def values(more_files, override_save_method):
     """Create files that have ObjectValue entries."""    
     # Get the files created by more_files fixture
     files = more_files
@@ -265,16 +285,16 @@ class TestSCOValueView:
         for obj in data['values']:
             assert obj['type'] not in sdo_types
     
-    def test_ordering_by_stix_id(self, client, values):
-        """Test ordering results by stix_id."""
+    def test_ordering_by_value(self, client, values):
+        """Test ordering results by value."""
         
-        response = client.get('/api/v1/values/scos/?sort=stix_id_ascending')
+        response = client.get('/api/v1/values/scos/?sort=value_ascending')
         
         assert response.status_code == 200
         data = response.json()
         
-        stix_ids = [obj['id'] for obj in data['values']]
-        assert stix_ids == sorted(stix_ids)
+        values = [list(obj['values'].values())[0] for obj in data['values']]
+        assert values == sorted(values)
 
     
     def test_ordering_by_value_uses_first_key(self, client, values, more_files):
@@ -503,17 +523,16 @@ class TestSDOValueView:
         assert data['total_results_count'] == 1
         assert data['values'][0]['knowledgebase'] == 'cve'
     
-    def test_ordering_by_ttp_type(self, client, values):
-        """Test ordering results by ttp_type."""
+    def test_ordering_by_created(self, client, values):
+        """Test ordering results by created timestamp."""
         
-        response = client.get('/api/v1/values/sdos/?sort=knowledgebase_ascending')
+        response = client.get('/api/v1/values/sdos/?sort=created_ascending')
         
         assert response.status_code == 200
         data = response.json()
         
-        # Extract knowledgebase, treating None as z string for sorting (None values should come last)
-        knowledgebase = [obj.get('ttp_type', 'z') or 'z' for obj in data['values']]
-        assert knowledgebase == sorted(knowledgebase)
+        created_timestamps = [obj.get('created') or '3000-01-01T00:00:00Z' for obj in data['values']]
+        assert created_timestamps == sorted(created_timestamps)
     
     def test_combined_filters(self, client, values):
         """Test combining multiple filters."""
@@ -551,6 +570,18 @@ class TestSDOValueView:
         # Should return the CVE vulnerability even with uppercase filter
         assert data['total_results_count'] == 2
         assert {obj['values']['kb_id'] for obj in data['values']} == {'CVE-2021-44228', 'M1010'}
+
+    def test_value_search_case_insensitive(self, client, values):
+        """Test that value search is case-insensitive."""
+        
+        response = client.get('/api/v1/values/sdos/?value=wannacry')
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Should find the WannaCry malware even with lowercase search
+        assert data['total_results_count'] == 1
+        assert 'WannaCry' in data['values'][0]['values']['name']
 
 
 @pytest.mark.django_db

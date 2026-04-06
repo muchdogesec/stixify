@@ -5,6 +5,8 @@ from django.db.models.signals import post_delete
 from django.dispatch import receiver
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
+from django.db.models.fields.json import KeyTextTransform
+from django.db.models.functions import Upper
 import uuid, typing
 from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.classifier.tasks import compute_embedding_for_document, create_embedding_text
@@ -251,17 +253,41 @@ class ObjectValue(models.Model):
     """Store extracted values from STIX objects for efficient querying."""
     
     stix_id = models.CharField(max_length=256, db_index=True)
-    type = models.CharField(max_length=256, db_index=True)
-    knowledgebase = models.CharField(max_length=64, db_index=True, null=True, blank=True)
+    type = models.CharField(max_length=256)
+    knowledgebase = models.CharField(max_length=64, null=True, blank=True)
     values = models.JSONField()
     file = models.ForeignKey(File, on_delete=models.CASCADE, related_name='object_values')
     created = models.DateTimeField(default=None, null=True)
     modified = models.DateTimeField(default=None, null=True)
+    is_dupe = models.BooleanField(default=False)
+    values_concat = models.GeneratedField(
+        expression=models.Func(models.F("values"), function="jsonb_values_concat"),
+        output_field=models.TextField(),
+        db_persist=True,
+        null=True,
+        blank=True,
+    )
+    values_list = models.GeneratedField(
+        expression=models.Func(models.F("values"), function="jsonb_values_list"),
+        output_field=ArrayField(base_field=models.TextField()),
+        db_persist=True,
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         unique_together = [('stix_id', 'file')]
         indexes = [
-            models.Index(fields=['stix_id', 'type'], name='stixify_s_stix_id_type_idx'),
+            models.Index(fields=['type', 'stix_id'], name='stixify_ov_type_stix_idx', condition=models.Q(is_dupe=False)),
+            models.Index(fields=['created', 'knowledgebase'], name='stixify_ov_kbase_c_idx', condition=models.Q(is_dupe=False)),
+            models.Index(fields=['modified', 'knowledgebase'], name='stixify_ov_kbase_m_idx', condition=models.Q(is_dupe=False)),
+            models.Index(fields=['created', 'type'], name='stixify_ov_created_type_idx', condition=models.Q(is_dupe=False)),
+            models.Index(fields=['modified', 'type'], name='stixify_ov_modified_type_idx', condition=models.Q(is_dupe=False)),
+            models.Index(KeyTextTransform('kb_type', 'values'), 'type', name='stixify_ov_kb_type_idx', condition=models.Q(is_dupe=False)),
+            models.Index('created', Upper(KeyTextTransform('kb_id', 'values')), 'type', name='stixify_ov_kb_id_cidx', condition=models.Q(is_dupe=False)),
+            models.Index('modified', Upper(KeyTextTransform('kb_id', 'values')), 'type', name='stixify_ov_kb_id_midx', condition=models.Q(is_dupe=False)),
+            models.Index('values_concat', 'type', name='stixify_ov_values_concat_idx', condition=models.Q(is_dupe=False)),
+            models.Index('values_concat', 'knowledgebase', name='stixify_ov_values_c_kbidx', condition=models.Q(is_dupe=False)),
         ]
 
     def __str__(self) -> str:
