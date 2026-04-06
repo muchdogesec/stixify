@@ -9,13 +9,23 @@ from rest_framework.response import Response
 
 from drf_spectacular.utils import extend_schema, extend_schema_serializer
 from stixify.web.models import ObjectValue
+from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import OpenApiParameter
 
 
 STATISTICS_KNOWLEDGEBASES = {
-    "enterprise-attack": "Top 10 ATT&CK Techniques",
+    "enterprise-attack": "Top 10 Enterprise ATT&CK Techniques",
+    "mobile-attack": "Top 10 Mobile ATT&CK Techniques",
+    "ics-attack": "Top 10 ICS ATT&CK Techniques",
+    "location": "Top 10 Locations",
+    "capec": "Top 10 CAPECs",
     "cve": "Top 10 CVEs",
     "sector": "Top 10 Sectors",
     "cwe": "Top 10 CWEs",
+    "disarm": "Top 10 DISARM Objects",
+    "atlas": "Top 10 ATLAS Objects",
+    "sector": "Top 10 Sectors",
 }
 
 
@@ -86,13 +96,25 @@ class StatisticsView(viewsets.ViewSet):
             for both the last 7 days and the last 30 days, ranked by the number of distinct
             posts in which they appeared:
 
-            * **ATT&CK Techniques** (`enterprise-attack`)
+            * **Enterprise ATT&CK Techniques** (`enterprise-attack`)
             * **CVEs** (`cve`)
             * **Sectors** (`sector`)
             * **CWEs** (`cwe`)
+            * **Mobile ATT&CK Techniques** (`mobile-attack`)
+            * **ICS ATT&CK Techniques** (`ics-attack`)
+            * **Locations** (`location`)
+            * **CAPECs** (`capec`)
             """
         ),
-        responses={200: StatisticsResponseSerializer},
+        responses={200: StatisticsResponseSerializer, 400: DEFAULT_400_ERROR},
+        parameters=[
+            OpenApiParameter(
+                name="knowledgebase",
+                description="Optional filter to return statistics for only a specific knowledgebase category (e.g. `enterprise-attack` or `cve`). If not provided, statistics for all categories will be returned.",
+                required=False,
+                enum=list(STATISTICS_KNOWLEDGEBASES.keys()),
+            )
+        ]
     )
     def list(self, request):
         now = timezone.now()
