@@ -7,7 +7,16 @@ import textwrap
 import uuid
 from django import forms
 from django.shortcuts import get_object_or_404
-from rest_framework import viewsets, parsers, mixins, decorators, status, exceptions, request, validators
+from rest_framework import (
+    viewsets,
+    parsers,
+    mixins,
+    decorators,
+    status,
+    exceptions,
+    request,
+    validators,
+)
 from django.http import FileResponse, HttpRequest, HttpResponseNotFound
 from django.utils.text import slugify
 from dogesec_commons.objects.helpers import OBJECT_TYPES
@@ -27,10 +36,27 @@ from django.conf import settings
 from dogesec_commons.objects.helpers import ArangoDBHelper
 
 from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
+
 if typing.TYPE_CHECKING:
     from stixify import settings
-from .models import TLP_LEVEL_STIX_ID_MAPPING, File, FileImage, Job, JobType, TLP_Levels, JobState
-from .serializers import AttackNavigatorDomainSerializer, AttackNavigatorSerializer, BaseJobSerializer, FileSerializer, HealthCheckSerializer, ImageSerializer, JobSerializer
+from .models import (
+    TLP_LEVEL_STIX_ID_MAPPING,
+    File,
+    FileImage,
+    Job,
+    JobType,
+    TLP_Levels,
+    JobState,
+)
+from .serializers import (
+    AttackNavigatorDomainSerializer,
+    AttackNavigatorSerializer,
+    BaseJobSerializer,
+    FileSerializer,
+    HealthCheckSerializer,
+    ImageSerializer,
+    JobSerializer,
+)
 from .utils import PDFRenderer, Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -42,21 +68,46 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from drf_spectacular.views import SpectacularAPIView
 from rest_framework.response import Response
 
+
 class SchemaViewCached(SpectacularAPIView):
     _schema = None
-    
+
     def _get_schema_response(self, request):
-        version = self.api_version or request.version or self._get_version_parameter(request)
+        version = (
+            self.api_version or request.version or self._get_version_parameter(request)
+        )
         if not self.__class__._schema:
-            generator = self.generator_class(urlconf=self.urlconf, api_version=version, patterns=self.patterns)
-            self.__class__._schema = generator.get_schema(request=request, public=self.serve_public)
+            generator = self.generator_class(
+                urlconf=self.urlconf, api_version=version, patterns=self.patterns
+            )
+            self.__class__._schema = generator.get_schema(
+                request=request, public=self.serve_public
+            )
         return Response(
             data=self.__class__._schema,
-            headers={"Content-Disposition": f'inline; filename="{self._get_filename(request, version)}"'}
+            headers={
+                "Content-Disposition": f'inline; filename="{self._get_filename(request, version)}"'
+            },
         )
-    
-incident_classification_types = ['other', 'apt_group', 'vulnerability', 'data_leak', 'malware', 'ransomware', 'infostealer', 'threat_actor', 'campaign', 'exploit', 'cyber_crime', 'indicators_of_compromise', 'ttps']
+
+
+incident_classification_types = [
+    "other",
+    "apt_group",
+    "vulnerability",
+    "data_leak",
+    "malware",
+    "ransomware",
+    "infostealer",
+    "threat_actor",
+    "campaign",
+    "exploit",
+    "cyber_crime",
+    "indicators_of_compromise",
+    "ttps",
+]
 ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
+
 
 # Create your views here.
 @extend_schema_view(
@@ -77,10 +128,14 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
             """
         ),
         parameters=[
-            OpenApiParameter('file_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File. This will be the same as the UUID part of the STIX report object create from the file. (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."),
+            OpenApiParameter(
+                "file_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.UUID,
+                description="The `id` of the File. This will be the same as the UUID part of the STIX report object create from the file. (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).",
+            ),
         ],
         responses={200: FileSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
-
     ),
     destroy=extend_schema(
         summary="Delete a File by ID",
@@ -110,8 +165,11 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
     ),
 )
 class FileView(
-    mixins.CreateModelMixin, mixins.DestroyModelMixin, mixins.ListModelMixin, mixins.RetrieveModelMixin,
-    viewsets.GenericViewSet
+    mixins.CreateModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    viewsets.GenericViewSet,
 ):
     pagination_class = Pagination("files")
     serializer_class = FileSerializer
@@ -120,7 +178,10 @@ class FileView(
     lookup_url_kwarg = "file_id"
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`)."
+            lookup_url_kwarg,
+            location=OpenApiParameter.PATH,
+            type=OpenApiTypes.UUID,
+            description="The `id` of the File (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).",
         )
     ]
     ordering_fields = ["name", "created"]
@@ -131,16 +192,35 @@ class FileView(
     def get_queryset(self):
         return File.objects.all()
 
-
     class filterset_class(FilterSet):
-        id = filters.BaseCSVFilter(help_text="Filter the results by the id of the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).", lookup_expr="in")
-        name = Filter(lookup_expr='icontains', help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.")
-        mode = filters.BaseInFilter(help_text="Filter results by the `mode` value assigned when uploading the File")
-        profile_id = filters.Filter(help_text="Filter by the `id` of the Profile to only include files processed by entered Profile ID. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`")
-        job_state = filters.ChoiceFilter(field_name='job__state', help_text="Job state of the file", choices=JobState.choices)
+        id = filters.BaseCSVFilter(
+            help_text="Filter the results by the id of the file (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).",
+            lookup_expr="in",
+        )
+        name = Filter(
+            lookup_expr="icontains",
+            help_text="Filter results by the `name` value assigned when uploading the File. Search is a wildcard so `threat` will match any name that contains the string `threat`.",
+        )
+        mode = filters.BaseInFilter(
+            help_text="Filter results by the `mode` value assigned when uploading the File"
+        )
+        profile_id = filters.Filter(
+            help_text="Filter by the `id` of the Profile to only include files processed by entered Profile ID. e.g. `7ac37275-9137-4648-80ad-a9aa200b73f0`"
+        )
+        job_state = filters.ChoiceFilter(
+            field_name="job__state",
+            help_text="Job state of the file",
+            choices=JobState.choices,
+        )
 
-        ai_describes_incident = filters.BooleanFilter(help_text="If `ai_content_check_provider` set in profile used to process report, AI will answer if file describes security incident. Default will show all reports, can filter those that only describe incident by setting to true.")
-        ai_incident_classification = filters.MultipleChoiceFilter(choices=[(c, c) for c in incident_classification_types], help_text="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", method='ai_incident_classification_filter')
+        ai_describes_incident = filters.BooleanFilter(
+            help_text="If `ai_content_check_provider` set in profile used to process report, AI will answer if file describes security incident. Default will show all reports, can filter those that only describe incident by setting to true."
+        )
+        ai_incident_classification = filters.MultipleChoiceFilter(
+            choices=[(c, c) for c in incident_classification_types],
+            help_text="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.",
+            method="ai_incident_classification_filter",
+        )
 
         text = filters.CharFilter(
             method="semantic_search",
@@ -153,26 +233,29 @@ class FileView(
 
         def semantic_search(self, queryset, name, text):
             from django.contrib.postgres.search import SearchQuery, SearchVector
+
             queryset = queryset.annotate(
                 text=SearchVector("name", "summary", "ai_incident_summary"),
             )
             return queryset.filter(text=SearchQuery(text, search_type="websearch"))
-        
+
         def ai_incident_classification_filter(self, queryset, name, value):
-            filter = reduce(operator.or_, [Q(ai_incident_classification__icontains=s) for s in value])
+            filter = reduce(
+                operator.or_,
+                [Q(ai_incident_classification__icontains=s) for s in value],
+            )
             return queryset.filter(filter)
-        
+
     def perform_create(self, serializer):
         return super().perform_create(serializer)
-    
-        
+
     @extend_schema(responses={201: JobSerializer}, request=FileSerializer)
     def create(self, request, *args, **kwargs):
         serializer = FileSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        temp_file = request.FILES['file']
+        temp_file = request.FILES["file"]
         file_instance = serializer.save(mimetype=temp_file.content_type)
-        job_instance =  Job.objects.create(file=file_instance)
+        job_instance = Job.objects.create(file=file_instance)
         job_serializer = JobSerializer(job_instance, context={"request": request})
         new_task(job_instance)
         return Response(job_serializer.data, status=status.HTTP_201_CREATED)
@@ -194,7 +277,7 @@ class FileView(
         return Response(obj.txt2stix_data or {})
 
     @extend_schema(
-        responses={200:{}, 404: DEFAULT_404_ERROR},
+        responses={200: {}, 404: DEFAULT_404_ERROR},
         summary="Get the processed markdown for a File",
         description=textwrap.dedent(
             """
@@ -218,7 +301,7 @@ class FileView(
         obj: File = self.get_object()
         if not obj.markdown_file:
             return HttpResponseNotFound("No markdown file")
-        
+
         images = {
             img.name: img.file.url
             for img in FileImage.objects.filter(report_id=file_id)
@@ -233,9 +316,12 @@ class FileView(
             content_type="text/markdown",
             filename="markdown.md",
         )
-    
+
     @extend_schema(
-        responses={(200, "application/pdf"): OpenApiTypes.BINARY, (404, "application/json"): DEFAULT_404_ERROR},
+        responses={
+            (200, "application/pdf"): OpenApiTypes.BINARY,
+            (404, "application/json"): DEFAULT_404_ERROR,
+        },
         summary="Get the archived PDF copy of the File",
         description=textwrap.dedent(
             """
@@ -250,16 +336,20 @@ class FileView(
         obj: File = self.get_object()
         if not obj.archived_pdf:
             return HttpResponseNotFound("No pdf file")
-        _, _, name = obj.archived_pdf.name.rpartition('/')
-        response = HttpResponse(obj.archived_pdf.open(), content_type='application/pdf')
-        response['Content-Disposition'] = f'attachment; filename="{name}"'
+        _, _, name = obj.archived_pdf.name.rpartition("/")
+        response = HttpResponse(obj.archived_pdf.open(), content_type="application/pdf")
+        response["Content-Disposition"] = f'attachment; filename="{name}"'
         return response
-    
+
     @extend_schema(
-            responses={200: ImageSerializer(many=True), 404: DEFAULT_404_ERROR, 400: DEFAULT_400_ERROR},
-            filters=False,
-            summary="Retrieve images found in a File",
-            description=textwrap.dedent(
+        responses={
+            200: ImageSerializer(many=True),
+            404: DEFAULT_404_ERROR,
+            400: DEFAULT_400_ERROR,
+        },
+        filters=False,
+        summary="Retrieve images found in a File",
+        description=textwrap.dedent(
             """
             When [file2txt](https://github.com/muchdogesec/file2txt/) processes a file it will extract all images from the file and store them locally. You can see these images referenced in the markdown produced (see File markdown endpoint). This endpoint lists the image files found in the File selected.
             """
@@ -267,8 +357,8 @@ class FileView(
     )
     @decorators.action(detail=True, pagination_class=Pagination("images"))
     def images(self, request, file_id=None, image=None):
-        queryset = self.get_object().images.order_by('name')
-        paginator = Pagination('images')
+        queryset = self.get_object().images.order_by("name")
+        paginator = Pagination("images")
 
         page = paginator.paginate_queryset(queryset, request, self)
 
@@ -278,11 +368,11 @@ class FileView(
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
-    
+
     @extend_schema(
-            responses={200:{}, 404: DEFAULT_404_ERROR},
-            summary="Get summary of the file content",
-            description=textwrap.dedent(
+        responses={200: {}, 404: DEFAULT_404_ERROR},
+        summary="Get summary of the file content",
+        description=textwrap.dedent(
             """
             If `ai_content_check_provider` was enabled, this endpoint will return a summary of the report. This is useful to get a quick understanding of the contents of the report.
 
@@ -297,7 +387,12 @@ class FileView(
         obj = self.get_object()
         if not obj.summary:
             raise exceptions.NotFound(f"No Summary for post")
-        return FileResponse(streaming_content=io.BytesIO(obj.summary.encode()), content_type='text/markdown', filename='summary.md')
+        return FileResponse(
+            streaming_content=io.BytesIO(obj.summary.encode()),
+            content_type="text/markdown",
+            filename="summary.md",
+        )
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -317,7 +412,12 @@ class FileView(
             """
         ),
         parameters=[
-            OpenApiParameter('job_id', location=OpenApiParameter.PATH, type=OpenApiTypes.UUID, description="The `id` of the Job."),
+            OpenApiParameter(
+                "job_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.UUID,
+                description="The `id` of the Job.",
+            ),
         ],
         responses={200: JobSerializer, 404: DEFAULT_404_ERROR},
     ),
@@ -340,7 +440,11 @@ class JobView(
         return Job.objects.all()
 
     class filterset_class(FilterSet):
-        file_id = Filter('file_id', label="Filter Jobs by File `id`")
+        file_id = Filter("file_id", label="Filter Jobs by File `id`")
+        state = filters.BaseCSVFilter(
+            help_text="Filter Jobs by their state.", lookup_expr="in"
+        )
+
 
 @extend_schema_view(
     list=extend_schema(
@@ -387,7 +491,11 @@ class JobView(
             Note, if no ATT&CK Navigator layer exists for the specified domain, for the post, a 404 will be returned. You can check if a layer exists using the show available layers endpoint.
             """
         ),
-        parameters=[OpenApiParameter("attack_domain", enum=ATTACK_DOMAINS, location=OpenApiParameter.PATH)],
+        parameters=[
+            OpenApiParameter(
+                "attack_domain", enum=ATTACK_DOMAINS, location=OpenApiParameter.PATH
+            )
+        ],
         responses={200: AttackNavigatorDomainSerializer},
     ),
 )
@@ -395,13 +503,20 @@ class ReportView(viewsets.ViewSet):
     openapi_tags = ["Reports"]
     skip_list_view = True
     lookup_url_kwarg = "report_id"
-    lookup_value_regex = r'report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    lookup_value_regex = (
+        r"report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+    )
     openapi_path_params = [
         OpenApiParameter(
-            lookup_url_kwarg, location=OpenApiParameter.PATH, type=dict(pattern=r'^report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'), description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`."
+            lookup_url_kwarg,
+            location=OpenApiParameter.PATH,
+            type=dict(
+                pattern=r"^report--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+            ),
+            description="The `id` of the Report. e.g. `report--3fa85f64-5717-4562-b3fc-2c963f66afa6`.",
         )
     ]
-    
+
     SORT_PROPERTIES = [
         "created_descending",
         "created_ascending",
@@ -421,28 +536,72 @@ class ReportView(viewsets.ViewSet):
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters() + [
-            OpenApiParameter('identity', description="Filter the result by only the reports created by this identity. Pass in the format `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`"),
-            OpenApiParameter('visible_to', description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`."),
-            OpenApiParameter('name', description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
-            OpenApiParameter('tlp_level', description="Filter the results by TLP marking of the Report object (set at file upload time).", enum=[f[0] for f in TLP_Levels.choices]),
-            OpenApiParameter('description', description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
-            OpenApiParameter('labels', description="Searches the `labels` property of Report objects for the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc."),
-            OpenApiParameter('ai_incident_classification', style='form', explode=False, many=True, description="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.", enum=incident_classification_types),
-            OpenApiParameter('confidence_min', description="The minimum confidence score of a report `0` is no confidence, `1` is lowest, `100` is highest.", type=OpenApiTypes.NUMBER),
-            OpenApiParameter('created_max', description="Maximum value of `created` value to filter by in format `YYYY-MM-DD`."),
-            OpenApiParameter('created_min', description="Minimum value of `created` value to filter by in format `YYYY-MM-DD`."),
-            OpenApiParameter('sort', description="Sort the results by selected property", enum=SORT_PROPERTIES),
+        parameters=ArangoDBHelper.get_schema_operation_parameters()
+        + [
+            OpenApiParameter(
+                "identity",
+                description="Filter the result by only the reports created by this identity. Pass in the format `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15`",
+            ),
+            OpenApiParameter(
+                "visible_to",
+                description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`.",
+            ),
+            OpenApiParameter(
+                "name",
+                description="Filter by the `name` of a report. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc.",
+            ),
+            OpenApiParameter(
+                "tlp_level",
+                description="Filter the results by TLP marking of the Report object (set at file upload time).",
+                enum=[f[0] for f in TLP_Levels.choices],
+            ),
+            OpenApiParameter(
+                "description",
+                description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc.",
+            ),
+            OpenApiParameter(
+                "labels",
+                description="Searches the `labels` property of Report objects for the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc.",
+            ),
+            OpenApiParameter(
+                "ai_incident_classification",
+                style="form",
+                explode=False,
+                many=True,
+                description="If `ai_content_check_provider` set in profile used to process report, AI will attempt to classify security incident type (if file describes incident). Use this to filter by type AI reports.",
+                enum=incident_classification_types,
+            ),
+            OpenApiParameter(
+                "confidence_min",
+                description="The minimum confidence score of a report `0` is no confidence, `1` is lowest, `100` is highest.",
+                type=OpenApiTypes.NUMBER,
+            ),
+            OpenApiParameter(
+                "created_max",
+                description="Maximum value of `created` value to filter by in format `YYYY-MM-DD`.",
+            ),
+            OpenApiParameter(
+                "created_min",
+                description="Minimum value of `created` value to filter by in format `YYYY-MM-DD`.",
+            ),
+            OpenApiParameter(
+                "sort",
+                description="Sort the results by selected property",
+                enum=SORT_PROPERTIES,
+            ),
         ],
     )
     def list(self, request, *args, **kwargs):
         return self.get_reports()
-    
 
     @extend_schema(
         responses=ArangoDBHelper.get_paginated_response_schema(),
-        parameters=ArangoDBHelper.get_schema_operation_parameters() + [
-            OpenApiParameter('visible_to', description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`."),
+        parameters=ArangoDBHelper.get_schema_operation_parameters()
+        + [
+            OpenApiParameter(
+                "visible_to",
+                description="Only show reports that are visible to the Identity `id` passed. e.g. passing `identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15` would only show reports created by that identity (with any TLP level) or reports created by another identity ID but only if they are marked with `TLP:CLEAR` or `TLP:GREEN`.",
+            ),
             OpenApiParameter(
                 "types",
                 many=True,
@@ -450,8 +609,11 @@ class ReportView(viewsets.ViewSet):
                 description="Filter the results by one or more STIX Object types",
                 enum=OBJECT_TYPES,
             ),
-            OpenApiParameter('ignore_embedded_sro', type=bool, description="If set to `true` all embedded SROs are removed from the response."),
-            
+            OpenApiParameter(
+                "ignore_embedded_sro",
+                type=bool,
+                description="If set to `true` all embedded SROs are removed from the response.",
+            ),
         ],
     )
     @decorators.action(methods=["GET"], detail=True)
@@ -461,19 +623,25 @@ class ReportView(viewsets.ViewSet):
 
     @classmethod
     def fix_report_id(self, report_id):
-        if report_id.startswith('report--'):
+        if report_id.startswith("report--"):
             return report_id
-        return "report--"+report_id
+        return "report--" + report_id
 
     @classmethod
-    def validate_report_id(self, report_id:str):
-        if not report_id.startswith('report--'):
-            raise validators.ValidationError({self.lookup_url_kwarg: f'`{report_id}`: must be a valid STIX report id'})
-        report_uuid = report_id.replace('report--', '')
+    def validate_report_id(self, report_id: str):
+        if not report_id.startswith("report--"):
+            raise validators.ValidationError(
+                {
+                    self.lookup_url_kwarg: f"`{report_id}`: must be a valid STIX report id"
+                }
+            )
+        report_uuid = report_id.replace("report--", "")
         try:
             uuid.UUID(report_uuid)
         except Exception as e:
-            raise validators.ValidationError({self.lookup_url_kwarg: f'`{report_id}`: {e}'})
+            raise validators.ValidationError(
+                {self.lookup_url_kwarg: f"`{report_id}`: {e}"}
+            )
         return report_uuid
 
     @classmethod
@@ -490,8 +658,8 @@ class ReportView(viewsets.ViewSet):
         helper = ArangoDBHelper(settings.VIEW_NAME, request.Request(HttpRequest()))
         report_id = cls.fix_report_id(report_id)
         bind_vars = {
-                "@collection": helper.collection,
-                'report_id': report_id,
+            "@collection": helper.collection,
+            "report_id": report_id,
         }
         query = """
             FOR doc in @@collection
@@ -501,63 +669,78 @@ class ReportView(viewsets.ViewSet):
         collections: dict[str, list] = {}
         out = helper.execute_query(query, bind_vars=bind_vars, paginate=False)
         for key in out:
-            collection, key = key.split('/', 2)
+            collection, key = key.split("/", 2)
             collections[collection] = collections.get(collection, [])
             collections[collection].append(dict(_key=key))
-        
+
         for collection, objects in collections.items():
             helper.db.collection(collection).delete_many(objects, silent=True)
-            db_service.update_is_latest_several_chunked([object_key['_key'].split('+')[0] for object_key in objects], collection, collection.removesuffix('_vertex_collection').removesuffix('_edge_collection')+'_edge_collection')
-
+            db_service.update_is_latest_several_chunked(
+                [object_key["_key"].split("+")[0] for object_key in objects],
+                collection,
+                collection.removesuffix("_vertex_collection").removesuffix(
+                    "_edge_collection"
+                )
+                + "_edge_collection",
+            )
 
     def get_reports(self, id=None):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
         filters = []
         bind_vars = {
-                "@collection": helper.collection,
-                "type": 'report',
+            "@collection": helper.collection,
+            "type": "report",
         }
 
-        if q := helper.query_as_array('identity'):
-            bind_vars['identities'] = q
-            filters.append('FILTER doc.created_by_ref IN @identities')
+        if q := helper.query_as_array("identity"):
+            bind_vars["identities"] = q
+            filters.append("FILTER doc.created_by_ref IN @identities")
 
-        if q := helper.query.get('visible_to'):
-            bind_vars['visible_to'] = q
-            bind_vars['marking_visible_to_all'] = TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN], TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR]
-            filters.append('FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs')
+        if q := helper.query.get("visible_to"):
+            bind_vars["visible_to"] = q
+            bind_vars["marking_visible_to_all"] = (
+                TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN],
+                TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR],
+            )
+            filters.append(
+                "FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs"
+            )
 
-        if tlp_level := helper.query.get('tlp_level'):
-            bind_vars['tlp_level_stix_id'] = TLP_LEVEL_STIX_ID_MAPPING.get(tlp_level)
-            filters.append('FILTER @tlp_level_stix_id IN doc.object_marking_refs')
+        if tlp_level := helper.query.get("tlp_level"):
+            bind_vars["tlp_level_stix_id"] = TLP_LEVEL_STIX_ID_MAPPING.get(tlp_level)
+            filters.append("FILTER @tlp_level_stix_id IN doc.object_marking_refs")
 
-        if q := helper.query.get('name'):
-            bind_vars['name'] = q.lower()
-            filters.append('FILTER CONTAINS(LOWER(doc.name), @name)')
+        if q := helper.query.get("name"):
+            bind_vars["name"] = q.lower()
+            filters.append("FILTER CONTAINS(LOWER(doc.name), @name)")
 
-        if q := helper.query.get('description'):
-            bind_vars['description'] = q.lower()
-            filters.append('FILTER CONTAINS(LOWER(doc.description), @description)')
+        if q := helper.query.get("description"):
+            bind_vars["description"] = q.lower()
+            filters.append("FILTER CONTAINS(LOWER(doc.description), @description)")
 
-        if term := helper.query.get('labels'):
-            bind_vars['labels'] = term.lower()
-            filters.append("FILTER doc.labels[? ANY FILTER CONTAINS(LOWER(CURRENT), @labels)]")
+        if term := helper.query.get("labels"):
+            bind_vars["labels"] = term.lower()
+            filters.append(
+                "FILTER doc.labels[? ANY FILTER CONTAINS(LOWER(CURRENT), @labels)]"
+            )
 
-        if term := helper.query.get('confidence_min'):
-            if term.replace('.', '').isdigit():
-                bind_vars['confidence_min'] = float(term)
+        if term := helper.query.get("confidence_min"):
+            if term.replace(".", "").isdigit():
+                bind_vars["confidence_min"] = float(term)
                 filters.append("FILTER doc.confidence >= @confidence_min")
 
-        if term := helper.query.get('created_max'):
-            bind_vars['created_max'] = term
+        if term := helper.query.get("created_max"):
+            bind_vars["created_max"] = term
             filters.append("FILTER doc.created <= @created_max")
-        if term := helper.query.get('created_min'):
-            bind_vars['created_min'] = term
+        if term := helper.query.get("created_min"):
+            bind_vars["created_min"] = term
             filters.append("FILTER doc.created >= @created_min")
 
-        if classifications := helper.query_as_array('ai_incident_classification'):
-            bind_vars['classifications'] = ["classification."+x.lower().replace(' ', '_') for x in classifications]
-            filters.append('FILTER @classifications ANY IN doc.labels')
+        if classifications := helper.query_as_array("ai_incident_classification"):
+            bind_vars["classifications"] = [
+                "classification." + x.lower().replace(" ", "_") for x in classifications
+            ]
+            filters.append("FILTER @classifications ANY IN doc.labels")
 
         query = """
             FOR doc in @@collection
@@ -570,29 +753,35 @@ class ReportView(viewsets.ViewSet):
             RETURN KEEP(doc, KEYS(doc, true))
         """
         return helper.execute_query(
-            query.replace('#more_filters', '\n'.join(filters)).replace(
-                '#sort_statement', helper.get_sort_stmt(self.SORT_PROPERTIES)
-            )
-        , bind_vars=bind_vars)
+            query.replace("#more_filters", "\n".join(filters)).replace(
+                "#sort_statement", helper.get_sort_stmt(self.SORT_PROPERTIES)
+            ),
+            bind_vars=bind_vars,
+        )
 
     def get_report_objects(self, report_id):
         helper = ArangoDBHelper(settings.VIEW_NAME, self.request)
 
-        types = helper.query.get('types', "")
+        types = helper.query.get("types", "")
         filters = []
         bind_vars = {
-                "@collection": settings.VIEW_NAME,
-                'report_id': report_id,
-                "types": list(OBJECT_TYPES.intersection(types.split(","))) if types else None,
+            "@collection": settings.VIEW_NAME,
+            "report_id": report_id,
+            "types": (
+                list(OBJECT_TYPES.intersection(types.split(","))) if types else None
+            ),
         }
-        visible_to_filter = ''
-        if q := helper.query.get('visible_to'):
-            bind_vars['visible_to'] = q
-            bind_vars['marking_visible_to_all'] = TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN], TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR]
-            visible_to_filter = 'FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs'
-            
-        if q := helper.query_as_bool('ignore_embedded_sro', default=False):
-            filters.append('FILTER doc._is_ref != TRUE')
+        visible_to_filter = ""
+        if q := helper.query.get("visible_to"):
+            bind_vars["visible_to"] = q
+            bind_vars["marking_visible_to_all"] = (
+                TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.GREEN],
+                TLP_LEVEL_STIX_ID_MAPPING[TLP_Levels.CLEAR],
+            )
+            visible_to_filter = "FILTER doc.created_by_ref == @visible_to OR @marking_visible_to_all ANY IN doc.object_marking_refs"
+
+        if q := helper.query_as_bool("ignore_embedded_sro", default=False):
+            filters.append("FILTER doc._is_ref != TRUE")
 
         query = """
             LET report = FIRST(
@@ -607,10 +796,13 @@ class ReportView(viewsets.ViewSet):
             #more_filters
             LIMIT @offset, @count
             RETURN KEEP(doc, KEYS(doc, TRUE))
-        """.replace('#visible_to', visible_to_filter).replace('#more_filters', '\n'.join(filters))
+        """.replace(
+            "#visible_to", visible_to_filter
+        ).replace(
+            "#more_filters", "\n".join(filters)
+        )
         return helper.execute_query(query, bind_vars=bind_vars)
-    
-        
+
     @decorators.action(
         detail=True,
         methods=["GET"],
@@ -676,13 +868,14 @@ class TasksView(viewsets.GenericViewSet):
             type=JobType.SYNC_VULNERABILITIES,
             state=JobState.PROCESSING,
         )
-        t = tasks.update_vulnerabilities.si(job.id) | tasks.job_completed_with_error.si(job.id)
+        t = tasks.update_vulnerabilities.si(job.id) | tasks.job_completed_with_error.si(
+            job.id
+        )
         t.apply_async()
         self.kwargs.update(job_id=job.id)
         obj = Job.objects.get(id=job.id)
         s = self.get_serializer(obj)
         return Response(s.data, status=status.HTTP_201_CREATED)
-
 
 
 @extend_schema_view(
@@ -714,4 +907,5 @@ class HealthCheckView(viewsets.ViewSet):
     @staticmethod
     def check_status():
         from txt2stix.credential_checker import check_statuses
+
         return check_statuses(test_llms=True)
