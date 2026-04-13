@@ -409,11 +409,12 @@ class FileView(
         parameters=[
             OpenApiParameter(
                 "visible_to",
-                description="Only include similar files visible to this identity UUID.",
-                type=OpenApiTypes.UUID,
+                description="Only include similar files visible to this identity (e.g `identity--2b9581df-ef82-4001-95d4-1359c22e34c0`).",
+                type=OpenApiTypes.STR,
             )
         ],
         responses={200: SimilarFileSerializer(many=True), 404: DEFAULT_404_ERROR},
+        filters=False,
     )
     @decorators.action(methods=["GET"], detail=True, pagination_class=None)
     def similar_files(self, request, file_id=None):
