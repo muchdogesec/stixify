@@ -153,7 +153,7 @@ class File(CommonSTIXProps):
             return []
 
         files_qs = (
-            File.objects.exclude(pk=file.pk, embedding=None)
+            File.objects.exclude(pk=file.pk).exclude(embedding=None)
             .select_related("embedding")
         )
         # get top 5 most similar posts based on embedding similarity, excluding self
@@ -176,7 +176,7 @@ class File(CommonSTIXProps):
             results.append(
                 {
                     "id": sfile.id,
-                    "title": sfile.name,  # or get from related file
+                    "name": sfile.name,  # or get from related file
                     "score": similarity_score,
                     "tlp_level": sfile.tlp_level,
                     "owner": sfile.identity_id,
