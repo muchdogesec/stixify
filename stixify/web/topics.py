@@ -53,6 +53,14 @@ class TopicBuildSerializer(serializers.Serializer):
     force = serializers.BooleanField(default=False, help_text="Force regeneration even when embeddings/clusters already exist.")
 
 
+class SimilarFileSerializer(serializers.Serializer):
+    score = serializers.FloatField()
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    tlp_level = serializers.ChoiceField(choices=models.TLP_Levels.choices)
+    owner = serializers.CharField()
+
+
 @extend_schema_view(
     list=extend_schema(
         summary="Search Topics",
@@ -120,7 +128,7 @@ class TopicView(
     def get_queryset(self):
         qs = Cluster.objects.annotate(
             files_count=Count("members__file", distinct=True),
-        )
+        ).exclude(label="")
         return qs
 
     def get_serializer_class(self):

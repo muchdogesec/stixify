@@ -6,7 +6,6 @@ import uuid
 from stixify.classifier.models import Cluster, DocumentEmbedding
 
 
-
 def test_schema_view(client):
     resp = client.get('/api/schema/')
     assert resp.status_code == 200

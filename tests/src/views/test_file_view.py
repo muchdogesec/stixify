@@ -1,5 +1,7 @@
 import json
+import uuid
 from stixify.web import models
+from stixify.classifier.models import DocumentEmbedding
 from stixify.web.serializers import FileSerializer, JobSerializer
 from stixify.web.views import FileView
 import pytest
@@ -317,3 +319,48 @@ def test_search_text(client, search_files, api_schema, text, expected_ids):
     resp = client.get("/api/v1/files/", query_params=dict(text=text))
     assert resp.status_code == 200
     assert {r['id'] for r in resp.data['files']} == set(expected_ids)
+
+
+@pytest.mark.django_db
+def test_file_similar_files_visible_to_passed_to_similar_posts(
+    client, stixify_file, api_schema
+):
+    file_obj = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
+    file_obj.embedding = DocumentEmbedding.objects.create(
+        id=file_obj.id,
+        text="seed embedding",
+        embedding=[1.0] + [0.0] * 511,
+    )
+    file_obj.save(update_fields=["embedding"])
+
+    visible_owner = str(file_obj.identity_id)
+    hidden_owner = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+    mocked_similar = [
+        {
+            "score": 0.95,
+            "id": uuid.UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            "name": "visible by owner",
+            "tlp_level": models.TLP_Levels.RED,
+            "owner": file_obj.identity_id,
+        },
+        {
+            "score": 0.90,
+            "id": uuid.UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+            "name": "visible by tlp",
+            "tlp_level": models.TLP_Levels.GREEN,
+            "owner": hidden_owner,
+        },
+    ]
+
+    with patch.object(models.File, "similar_posts", return_value=mocked_similar) as mock_similar_posts:
+        resp = client.get(
+            f"/api/v1/files/{file_obj.id}/similar_files/",
+            query_params={"visible_to": visible_owner},
+        )
+
+    assert resp.status_code == 200, resp.content
+    mock_similar_posts.assert_called_once_with(visible_to={visible_owner})
+    api_schema["/api/v1/files/{file_id}/similar_files/"]["GET"].validate_response(
+        Transport.get_st_response(resp)
+    )

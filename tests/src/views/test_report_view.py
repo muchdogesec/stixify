@@ -1,4 +1,7 @@
 import json
+
+import uuid
+from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.web import models
 from stixify.web.serializers import FileSerializer, JobSerializer
 from stixify.web.views import FileView
@@ -21,6 +24,7 @@ import contextlib
 from arango.client import ArangoClient
 
 from tests.src.views import bundles
+from tests.src.views.test_topic_view import VEC1
 from tests.utils import Transport
 
 
@@ -305,6 +309,24 @@ def test_list_filters(client, filters, expected_ids, api_schema):
     resp = client.get(f"/api/v1/reports/", query_params=filters)
     assert resp.status_code == 200
     assert {obj["id"] for obj in resp.data["objects"]} == set(expected_ids)
+    api_schema["/api/v1/reports/"]['GET'].validate_response(Transport.get_st_response(resp))
+
+
+@pytest.mark.django_db
+def test_list_with_topic_id_filter(client, api_schema):
+    emb1 = DocumentEmbedding.objects.create(
+        id="52d2146c-798a-440f-942f-6fe039fb8995", text="Iran cyber ops text", embedding=[0.0] * 512
+    )
+    cluster1 = Cluster.objects.create(
+        id="78322c04-aca5-4982-88fc-a22a436e3ede",
+        label="Iran Cyber Threats",
+        description="Iran-aligned cyber operations",
+    )
+    cluster1.members.set([emb1])
+    # report--52d2146c-798a-440f-942f-6fe039fb8995 is linked to cluster--1
+    resp = client.get(f"/api/v1/reports/", query_params={"topic_id": "8af11275-9eb7-4cd1-883e-ca9d31f4140f,78322c04-aca5-4982-88fc-a22a436e3ede"})
+    assert resp.status_code == 200, resp.content
+    assert {obj["id"] for obj in resp.data["objects"]} == {"report--52d2146c-798a-440f-942f-6fe039fb8995"}
     api_schema["/api/v1/reports/"]['GET'].validate_response(Transport.get_st_response(resp))
 
 

@@ -15,6 +15,7 @@ from tests.utils import Transport
 
 CLUSTER_1_ID = uuid.UUID("a1111111-1111-1111-1111-111111111111")
 CLUSTER_2_ID = uuid.UUID("a2222222-2222-2222-2222-222222222222")
+HIDDEN_CLUSTER_ID = uuid.UUID("a3333333-3333-3333-3333-333333333333")
 
 # 512-dimensional unit vectors
 VEC1 = [1.0] + [0.0] * 511
@@ -53,6 +54,12 @@ def posts_with_clusters(more_files):
         description="Ransomware activity overview",
     )
     cluster2.members.set([emb2])
+    cluster3 = Cluster.objects.create(
+        id=HIDDEN_CLUSTER_ID,
+        label="",
+        description="This cluster should be hidden because it has no label",
+    )
+    cluster3.members.set([emb1, emb2])
 
     return [
         file1,
@@ -62,6 +69,7 @@ def posts_with_clusters(more_files):
             emb2=emb2,
             cluster1=cluster1,
             cluster2=cluster2,
+            hidden_cluster=cluster3,
         )
     ]
 

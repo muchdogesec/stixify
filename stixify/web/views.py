@@ -22,6 +22,7 @@ from django.utils.text import slugify
 from dogesec_commons.objects.helpers import OBJECT_TYPES
 from django.db.models import F, Value, CharField, Func, Q
 
+from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.worker import tasks
 from .md_helper import MarkdownImageReplacer
 from django.http.response import HttpResponse
@@ -57,6 +58,7 @@ from .serializers import (
     ImageSerializer,
     JobSerializer,
 )
+from .topics import SimilarFileSerializer
 from .utils import PDFRenderer, Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -392,6 +394,38 @@ class FileView(
             content_type="text/markdown",
             filename="summary.md",
         )
+    
+    @extend_schema(
+        summary="Get similar files",
+        description=textwrap.dedent(
+            """
+            Returns up to 5 files with the most similar embedding to the selected file.
+
+            You can optionally pass `visible_to` to only return files visible to the given
+            identity. A file is considered visible when it is owned by that identity or its
+            `tlp_level` is `clear` or `green`.
+            """
+        ),
+        parameters=[
+            OpenApiParameter(
+                "visible_to",
+                description="Only include similar files visible to this identity (e.g `identity--2b9581df-ef82-4001-95d4-1359c22e34c0`).",
+                type=OpenApiTypes.STR,
+            )
+        ],
+        responses={200: SimilarFileSerializer(many=True), 404: DEFAULT_404_ERROR},
+        filters=False,
+    )
+    @decorators.action(methods=["GET"], detail=True, pagination_class=None)
+    def similar_files(self, request, file_id=None):
+        obj = self.get_object()
+        if not obj.embedding:
+            raise exceptions.NotFound(f"No embedding for post")
+        visible_to = None
+        if "visible_to" in request.query_params:
+            visible_to = set(request.query_params["visible_to"].split(","))
+        similar_files = obj.similar_posts(visible_to=visible_to)
+        return Response(SimilarFileSerializer(similar_files, many=True).data)
 
 
 @extend_schema_view(
@@ -589,6 +623,11 @@ class ReportView(viewsets.ViewSet):
                 description="Sort the results by selected property",
                 enum=SORT_PROPERTIES,
             ),
+            OpenApiParameter(
+                "topic_id",
+                description="Filter reports by topic ID. This is the `id` of the Cluster object linked to the file's embedding. You can find this ID in the `topics` list returned in the GET Topics endpoint.",
+                type=OpenApiTypes.UUID,
+            )
         ],
     )
     def list(self, request, *args, **kwargs):
@@ -695,6 +734,11 @@ class ReportView(viewsets.ViewSet):
         if q := helper.query_as_array("identity"):
             bind_vars["identities"] = q
             filters.append("FILTER doc.created_by_ref IN @identities")
+
+        if topic_ids := helper.query_as_array("topic_id"):
+            members = Cluster.objects.filter(id__in=topic_ids).values_list("members__id", flat=True)
+            bind_vars["topic_id_matches"] = ["report--" + str(file_id) for file_id in members]
+            filters.append("FILTER doc.id IN @topic_id_matches")
 
         if q := helper.query.get("visible_to"):
             bind_vars["visible_to"] = q
