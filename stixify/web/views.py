@@ -22,6 +22,7 @@ from django.utils.text import slugify
 from dogesec_commons.objects.helpers import OBJECT_TYPES
 from django.db.models import F, Value, CharField, Func, Q
 
+from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.worker import tasks
 from .md_helper import MarkdownImageReplacer
 from django.http.response import HttpResponse
@@ -589,6 +590,11 @@ class ReportView(viewsets.ViewSet):
                 description="Sort the results by selected property",
                 enum=SORT_PROPERTIES,
             ),
+            OpenApiParameter(
+                "topic_id",
+                description="Filter reports by topic ID. This is the `id` of the Cluster object linked to the file's embedding. You can find this ID in the `topics` list returned in the GET Topics endpoint.",
+                type=OpenApiTypes.UUID,
+            )
         ],
     )
     def list(self, request, *args, **kwargs):
@@ -695,6 +701,11 @@ class ReportView(viewsets.ViewSet):
         if q := helper.query_as_array("identity"):
             bind_vars["identities"] = q
             filters.append("FILTER doc.created_by_ref IN @identities")
+
+        if topic_ids := helper.query_as_array("topic_id"):
+            members = Cluster.objects.filter(id__in=topic_ids).values_list("members__id", flat=True)
+            bind_vars["topic_id_matches"] = ["report--" + str(file_id) for file_id in members]
+            filters.append("FILTER doc.id IN @topic_id_matches")
 
         if q := helper.query.get("visible_to"):
             bind_vars["visible_to"] = q
