@@ -120,7 +120,7 @@ class TopicView(
     def get_queryset(self):
         qs = Cluster.objects.annotate(
             files_count=Count("members__file", distinct=True),
-        )
+        ).exclude(label="")
         return qs
 
     def get_serializer_class(self):
