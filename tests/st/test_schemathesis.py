@@ -35,7 +35,7 @@ def module_setup(stixifier_profile, stixify_job):
 
 @pytest.mark.django_db(transaction=True)
 @schema.given(
-    post_id=file_ids,
+    file_id=file_ids,
     profile_id=profile_ids,
     job_id=job_ids
 )
@@ -49,7 +49,7 @@ def test_api(case: schemathesis.Case, **kwargs):
 
 @pytest.mark.django_db(transaction=True)
 @schema.given(
-    post_id=file_ids,
+    file_id=file_ids,
     profile_id=profile_ids,
     job_id=job_ids
 )

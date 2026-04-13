@@ -274,7 +274,7 @@ class FileView(
         responses={200: dict},
     )
     @decorators.action(detail=True, methods=["GET"])
-    def extractions(self, request, post_id=None, **kwargs):
+    def extractions(self, request, file_id=None, **kwargs):
         obj = self.get_object()
         return Response(obj.txt2stix_data or {})
 
