@@ -44,6 +44,7 @@ jobs:
             DJANGO_DEBUG=True
             R2_ACCESS_KEY=1b38e591eb1093e72e5321855ca54bb4
             R2_BUCKET_NAME=stixify-web-core-staging
+            CLASSIFIER_MIN_CLUSTER_SIZE=4
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
