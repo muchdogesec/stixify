@@ -148,42 +148,38 @@ class File(CommonSTIXProps):
             return 'pdf'
         return self.mode
         
-    
-    @property
-    def similar_posts(file):
+    def similar_posts(file, visible_to=None):
         if not file.embedding:
             return []
 
         files_qs = (
-            File.objects.exclude(pk=file.pk)
-            .filter(embedding__isnull=False)
+            File.objects.exclude(pk=file.pk, embedding=None)
             .select_related("embedding")
         )
         # get top 5 most similar posts based on embedding similarity, excluding self
         similar_files = files_qs.annotate(
             distance=CosineDistance("embedding__embedding", file.embedding.embedding)
-        ).order_by("distance")[:5]
+        ).order_by("distance")[:100]  # get top 100 similar files to filter by permissions and shared topics before returning top 5
+
         results = []
         for sfile in similar_files:
+            owners = visible_to or [file.identity_id]
+            if sfile.tlp_level not in [TLP_Levels.GREEN, TLP_Levels.CLEAR] and file.identity_id not in owners:
+                # skipping, user cannot see this file
+                continue
+            if len(results) >= 5:
+                break
             similarity_score = cosine_similarity(
                 file.embedding.embedding.reshape(1, -1),
                 sfile.embedding.embedding.reshape(1, -1),
             )[0][0]
-            shared_topics = list(
-                set(file.embedding.clusters.values_list("id", flat=True))
-                & set(sfile.embedding.clusters.values_list("id", flat=True))
-            )
             results.append(
                 {
-                    "file_id": sfile.id,
-                    "file_title": sfile.name,  # or get from related file
-                    "similarity_score": similarity_score,
-                    "shared_topics": list(
-                        Cluster.objects.filter(id__in=shared_topics).values_list(
-                            "label", flat=True
-                        )
-                    )[:3],
-                    "identity_id": sfile.identity_id,
+                    "id": sfile.id,
+                    "title": sfile.name,  # or get from related file
+                    "score": similarity_score,
+                    "tlp_level": sfile.tlp_level,
+                    "owner": sfile.identity_id,
                     "added": sfile.created,
                 }
             )

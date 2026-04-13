@@ -58,6 +58,7 @@ from .serializers import (
     ImageSerializer,
     JobSerializer,
 )
+from .topics import SimilarFileSerializer
 from .utils import PDFRenderer, Response, MinMaxDateFilter
 from dogesec_commons.utils import Pagination, Ordering
 from django_filters.rest_framework import DjangoFilterBackend, FilterSet, Filter
@@ -393,6 +394,37 @@ class FileView(
             content_type="text/markdown",
             filename="summary.md",
         )
+    
+    @extend_schema(
+        summary="Get similar files",
+        description=textwrap.dedent(
+            """
+            Returns up to 5 files with the most similar embedding to the selected file.
+
+            You can optionally pass `visible_to` to only return files visible to the given
+            identity. A file is considered visible when it is owned by that identity or its
+            `tlp_level` is `clear` or `green`.
+            """
+        ),
+        parameters=[
+            OpenApiParameter(
+                "visible_to",
+                description="Only include similar files visible to this identity UUID.",
+                type=OpenApiTypes.UUID,
+            )
+        ],
+        responses={200: SimilarFileSerializer(many=True), 404: DEFAULT_404_ERROR},
+    )
+    @decorators.action(methods=["GET"], detail=True, pagination_class=None)
+    def similar_files(self, request, file_id=None):
+        obj = self.get_object()
+        if not obj.embedding:
+            raise exceptions.NotFound(f"No embedding for post")
+        visible_to = None
+        if "visible_to" in request.query_params:
+            visible_to = set(request.query_params["visible_to"].split(","))
+        similar_files = obj.similar_posts(visible_to=visible_to)
+        return Response(SimilarFileSerializer(similar_files, many=True).data)
 
 
 @extend_schema_view(
