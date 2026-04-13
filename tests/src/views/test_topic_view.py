@@ -160,6 +160,62 @@ def test_list_topics_uses_topic_serializer(client, posts_with_clusters, api_sche
     )
 
 
+# ── post_id filter ────────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_list_topics_post_id_filter_multiple_clusters(client, posts_with_clusters, api_schema):
+    """Test filtering by post_id when the file exists in multiple clusters."""
+    file2 = posts_with_clusters[1]
+    resp = client.get("/api/v1/topics/", query_params={"post_id": str(file2.id)})
+    assert resp.status_code == 200, resp.content
+    # file2 is in both cluster1 and cluster2
+    ids = {uuid.UUID(t["id"]) for t in resp.data["topics"]}
+    assert ids == {CLUSTER_1_ID, CLUSTER_2_ID}
+    assert resp.data["total_results_count"] == 2
+    api_schema["/api/v1/topics/"]["GET"].validate_response(
+        Transport.get_st_response(resp)
+    )
+
+
+@pytest.mark.django_db
+def test_list_topics_post_id_filter_single_cluster(client, posts_with_clusters, api_schema):
+    """Test filtering by post_id when the file exists in only one cluster."""
+    file1 = posts_with_clusters[0]
+    resp = client.get("/api/v1/topics/", query_params={"post_id": str(file1.id)})
+    assert resp.status_code == 200, resp.content
+    # file1 is only in cluster1 (hidden_cluster is excluded due to empty label)
+    ids = {uuid.UUID(t["id"]) for t in resp.data["topics"]}
+    assert ids == {CLUSTER_1_ID}
+    assert resp.data["total_results_count"] == 1
+    api_schema["/api/v1/topics/"]["GET"].validate_response(
+        Transport.get_st_response(resp)
+    )
+
+
+@pytest.mark.django_db
+def test_list_topics_post_id_filter_not_found(client, posts_with_clusters, api_schema):
+    """Test filtering by post_id that doesn't exist in any cluster."""
+    non_existent_id = uuid.UUID("ffffffff-ffff-ffff-ffff-ffffffffffff")
+    resp = client.get("/api/v1/topics/", query_params={"post_id": str(non_existent_id)})
+    assert resp.status_code == 200, resp.content
+    assert resp.data["total_results_count"] == 0
+    assert resp.data["topics"] == []
+    api_schema["/api/v1/topics/"]["GET"].validate_response(
+        Transport.get_st_response(resp)
+    )
+
+
+@pytest.mark.django_db
+def test_list_topics_post_id_filter_invalid_uuid(client, posts_with_clusters, api_schema):
+    """Test filtering by post_id with an invalid UUID format."""
+    resp = client.get("/api/v1/topics/", query_params={"post_id": "invalid-uuid"})
+    assert resp.status_code == 400
+    api_schema["/api/v1/topics/"]["GET"].validate_response(
+        Transport.get_st_response(resp)
+    )
+
+
 # ── retrieve ──────────────────────────────────────────────────────────────────
 
 
