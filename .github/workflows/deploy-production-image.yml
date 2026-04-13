@@ -43,6 +43,7 @@ jobs:
           build-args: |
             R2_ACCESS_KEY=4ed3b9a3634abd694f034580086b8445
             R2_BUCKET_NAME=stixify-web-core-production
+            CLASSIFIER_MIN_CLUSTER_SIZE=4
       - name: Generate artifact attestation
         uses: actions/attest-build-provenance@v1
         with:
