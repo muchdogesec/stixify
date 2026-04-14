@@ -93,7 +93,10 @@ def process_post(job_id, *args):
         )
         file.save()
     except Exception as e:
+        error = str(e)
         job.error = "failed to process report"
+        if error:
+            job.error += f": {error}"
         logging.error(job.error)
         logging.exception(e)
     job.save()

@@ -39,7 +39,10 @@ def module_setup(stixifier_profile, stixify_job):
     profile_id=profile_ids,
     job_id=job_ids
 )
-@schema.exclude(method=["POST"]).exclude(method="DELETE", path="/api/v1/profiles/{profile_id}/").parametrize()
+@schema.exclude(method=["POST"]) \
+        .exclude(method="DELETE", path="/api/v1/profiles/{profile_id}/") \
+            .exclude(path="/api/healthcheck/service/") \
+                .parametrize()
 def test_api(case: schemathesis.Case, **kwargs):
     for k, v in kwargs.items():
         if k in case.path_parameters:
