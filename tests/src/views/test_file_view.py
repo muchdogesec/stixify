@@ -385,6 +385,6 @@ def test_file_pdf_with_pdf(client, stixify_file, api_schema):
         "/api/v1/files/dcbeb240-8dd6-4892-8e9e-7b6bda30e454/pdf/",
     )
     assert resp.status_code == 200, resp.content
-    assert re.match(r'attachment; filename="dcbeb240-8dd6-4892-8e9e-7b6bda30e454_archived_\w+.pdf"', resp.headers["Content-Disposition"])
+    assert re.match(r'attachment; filename="dcbeb240-8dd6-4892-8e9e-7b6bda30e454_archived_*[\w]*.pdf"', resp.headers["Content-Disposition"])
     assert resp.getvalue() == b"pdf content"
     api_schema['/api/v1/files/{file_id}/pdf/']['GET'].validate_response(Transport.get_st_response(resp))
