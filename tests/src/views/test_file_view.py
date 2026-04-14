@@ -1,4 +1,5 @@
 import json
+import re
 import uuid
 from stixify.web import models
 from stixify.classifier.models import DocumentEmbedding
@@ -364,3 +365,26 @@ def test_file_similar_files_visible_to_passed_to_similar_posts(
     api_schema["/api/v1/files/{file_id}/similar_files/"]["GET"].validate_response(
         Transport.get_st_response(resp)
     )
+
+@pytest.mark.django_db
+def test_file_pdf_no_pdf(client, stixify_file, api_schema):
+    resp = client.get(
+        "/api/v1/files/dcbeb240-8dd6-4892-8e9e-7b6bda30e454/pdf/",
+    )
+    assert resp.status_code == 404, resp.content
+    assert resp.headers["Content-Type"] == "application/json"
+    assert b"No archived PDF for this file" in resp.content
+    api_schema['/api/v1/files/{file_id}/pdf/']['GET'].validate_response(Transport.get_st_response(resp))
+
+@pytest.mark.django_db
+def test_file_pdf_with_pdf(client, stixify_file, api_schema):
+    file_obj = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
+    file_obj.pdf_file.save("archived.pdf", io.BytesIO(b"pdf content"))
+    file_obj.save(update_fields=["pdf_file"])
+    resp = client.get(
+        "/api/v1/files/dcbeb240-8dd6-4892-8e9e-7b6bda30e454/pdf/",
+    )
+    assert resp.status_code == 200, resp.content
+    assert re.match(r'attachment; filename="dcbeb240-8dd6-4892-8e9e-7b6bda30e454_archived_\w+.pdf"', resp.headers["Content-Disposition"])
+    assert resp.getvalue() == b"pdf content"
+    api_schema['/api/v1/files/{file_id}/pdf/']['GET'].validate_response(Transport.get_st_response(resp))

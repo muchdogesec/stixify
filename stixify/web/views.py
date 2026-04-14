@@ -279,11 +279,14 @@ class FileView(
         return Response(obj.txt2stix_data or {})
 
     @extend_schema(
-        responses={200: {}, 404: DEFAULT_404_ERROR},
+        responses={
+            (200, "text/markdown"): OpenApiTypes.STR,
+            (404, "application/json"): DEFAULT_404_ERROR,
+        },
         summary="Get the processed markdown for a File",
         description=textwrap.dedent(
             """
-            Whan a file is uploaded it is converted to markdown using [file2txt](https://github.com/muchdogesec/file2txt/) which is subsequently used to make extractions from. This endpoint will return that output.
+            When a file is uploaded it is converted to markdown using [file2txt](https://github.com/muchdogesec/file2txt/) which is subsequently used to make extractions from. This endpoint will return that output.
             
             This endpoint is useful for debugging issues in extractions when you think there could be an issue with the content being passed to the extractors.
             """
@@ -302,7 +305,7 @@ class FileView(
     def markdown(self, request, *args, file_id=None, **kwargs):
         obj: File = self.get_object()
         if not obj.markdown_file:
-            return HttpResponseNotFound("No markdown file")
+            raise exceptions.NotFound({"error": "No markdown for this file"})
 
         images = {
             img.name: img.file.url
@@ -337,7 +340,7 @@ class FileView(
     def pdf(self, request, *args, file_id=None, **kwargs):
         obj: File = self.get_object()
         if not obj.archived_pdf:
-            return HttpResponseNotFound("No pdf file")
+            raise exceptions.NotFound({"error": "No archived PDF for this file"})
         _, _, name = obj.archived_pdf.name.rpartition("/")
         response = HttpResponse(obj.archived_pdf.open(), content_type="application/pdf")
         response["Content-Disposition"] = f'attachment; filename="{name}"'
@@ -388,7 +391,7 @@ class FileView(
     def summary(self, request, file_id=None):
         obj = self.get_object()
         if not obj.summary:
-            raise exceptions.NotFound(f"No Summary for post")
+            raise exceptions.NotFound({"error": "No summary for this file"})
         return FileResponse(
             streaming_content=io.BytesIO(obj.summary.encode()),
             content_type="text/markdown",
@@ -420,7 +423,7 @@ class FileView(
     def similar_files(self, request, file_id=None):
         obj = self.get_object()
         if not obj.embedding:
-            raise exceptions.NotFound(f"No embedding for post")
+            raise exceptions.NotFound({"error": "No embedding for this file"})
         visible_to = None
         if "visible_to" in request.query_params:
             visible_to = set(request.query_params["visible_to"].split(","))
