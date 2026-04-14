@@ -35,6 +35,11 @@ def test_process_post_job__fails(stixify_job):
         process_post.si(stixify_job.id).delay()
         stixify_job.refresh_from_db()
         assert stixify_job.error == "failed to process report"
+        
+        mock_stixify_processor_cls.side_effect = ValueError("some error")   
+        process_post.si(stixify_job.id).delay()
+        stixify_job.refresh_from_db()
+        assert stixify_job.error == "failed to process report: some error"
 
 @pytest.fixture
 def fake_stixifier_processor():
