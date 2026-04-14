@@ -124,6 +124,10 @@ class TopicView(
             lookup_expr="icontains",
             help_text="Case-insensitive partial match search on topic label.",
         )
+        file_id = filters.UUIDFilter(
+            field_name="members__file__id",
+            help_text="Filter topics that contain a file with the specified file_id.",
+        )
 
     def get_queryset(self):
         qs = Cluster.objects.annotate(
