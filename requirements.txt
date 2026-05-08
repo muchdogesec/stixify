@@ -37,7 +37,7 @@ attrs==25.4.0
     #   aiohttp
     #   jsonschema
     #   referencing
-banks==2.4.1
+banks==2.4.2
     # via llama-index-core
 base58==2.1.1
     # via txt2stix
