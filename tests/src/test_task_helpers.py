@@ -54,99 +54,32 @@ FAKE_VULNERABILITIES = [
 
 
 @pytest.fixture
-def fake_retriever():
-    def fake_retrieve(url):
+def fake_kb_sync():
+    def fake_retrieve(url, *args, **kwargs):
         qs = parse_qs(urlparse(url).query)
         cve_list = qs.get("cve_id", [""])[0].split(",") if qs.get("cve_id") else []
+        cve_list = qs.get("stix_id", [""])[0].split(",") if qs.get("stix_id") else []
         return [
-            {"name": name, "dummy": "info", "extra": "extra", "id": "random"}
-            for name in cve_list
-            if name
+            {"id": id, "dummy": "info", "extra": "extra", "type": "vulnerability"}
+            for id in cve_list
         ]
 
     with patch(
-        "stixify.worker.helpers.STIXObjectRetriever._retrieve_objects",
+        "dogesec_commons.objects.kb_sync.sync.STIXObjectRetriever.retrieve_objects",
         side_effect=fake_retrieve,
     ):
         yield
 
-
 @pytest.mark.django_db
-def test_get_vulnerabilities(stixify_db):
-    r1 = helpers.get_vulnerabilities(STIXIFY_COLLECTION)
-    assert r1 == {
-        name: [id + "+" + str(index) for index in range(10)] for name, id in VULNS
-    }
-    assert len(r1) == 10
-    assert len(r1["CVE-2011-2462"]) == 10
-
-
-@pytest.mark.django_db
-def test_get_updates(fake_retriever):
-    vulnerabilities = {
-        "CVE-2011-2462": [
-            "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+2",
-            "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+4",
-            "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+8",
-            "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+9",
-        ],
-        "CVE-2015-0816": [
-            "vulnerability--0d92bd85-e2f0-51ec-9773-6cf161498e25+0",
-        ],
-    }
-    now = time.time()
-
-    r1 = list(helpers.get_updates(vulnerabilities, now))
-    assert r1 == [
-        {
-            "_key": "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+2",
-            "name": "CVE-2011-2462",
-            "dummy": "info",
-            "extra": "extra",
-            "_stixify_updated_on": now,
-        },
-        {
-            "_key": "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+4",
-            "name": "CVE-2011-2462",
-            "dummy": "info",
-            "extra": "extra",
-            "_stixify_updated_on": now,
-        },
-        {
-            "_key": "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+8",
-            "name": "CVE-2011-2462",
-            "dummy": "info",
-            "extra": "extra",
-            "_stixify_updated_on": now,
-        },
-        {
-            "_key": "vulnerability--74ebaaf5-7210-5422-94f5-3464d0db6e1a+9",
-            "name": "CVE-2011-2462",
-            "dummy": "info",
-            "extra": "extra",
-            "_stixify_updated_on": now,
-        },
-        {
-            "_key": "vulnerability--0d92bd85-e2f0-51ec-9773-6cf161498e25+0",
-            "name": "CVE-2015-0816",
-            "dummy": "info",
-            "extra": "extra",
-            "_stixify_updated_on": now,
-        },
-    ]
-
-
-@pytest.mark.django_db
-def test_run_on_collections(stixify_db, fake_retriever):
+def test_run_on_collections(stixify_db, fake_kb_sync):
     job = models.Job.objects.create(
         id=uuid.uuid4(),
-        type=models.JobType.SYNC_VULNERABILITIES,
+        type=models.JobType.SYNC_KNOWLEDGEBASE,
         state=models.JobState.PROCESSING,
     )
-    r1 = helpers.run_on_collections(job, batch_size=5)
+    r1 = helpers.run_on_collections(job, 'cve')
     job.refresh_from_db()
     assert r1 is None
     f = stixify_db.collection(STIXIFY_COLLECTION).find(dict(type="vulnerability"))
-    assert job.extra["unique_vulnerabilities"] == 10
-    assert job.extra["document_count"] == 100
-    assert job.extra["processed_documents"] == 100
+    assert job.extra["unique_objects"] == 10
+    assert job.extra["processed_items"] == 100

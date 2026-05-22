@@ -113,10 +113,10 @@ def job_completed_with_error(job_id):
     Job.objects.filter(pk=job_id).update(state=state, completion_time=datetime.now(UTC))
 
 @shared_task
-def update_vulnerabilities(job_id):
+def update_knowledgebase(job_id):
     job = models.Job.objects.get(pk=job_id)
     try:
-        helpers.run_on_collections(job)
+        helpers.run_on_collections(job, job.extra["knowledgebase"])
     except Exception as e:
         job.error = str(e)
     job.save(update_fields=["error"])
