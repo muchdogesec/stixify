@@ -894,7 +894,7 @@ class ReportView(viewsets.ViewSet):
         ),
         request=None,
         responses={
-            201: JobSerializer,
+            201: BaseJobSerializer,
             404: DEFAULT_404_ERROR,
         },
     ),
