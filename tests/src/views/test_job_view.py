@@ -42,7 +42,7 @@ def test_jobs_filter_by_multiple_states(client, api_schema, states, expected_ids
     )
     models.Job.objects.create(
         id="0014c5a1-7a5e-408f-88ea-83ec5a1b8af1",
-        type=models.JobType.SYNC_VULNERABILITIES,
+        type=models.JobType.SYNC_KNOWLEDGEBASE,
         state=models.JobState.FAILED,
     )
 
