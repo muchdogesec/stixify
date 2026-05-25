@@ -23,10 +23,11 @@ def test_healthcheck_service(client, api_schema):
 
 
 @pytest.mark.django_db
-def test_sync_vulnerabilities_passes(client, api_schema, celery_eager):
-    resp = client.patch("/api/v1/tasks/sync-vulnerabilities/")
+def test_update_knowledgebase_passes(client, api_schema, celery_eager):
+    with patch("stixify.worker.helpers.sync.run_on_kb_and_collection", return_value=(50, 22)) as mock_run_kb:
+        resp = client.patch("/api/v1/tasks/sync-knowledgebases/cve/")
     assert resp.status_code == 201
-    api_schema["/api/v1/tasks/sync-vulnerabilities/"]["PATCH"].validate_response(
+    api_schema["/api/v1/tasks/sync-knowledgebases/{knowledgebase}/"]["PATCH"].validate_response(
         Transport.get_st_response(resp)
     )
     resp_data = dict(resp.data)
@@ -34,25 +35,26 @@ def test_sync_vulnerabilities_passes(client, api_schema, celery_eager):
     assert resp_data == {
         "id": resp_data['id'],
         "file": None,
-        "type": "sync-vulnerabilities",
+        "type": "sync-knowledgebase",
         "state": "completed",
         "extra": {
-            "document_count": 0,
-            "processed_documents": 0,
-            "unique_vulnerabilities": 0,
+            "knowledgebase": "cve",
+            "unique_objects": 50,
+            "processed_items": 22,
         },
         "error": None,
         "run_datetime": resp_data['run_datetime'],
     }
+    mock_run_kb.assert_called_once_with('stixify_vertex_collection', 'cve', update_time=mock_run_kb.call_args[1]['update_time'])
 
 
 @pytest.mark.django_db
-def test_sync_vulnerabilities_fails(client, api_schema, celery_eager):
-    with patch("stixify.worker.helpers.get_vulnerabilities", side_effect=Exception("explosion!")):
-        resp = client.patch("/api/v1/tasks/sync-vulnerabilities/")
+def test_update_knowledgebase_fails(client, api_schema, celery_eager):
+    with patch("stixify.worker.helpers.sync.run_on_kb_and_collection", side_effect=Exception("explosion!")) as mock_run_kb:
+        resp = client.patch("/api/v1/tasks/sync-knowledgebases/cwe/")
     
     assert resp.status_code == 201
-    api_schema["/api/v1/tasks/sync-vulnerabilities/"]["PATCH"].validate_response(
+    api_schema["/api/v1/tasks/sync-knowledgebases/{knowledgebase}/"]["PATCH"].validate_response(
         Transport.get_st_response(resp)
     )
     resp_data = dict(resp.data)
@@ -60,12 +62,13 @@ def test_sync_vulnerabilities_fails(client, api_schema, celery_eager):
     assert resp_data == {
         "id": resp_data['id'],
         "file": None,
-        "type": "sync-vulnerabilities",
+        "type": "sync-knowledgebase",
         "state": "failed",
-        "extra": None,
+        "extra": {'knowledgebase': 'cwe', 'unique_objects': 0, 'processed_items': 0},
         "error": 'explosion!',
         "run_datetime": resp_data['run_datetime'],
     }
+    mock_run_kb.assert_called_once_with('stixify_vertex_collection', 'cwe', update_time=mock_run_kb.call_args[1]['update_time'])
 
 
 @pytest.mark.django_db

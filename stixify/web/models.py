@@ -222,7 +222,7 @@ class JobState(models.TextChoices):
 
 class JobType(models.TextChoices):
     IMPORT_FILE = "import-file"
-    SYNC_VULNERABILITIES = "sync-vulnerabilities"
+    SYNC_KNOWLEDGEBASE = "sync-knowledgebase"
     BUILD_CLUSTERS = "build-clusters"
     BUILD_EMBEDDINGS = "build-embeddings"
 
