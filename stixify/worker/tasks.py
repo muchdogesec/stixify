@@ -81,6 +81,9 @@ def process_post(job_id, *args):
             report_prop=report_props, extra=dict(_stixify_file_id=str(file.id))
         )
         skip_extraction = bool((job.extra or {}).get("skip_extraction"))
+
+        # remove existing values for this file that are not in the new upload (handles deletions and modifications)
+        models.ObjectValue.objects.filter(file_id=file.id).delete()
         if job.type == models.JobType.REPROCESS_POSTS and skip_extraction:
             processor.output_md = file.markdown_file.open().read().decode()
             txt2stix_data = None
