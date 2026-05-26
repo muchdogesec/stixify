@@ -160,7 +160,7 @@ class TestSCOValueView:
         assert 'values' in data
         
         # Should return all unique SCO objects (5 unique IPs/domains/URLs)
-        assert data['total_results_count'] == 5
+        assert data['size'] == 5
         
         # Check that results are deduplicated by stix_id
         stix_ids = [obj['id'] for obj in data['values']]
@@ -175,7 +175,7 @@ class TestSCOValueView:
         data = response.json()
         
         # Should return only IPv4 addresses (2 unique)
-        assert data['total_results_count'] == 2
+        assert data['size'] == 2
         for obj in data['values']:
             assert obj['type'] == 'ipv4-addr'
     
@@ -188,7 +188,7 @@ class TestSCOValueView:
         data = response.json()
         
         # Should return IPv4 (2) + domain-name (2) = 4 objects
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
         types = [obj['type'] for obj in data['values']]
         assert all(t in ['ipv4-addr', 'domain-name'] for t in types)
     
@@ -201,7 +201,7 @@ class TestSCOValueView:
         data = response.json()
         
         # Should return the 192.168.1.1 IP using substring matching
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['values']['value'] == '192.168.1.1'
     
     def test_filter_by_value_exact(self, client, values):
@@ -213,7 +213,7 @@ class TestSCOValueView:
         data = response.json()
         
         # Should return the IP with exact value match
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['values']['value'] == '192.168.1.1'
     
     def test_filter_by_value_exact_no_substring_match(self, client, values):
@@ -225,7 +225,7 @@ class TestSCOValueView:
         data = response.json()
         
         # Should return nothing since '192.168' is not an exact match for any individual value
-        assert data['total_results_count'] == 0
+        assert data['size'] == 0
     
     def test_filter_by_file_id(self, client, values):
         """Test filtering by file ID."""
@@ -243,7 +243,7 @@ class TestSCOValueView:
         
         # Should return objects from first file (4 SCOs in first file)
         # 2 unique IPs, 1 domain, 1 URL = 4 unique objects
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
         
     
     def test_filter_by_file_id_multiple(self, client, values):
@@ -257,7 +257,7 @@ class TestSCOValueView:
         data = response.json()
         
         # Should return all SCOs from all files
-        assert data['total_results_count'] == 5
+        assert data['size'] == 5
     
     def test_filter_by_stix_id(self, client, values):
         """Test filtering by exact STIX object ID."""
@@ -269,7 +269,7 @@ class TestSCOValueView:
         assert response.status_code == 200
         data = response.json()
         
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['id'] == stix_id
     
     def test_sdo_types_not_returned(self, client, values):
@@ -345,7 +345,13 @@ class TestSCOValueView:
         data = response.json()
         
         assert len(data['values']) == 2
-        assert data['total_results_count'] == 5
+        assert data['next'] is not None
+
+        response2 = client.get('/api/v1/values/scos/?page_size=4&cursor=' + data['next'])
+        data = response2.json()
+
+        assert len(data['values']) == 3  # Remaining 3 results
+        assert data['next'] is None  # No more pages
     
     def test_no_ttp_type_in_sco_results(self, client, values):
         """Test that SCOs don't have ttp_type field in results."""
@@ -381,7 +387,7 @@ class TestSDOValueView:
         
         # Should return all unique SDO objects (4 unique)
         assert len({obj['id'] for obj in data['values']}) == len(data['values'])  # All unique
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
     
     def test_filter_by_type(self, client, values):
         """Test filtering SDOs by type."""
@@ -392,7 +398,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should return only attack-pattern (1 unique)
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['type'] == 'attack-pattern'
     
     def test_filter_by_ttp_type(self, client, values):
@@ -404,7 +410,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should return only enterprise-attack objects (1)
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['knowledgebase'] == 'enterprise-attack'
     
     def test_filter_by_multiple_knowledgebase(self, client, values):
@@ -416,7 +422,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should return CVE (1) + location (1) = 2 objects
-        assert data['total_results_count'] == 2
+        assert data['size'] == 2
         knowledgebase = [obj['knowledgebase'] for obj in data['values']]
         assert all(t in ['cve', 'location'] for t in knowledgebase)
     
@@ -429,7 +435,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should find the WannaCry malware
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert 'WannaCry' in data['values'][0]['values']['name']
     
     def test_filter_by_value_searches_aliases(self, client, values):
@@ -441,7 +447,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should find the Spearphishing attack pattern
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['type'] == 'attack-pattern'
     
     def test_filter_by_value_exact(self, client, values):
@@ -452,7 +458,7 @@ class TestSDOValueView:
         assert response.status_code == 200
         data = response.json()
         
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert 'CVE-2021-44228' in data['values'][0]['values']['name']
     
     def test_filter_by_file_id(self, client, values):
@@ -470,7 +476,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should return SDOs from second file (2: malware, location)
-        assert data['total_results_count'] == 2
+        assert data['size'] == 2
         
     
     def test_filter_by_file_id_all(self, client, values):
@@ -483,7 +489,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should return all SDOs from all files
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
     
     def test_filter_by_stix_id(self, client, values):
         """Test filtering by exact STIX object ID."""
@@ -495,7 +501,7 @@ class TestSDOValueView:
         assert response.status_code == 200
         data = response.json()
         
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['id'] == stix_id
     
     
@@ -520,7 +526,7 @@ class TestSDOValueView:
         assert response.status_code == 200
         data = response.json()
         
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['knowledgebase'] == 'cve'
     
     def test_ordering_by_created(self, client, values):
@@ -542,7 +548,7 @@ class TestSDOValueView:
         assert response.status_code == 200
         data = response.json()
         
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         obj = data['values'][0]
         assert obj['type'] == 'vulnerability'
         assert obj['knowledgebase'] == 'cve'
@@ -568,7 +574,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should return the CVE vulnerability even with uppercase filter
-        assert data['total_results_count'] == 2
+        assert data['size'] == 2
         assert {obj['values']['kb_id'] for obj in data['values']} == {'CVE-2021-44228', 'M1010'}
 
     def test_value_search_case_insensitive(self, client, values):
@@ -580,7 +586,7 @@ class TestSDOValueView:
         data = response.json()
         
         # Should find the WannaCry malware even with lowercase search
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert 'WannaCry' in data['values'][0]['values']['name']
 
 
@@ -595,7 +601,7 @@ class TestValuesViewEdgeCases:
         
         assert response.status_code == 200
         data = response.json()
-        assert data['total_results_count'] == 0
+        assert data['size'] == 0
         assert data['values'] == []
     
     def test_invalid_filter_values(self, client, values):
@@ -614,7 +620,7 @@ class TestValuesViewEdgeCases:
         
         assert response.status_code == 200
         data = response.json()
-        assert data['total_results_count'] == 0
+        assert data['size'] == 0
     
     def test_value_search_no_results(self, client, values):
         """Test value search that returns no results."""
@@ -623,7 +629,7 @@ class TestValuesViewEdgeCases:
         
         assert response.status_code == 200
         data = response.json()
-        assert data['total_results_count'] == 0
+        assert data['size'] == 0
     
     def test_multiple_filters_narrow_results(self, client, values):
         """Test that multiple filters properly narrow results."""
@@ -766,7 +772,7 @@ class TestVisibleToFilter:
         # - file2_clear (TLP CLEAR)
         # - file3_green (TLP GREEN)
         # Total: 4 objects
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
         
         stix_ids = {obj['id'] for obj in data['values']}
         assert 'ipv4-addr--file1-red' in stix_ids
@@ -790,7 +796,7 @@ class TestVisibleToFilter:
         # - file2_clear (belongs to identity2 OR TLP CLEAR)
         # - file3_green (TLP GREEN)
         # - file4_amber (belongs to identity1)
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
     
     def test_visible_to_identity_not_in_list(self, client, visibility_test_data):
         """Test that objects from identities not in the list are excluded unless TLP is CLEAR/GREEN."""
@@ -807,7 +813,7 @@ class TestVisibleToFilter:
         # - file2_clear (TLP CLEAR)
         # - file3_green (TLP GREEN - same as above, shouldn't duplicate)
         # Should NOT include file1_red or file4_amber (different identity, not CLEAR/GREEN)
-        assert data['total_results_count'] == 2
+        assert data['size'] == 2
         
         stix_ids = {obj['id'] for obj in data['values']}
         assert 'ipv4-addr--file3-green' in stix_ids
@@ -827,7 +833,7 @@ class TestVisibleToFilter:
         data = response.json()
         
         # Should only return file2_clear and file3_green
-        assert data['total_results_count'] == 2
+        assert data['size'] == 2
         
         stix_ids = {obj['id'] for obj in data['values']}
         assert 'ipv4-addr--file2-clear' in stix_ids
@@ -846,7 +852,7 @@ class TestVisibleToFilter:
         data = response.json()
         
         # Should still work correctly
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
     
     def test_visible_to_empty_value(self, client, visibility_test_data):
         """Test that empty visible_to parameter returns all results."""
@@ -858,7 +864,7 @@ class TestVisibleToFilter:
         data = response.json()
         
         # Should return all 4 objects (no filtering applied)
-        assert data['total_results_count'] == 4
+        assert data['size'] == 4
     
     def test_visible_to_with_sdo_endpoint(self, client, visibility_test_data):
         """Test that visible_to filter works on SDO endpoint as well."""
@@ -894,7 +900,7 @@ class TestVisibleToFilter:
         # Should return both attacks:
         # - attack-pattern--file1 (belongs to identity1)
         # - attack-pattern--file2 (TLP CLEAR)
-        assert data['total_results_count'] == 2
+        assert data['size'] == 2
         
         stix_ids = {obj['id'] for obj in data['values']}
         assert 'attack-pattern--file1' in stix_ids
@@ -912,5 +918,5 @@ class TestVisibleToFilter:
         data = response.json()
         
         # Should only return file1_red (matches identity AND value)
-        assert data['total_results_count'] == 1
+        assert data['size'] == 1
         assert data['values'][0]['id'] == 'ipv4-addr--file1-red'

@@ -242,14 +242,16 @@ def extract_object_metadata(obj: dict) -> dict:
     values = get_values(obj, value_keys) or {}
 
     values.update(kb_extra)
-    return {
+    retval = {
         "stix_id": obj_id,
         "type": obj_type,
         "knowledgebase": kb_name,
         "values": values,
-        "modified": obj.get("modified"),
-        "created": obj.get("created"),
     }
+    for k in ["created", "modified"]:
+        if k in obj:
+            retval[k] = obj[k]
+    return retval
 
 
 @post_upload_hook(fail_on_error=True)
