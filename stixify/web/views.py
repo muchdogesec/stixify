@@ -167,8 +167,18 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
         ),
     ),
     reprocess=extend_schema(
-        summary="Reprocess file",
-        description="",
+        summary="Reprocess an uploaded File",
+        description=textwrap.dedent(
+            """
+            Reprocess a previously uploaded File with updated processing options.
+
+            If you send `profile_id`, Stixify will use that Profile for reprocessing instead of the original one. This is useful when you want to rerun extraction with different Profile settings.
+
+            If you send `skip_extraction`, Stixify will reuse existing extractions and rerun the remaining steps. This is useful when you want to avoid calling AI extraction endpoints again.
+
+            `profile_id` and `skip_extraction` are mutually exclusive.
+            """
+        ),
         responses={
             201: JobSerializer,
             404: DEFAULT_404_ERROR,
