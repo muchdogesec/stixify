@@ -256,7 +256,7 @@ class JobType(models.TextChoices):
 
 
 class Job(models.Model):
-    file = models.OneToOneField(File, on_delete=models.SET_NULL, null=True)
+    file = models.ForeignKey(File, on_delete=models.SET_NULL, null=True)
     type = models.CharField(max_length=64, choices=JobType.choices, default=JobType.IMPORT_FILE)
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     state = models.CharField(choices=JobState.choices, max_length=20, default=JobState.PENDING)

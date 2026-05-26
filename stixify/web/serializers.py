@@ -177,7 +177,7 @@ class AttackNavigatorSerializer(serializers.Serializer):
     enterprise = serializers.BooleanField(default=False)
 
 class ReprocessSingleFileSerializer(serializers.Serializer):
-    profile_id = RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`. Check the Profile endpoints for more info about Profiles."), use_raw_value=True, queryset=Profile.objects)
+    profile_id = RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`. Check the Profile endpoints for more info about Profiles."), use_raw_value=True, queryset=Profile.objects, required=False, default=None)
     skip_extraction = serializers.BooleanField(
         write_only=True,
         default=True,
