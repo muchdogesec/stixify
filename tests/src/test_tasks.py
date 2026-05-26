@@ -7,7 +7,9 @@ import pytest
 from stixify.worker.tasks import job_completed_with_error, new_task, process_post
 from stixify.web import models
 from dogesec_commons.stixifier.stixifier import StixifyProcessor
+from dogesec_commons.stixifier.models import Profile
 from django.core.files.base import ContentFile
+from txt2stix.txt2stix import Txt2StixData
 
 from stixify.worker import tasks
 
@@ -47,8 +49,30 @@ def fake_stixifier_processor():
     mocked_processor.summary = "Summarized post"
     mocked_processor.md_file.open.return_value = io.BytesIO(b"Generated MD File")
     mocked_processor.incident = None
-    mocked_processor.txt2stix_data.model_dump.return_value = {"data": "data is here"}
+    mocked_processor.txt2stix_data = Txt2StixData.model_validate({})
+    mocked_processor.md_images = []
+    mocked_processor.tmpdir = MagicMock()
+    mocked_processor.filename = "test.md"
     return mocked_processor
+
+
+@pytest.fixture
+def stixify_reprocess_job(stixify_job):
+    stixify_job.type = models.JobType.REPROCESS_POSTS
+    stixify_job.extra = {}
+    stixify_job.save(update_fields=["type", "extra"])
+    stixify_job.file.set_txt2stix_data(Txt2StixData.model_validate(
+        dict(
+            content_check=dict(
+                threat_score=8,
+                describes_incident=True,
+                explanation="some explanation",
+                incident_classification=["class1", "class2"],
+                summary="some summary",
+            )
+        )
+    ))
+    return stixify_job
     
 @pytest.mark.django_db
 def test_process_post_job(stixify_job, fake_stixifier_processor):
@@ -66,8 +90,7 @@ def test_process_post_job(stixify_job, fake_stixifier_processor):
         mock_stixify_processor_cls.assert_called_once()
         mock_stixify_processor_cls.return_value.setup.assert_called_once()
         assert mock_stixify_processor_cls.return_value.setup.call_args[1]['extra'] == dict(_stixify_file_id=str(file.id))
-        assert file.summary == fake_stixifier_processor.summary
-        assert file.txt2stix_data == {"data": "data is here"}
+        assert file.txt2stix_data == {}
         assert file.markdown_file.read() == b"Generated MD File"
         process_stream: io.BytesIO = mock_stixify_processor_cls.call_args[0][0]
         process_stream.seek(0)
@@ -105,21 +128,98 @@ def test_process_post_mhtml_pdf_mode(stixify_job, fake_stixifier_processor):
         assert process_stream.read() == b"PDF content"
 
 @pytest.mark.django_db
-def test_process_post_with_incident(stixify_job, fake_stixifier_processor):
-    incident = fake_stixifier_processor.incident = MagicMock()
-    incident.describes_incident = True
-    incident.explanation = "some explanation"
-    incident.incident_classification = []
+def test_process_post_reprocess_skip_extraction_no_existing_data(
+    stixify_reprocess_job, fake_stixifier_processor
+):
+    file = stixify_reprocess_job.file
+    stixify_reprocess_job.extra = {"skip_extraction": True}
+    stixify_reprocess_job.save(update_fields=["extra"])
+    file.markdown_file.save("test.md", io.BytesIO(b"test content"))
+    file.txt2stix_data = None
+    file.save(update_fields=["markdown_file", "txt2stix_data"])
+
+    with patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls:
+        mock_stixify_processor_cls.return_value = fake_stixifier_processor
+        new_task(stixify_reprocess_job)
+        stixify_reprocess_job.refresh_from_db()
+        assert "no existing extraction data" in stixify_reprocess_job.error
+        assert stixify_reprocess_job.state == models.JobState.FAILED
+        assert stixify_reprocess_job.file.markdown_file.read() == b"test content", "File should not be removed if reprocess fails"
+
+
+def fake_txt2stix_data():
+    retval = Txt2StixData.model_construct()
+
+    retval.extractions = {}
+    retval.content_check = {
+            "describes_incident": False,
+            "explanation": "some explanation",
+            "incident_classification": ["class1", "class2"],
+            "summary": "some summary",
+        }
+    return retval
+
+@pytest.mark.django_db
+def test_process_post_reprocess_skip_extraction_uses_existing_data(
+    stixify_reprocess_job, fake_stixifier_processor
+):
+    file = stixify_reprocess_job.file
+    file.markdown_file.save("test.md", io.BytesIO(b"test content"))
+    file.save(update_fields=["markdown_file", "txt2stix_data"])
+    stixify_reprocess_job.extra = {"skip_extraction": True}
+    stixify_reprocess_job.save(update_fields=["extra"])
 
     with (
         patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
+        patch("stixify.worker.pdf_converter.make_conversion") as mock_convert_pdf,
+        patch.object(models.File, "create_embedding") as mock_create_embedding,
     ):
+        mock_stixify_processor_cls.return_value = fake_stixifier_processor
+        new_task(stixify_reprocess_job)
+        fake_stixifier_processor.process.assert_not_called()
+        fake_stixifier_processor.txt2stix.assert_called_once()
+        fake_stixifier_processor.write_bundle.assert_called_once()
+        fake_stixifier_processor.upload_to_arango.assert_called_once()
+        mock_convert_pdf.assert_not_called()
+        mock_create_embedding.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_process_post_reprocess_with_profile_switch(stixify_reprocess_job, fake_stixifier_processor, stixifier_profile):
+    new_profile = Profile.objects.create(
+        name="new-test-profile",
+        extractions=stixifier_profile.extractions,
+        extract_text_from_image=stixifier_profile.extract_text_from_image,
+        defang=stixifier_profile.defang,
+        relationship_mode=stixifier_profile.relationship_mode,
+        ai_settings_relationships=stixifier_profile.ai_settings_relationships,
+        ai_settings_extractions=stixifier_profile.ai_settings_extractions,
+        ai_content_check_provider=stixifier_profile.ai_content_check_provider,
+        ai_create_attack_flow=stixifier_profile.ai_create_attack_flow,
+    )
+    stixify_reprocess_job.extra = {"skip_extraction": False, "profile_id": str(new_profile.pk)}
+    stixify_reprocess_job.save(update_fields=["extra"])
+
+    with patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls:
+        mock_stixify_processor_cls.return_value = fake_stixifier_processor
+        process_post.si(stixify_reprocess_job.id).delay()
+        stixify_reprocess_job.file.refresh_from_db()
+        fake_stixifier_processor.process.assert_called_once()
+        assert str(stixify_reprocess_job.file.profile_id) == str(new_profile.pk)
+
+
+@pytest.mark.django_db
+def test_process_post_with_incident(stixify_job, fake_stixifier_processor):
+    fake_stixifier_processor.txt2stix_data = fake_txt2stix_data()
+    fake_stixifier_processor.txt2stix_data.content_check.describes_incident = True
+
+    with patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls:
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         process_post.si(stixify_job.id).delay()
         file = models.File.objects.get(pk=stixify_job.file_id)
-        assert file.ai_describes_incident == incident.describes_incident
-        assert file.ai_incident_summary == incident.explanation
-        assert file.ai_incident_classification == incident.incident_classification
+        assert file.ai_describes_incident is True
+        assert file.ai_incident_summary == "some explanation"
+        assert file.ai_incident_classification == ["class1", "class2"]
 
 @pytest.mark.parametrize(
     'settings_value',
@@ -172,4 +272,3 @@ def test_job_completed_with_error__success(stixify_job):
     assert stixify_job.file.pk == file_id
     assert stixify_job.state == models.JobState.COMPLETED
     assert stixify_job.completion_time != None
-

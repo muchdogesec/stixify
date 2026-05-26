@@ -57,6 +57,7 @@ from .serializers import (
     HealthCheckSerializer,
     ImageSerializer,
     JobSerializer,
+    ReprocessSingleFileSerializer,
 )
 from .topics import SimilarFileSerializer
 from .utils import PDFRenderer, Response, MinMaxDateFilter
@@ -164,6 +165,16 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
             The response will contain the Job information, including the Job `id`. This can be used with the GET Jobs by ID endpoint to monitor the status of the Job.
             """
         ),
+    ),
+    reprocess=extend_schema(
+        summary="Reprocess file",
+        description="",
+        responses={
+            201: JobSerializer,
+            404: DEFAULT_404_ERROR,
+            400: DEFAULT_400_ERROR,
+        },
+        request=ReprocessSingleFileSerializer,
     ),
 )
 class FileView(
@@ -429,6 +440,24 @@ class FileView(
             visible_to = set(request.query_params["visible_to"].split(","))
         similar_files = obj.similar_posts(visible_to=visible_to)
         return Response(SimilarFileSerializer(similar_files, many=True).data)
+    
+    @decorators.action(methods=["PATCH"], detail=True)
+    def reprocess(self, request, file_id=None, **kwargs):
+        file_obj = self.get_object()
+        s = ReprocessSingleFileSerializer(data=request.data)
+        s.is_valid(raise_exception=True)
+        if (
+            s.validated_data["skip_extraction"]
+            and not file_obj.txt2stix_data
+        ):
+            raise exceptions.ValidationError(
+                {"error": "Cannot skip extraction on unprocessed file"}
+            )
+        job = tasks.create_reprocessing_job(file_obj, s.validated_data)
+        return Response(
+            JobSerializer(job, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 @extend_schema_view(

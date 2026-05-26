@@ -176,6 +176,34 @@ class AttackNavigatorSerializer(serializers.Serializer):
     ics = serializers.BooleanField(default=False)
     enterprise = serializers.BooleanField(default=False)
 
+class ReprocessSingleFileSerializer(serializers.Serializer):
+    profile_id = RelatedObjectField(serializer=serializers.UUIDField(help_text="The ID of the use you want to use to process the file. This is a UUIDv4, e.g. `52d95ee7-14a7-4b0d-962f-1227f1d5b208`. Check the Profile endpoints for more info about Profiles."), use_raw_value=True, queryset=Profile.objects)
+    skip_extraction = serializers.BooleanField(
+        write_only=True,
+        default=True,
+        help_text="Default true. If false, the extraction process will be run again on the file.",
+    )
+
+    def validate(self, attrs):
+        profile_id = attrs.get("profile_id", None)
+        if profile_id and attrs["skip_extraction"]:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        "Cannot specify profile_id when skip_extraction is true (or not set)"
+                    ]
+                }
+            )
+        if not profile_id and not attrs["skip_extraction"]:
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        "Must specify profile_id when skip_extraction is false"
+                    ]
+                }
+            )
+        return super().validate(attrs)
+
 
 class AttackNavigatorDomainSerializer(JSONSchemaSerializer):
     json_schema = {
