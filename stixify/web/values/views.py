@@ -16,7 +16,16 @@ from stixify.web import autoschema as api_schema
 
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-from django.db.models import F, Value, JSONField as DjangoJSONField, Min, Max, Func, CharField, Q
+from django.db.models import (
+    F,
+    Value,
+    JSONField as DjangoJSONField,
+    Min,
+    Max,
+    Func,
+    CharField,
+    Q,
+)
 from django.db.models.functions import JSONObject
 from django.contrib.postgres.aggregates import ArrayAgg
 
@@ -25,6 +34,7 @@ from stixify.web.models import ObjectValue, TLP_Levels
 from .values import sco_value_map, sdo_value_map, KB_TYPES
 from .serializers import ObjectValueSerializer
 from dogesec_commons.utils import Ordering, Pagination
+from dogesec_commons.utils.pagination import CompositeCursorPagination
 
 TTP_TYPES = [
     "cve",
@@ -46,7 +56,6 @@ class ChoiceCSVFilter(BaseCSVFilter):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("lookup_expr", "in")
         super().__init__(*args, **kwargs)
-
 
 
 class ObjectValueFilterSet(FilterSet):
@@ -99,37 +108,33 @@ class ObjectValueFilterSet(FilterSet):
         """
         Filter to only include objects from files visible to the specified identity IDs,
         or from files with TLP level CLEAR or GREEN.
-        
+
         Args:
             value: List of identity IDs (django-filters converts comma-separated string to list)
         """
         if not value:
             return queryset
-        
+
         identity_ids = []
         # Remove empty strings
         for identity_id in value:
             identity_id = identity_id.strip()
             if identity_id:
                 identity_ids.append(identity_id)
-        
+
         if not identity_ids:
             return queryset
-        
+
         # Filter: file.identity_id IN identity_ids OR file.tlp_level IN (CLEAR, GREEN)
         return queryset.filter(
-            Q(file__identity_id__in=identity_ids) | 
-            Q(file__tlp_level__in=[TLP_Levels.CLEAR, TLP_Levels.GREEN])
+            Q(file__identity_id__in=identity_ids)
+            | Q(file__tlp_level__in=[TLP_Levels.CLEAR, TLP_Levels.GREEN])
         )
 
 
 @extend_schema_view(
     list=extend_schema(
-        responses={
-            200: ObjectValueSerializer,
-            400: api_schema.DEFAULT_400_ERROR
-        },
-        
+        responses={200: ObjectValueSerializer, 400: api_schema.DEFAULT_400_ERROR},
     )
 )
 class BaseObjectValueView(mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -137,11 +142,18 @@ class BaseObjectValueView(mixins.ListModelMixin, viewsets.GenericViewSet):
 
     queryset = ObjectValue.objects.all()
     serializer_class = ObjectValueSerializer
-    pagination_class = Pagination("values")
+    pagination_class = CompositeCursorPagination("values")
     filter_backends = [DjangoFilterBackend, Ordering]
     filterset_class = ObjectValueFilterSet
-    ordering_fields = ["value"]
-    ordering = "stix_id_descending"
+    ordering_fields = {
+        "value_descending": ("-values_sort",),
+        "value_ascending": ("values_sort",),
+        "created_descending": ("-created", "-id"),
+        "created_ascending": ("created", "id"),
+        "modified_descending": ("-modified", "-id"),
+        "modified_ascending": ("modified", "id"),
+    }
+    ordering = "value_descending"
     openapi_tags = ["Object Values"]
 
     # Override in subclasses to filter by type
@@ -154,7 +166,6 @@ class BaseObjectValueView(mixins.ListModelMixin, viewsets.GenericViewSet):
         if self.allowed_types:
             queryset = queryset.filter(type__in=self.allowed_types)
 
-        queryset = queryset.alias(value=F('values_concat'))
         queryset = queryset.filter(is_dupe=False)
 
         return queryset
@@ -163,8 +174,7 @@ class BaseObjectValueView(mixins.ListModelMixin, viewsets.GenericViewSet):
 @extend_schema_view(
     list=extend_schema(
         summary="Search and filter STIX Cyber Observable Objects",
-        description=textwrap.dedent(
-            """
+        description=textwrap.dedent("""
             Search for STIX Cyber Observable Objects (aka Indicators of Compromise). If you have the object ID already, you can use the base GET Objects endpoint.
 
             The `value` filter searches all extracted fields from the object, including:
@@ -189,15 +199,17 @@ class BaseObjectValueView(mixins.ListModelMixin, viewsets.GenericViewSet):
             * `x509-certificate.subject`, `x509-certificate.issuer`, `x509-certificate.serial_number`
 
             Results are deduplicated by `stix_id`, with all associated `file_id`s aggregated in the `matched_files` field.
-            """
-        ),
+            """),
     ),
 )
 class SCOValueView(BaseObjectValueView):
     """View for STIX Cyber Observable Objects (SCOs) only."""
 
     allowed_types = list(sco_value_map.keys())
-    ordering_fields = ["value"]
+    ordering_fields = {
+        "value_descending": ("-values_sort",),
+        "value_ascending": ("values_sort",),
+    }
     ordering = "value_ascending"
 
     class filterset_class(ObjectValueFilterSet):
@@ -211,8 +223,7 @@ class SCOValueView(BaseObjectValueView):
 @extend_schema_view(
     list=extend_schema(
         summary="Search and filter STIX Domain Objects",
-        description=textwrap.dedent(
-            """
+        description=textwrap.dedent("""
             Search for STIX Domain Objects (aka TTPs). If you have the object ID already, you can use the base GET Objects endpoint.
 
             The `value` filter searches all extracted name and descriptive fields from the object, including:
@@ -239,15 +250,13 @@ class SCOValueView(BaseObjectValueView):
             * MITRE ATT&CK objects: `x-mitre-analytic`, `x-mitre-asset`, `x-mitre-collection`, `x-mitre-data-component`, `x-mitre-data-source`, `x-mitre-detection-strategy`, `x-mitre-matrix`, `x-mitre-tactic`
 
             Results are deduplicated by `stix_id`, with all associated `file_id`s aggregated in the `matched_files` field.
-            """
-        ),
+            """),
     ),
 )
 class SDOValueView(BaseObjectValueView):
     """View for STIX Domain Objects (SDOs) only."""
 
     allowed_types = list(sdo_value_map.keys())
-    ordering_fields = ["value", "created", "modified"]
     ordering = "modified_descending"
 
     class filterset_class(ObjectValueFilterSet):
@@ -280,9 +289,6 @@ class SDOValueView(BaseObjectValueView):
             # BaseCSVFilter provides a list; normalize to lowercase for case-insensitive matching.
             filter = reduce(
                 operator.or_,
-                [
-                    Q(values__kb_id__iexact=s)
-                    for s in value
-                ],
+                [Q(values__kb_id__iexact=s) for s in value],
             )
             return queryset.filter(filter)

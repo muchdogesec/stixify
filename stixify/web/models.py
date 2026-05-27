@@ -12,7 +12,7 @@ from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.classifier.tasks import compute_embedding_for_document, create_embedding_text
 import txt2stix, txt2stix.extractions
 from django.core.exceptions import ValidationError
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import stix2
 from file2txt.parsers.core import BaseParser
@@ -244,6 +244,7 @@ class Job(models.Model):
     def profile(self):
         return self.file.profile
 
+DEFAULT_DT = datetime(1970, 1, 1, tzinfo=UTC)
 
 class ObjectValue(models.Model):
     """Store extracted values from STIX objects for efficient querying."""
@@ -253,8 +254,8 @@ class ObjectValue(models.Model):
     knowledgebase = models.CharField(max_length=64, null=True, blank=True)
     values = models.JSONField()
     file = models.ForeignKey(File, on_delete=models.CASCADE, related_name='object_values')
-    created = models.DateTimeField(default=None, null=True)
-    modified = models.DateTimeField(default=None, null=True)
+    created = models.DateTimeField(default=DEFAULT_DT, null=False)
+    modified = models.DateTimeField(default=DEFAULT_DT, null=False)
     is_dupe = models.BooleanField(default=False)
     values_concat = models.GeneratedField(
         expression=models.Func(models.F("values"), function="jsonb_values_concat"),
@@ -266,9 +267,12 @@ class ObjectValue(models.Model):
     values_list = models.GeneratedField(
         expression=models.Func(models.F("values"), function="jsonb_values_list"),
         output_field=ArrayField(base_field=models.TextField()),
-        db_persist=True,
-        null=True,
-        blank=True,
+        db_persist=True, null=True, blank=True,
+    )
+    values_sort = models.GeneratedField(
+        expression=models.Func(models.F("values"), models.functions.Cast(models.F('id'), models.TextField()), function="jsonb_sort_value"),
+        output_field=models.CharField(max_length=48),
+        db_persist=True, null=True, blank=True,
     )
 
     class Meta:
@@ -282,8 +286,8 @@ class ObjectValue(models.Model):
             models.Index(KeyTextTransform('kb_type', 'values'), 'type', name='stixify_ov_kb_type_idx', condition=models.Q(is_dupe=False)),
             models.Index('created', Upper(KeyTextTransform('kb_id', 'values')), 'type', name='stixify_ov_kb_id_cidx', condition=models.Q(is_dupe=False)),
             models.Index('modified', Upper(KeyTextTransform('kb_id', 'values')), 'type', name='stixify_ov_kb_id_midx', condition=models.Q(is_dupe=False)),
-            models.Index('values_concat', 'type', name='stixify_ov_values_concat_idx', condition=models.Q(is_dupe=False)),
-            models.Index('values_concat', 'knowledgebase', name='stixify_ov_values_c_kbidx', condition=models.Q(is_dupe=False)),
+            models.Index('values_sort', 'id', 'type', name='stixify_ov_values_concat_idx', condition=models.Q(is_dupe=False)),
+            models.Index('values_sort', 'id', 'knowledgebase', name='stixify_ov_values_c_kbidx', condition=models.Q(is_dupe=False)),
         ]
 
     def __str__(self) -> str:
