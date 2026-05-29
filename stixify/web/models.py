@@ -147,6 +147,33 @@ class File(CommonSTIXProps):
         if self.mode == 'mhtml-pdf':
             return 'pdf'
         return self.mode
+    
+    def set_txt2stix_data(self, txt2stix_data):
+        from txt2stix.txt2stix import Txt2StixData
+        if txt2stix_data is None:
+            return
+
+        assert isinstance(txt2stix_data, Txt2StixData), "txt2stix_data must be an instance of Txt2StixData, got " + str(type(txt2stix_data))
+        self.txt2stix_data = txt2stix_data.model_dump(
+            mode="json", exclude_unset=True, exclude_none=True
+        )
+        if txt2stix_data.content_check:
+            self.ai_describes_incident = txt2stix_data.content_check.describes_incident
+            self.ai_incident_summary = txt2stix_data.content_check.explanation
+            self.ai_incident_classification = (
+                txt2stix_data.content_check.incident_classification
+            )
+            self.summary = txt2stix_data.content_check.summary
+
+        self.save(
+            update_fields=[
+                "txt2stix_data",
+                "ai_describes_incident",
+                "ai_incident_summary",
+                "ai_incident_classification",
+                "summary",
+            ]
+        )
         
     def similar_posts(file, visible_to=None):
         if not file.embedding:
@@ -222,13 +249,14 @@ class JobState(models.TextChoices):
 
 class JobType(models.TextChoices):
     IMPORT_FILE = "import-file"
+    REPROCESS_POSTS = "reprocess-posts"
     SYNC_KNOWLEDGEBASE = "sync-knowledgebase"
     BUILD_CLUSTERS = "build-clusters"
     BUILD_EMBEDDINGS = "build-embeddings"
 
 
 class Job(models.Model):
-    file = models.OneToOneField(File, on_delete=models.SET_NULL, null=True)
+    file = models.ForeignKey(File, on_delete=models.SET_NULL, null=True)
     type = models.CharField(max_length=64, choices=JobType.choices, default=JobType.IMPORT_FILE)
     id = models.UUIDField(default=uuid.uuid4, primary_key=True)
     state = models.CharField(choices=JobState.choices, max_length=20, default=JobState.PENDING)
