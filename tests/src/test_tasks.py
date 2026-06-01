@@ -1,4 +1,5 @@
 import io
+from pathlib import Path
 from unittest.mock import MagicMock, patch, call
 import uuid
 import pytest
@@ -48,14 +49,14 @@ def test_process_post_job__fails(stixify_job):
 
 
 @pytest.fixture
-def fake_stixifier_processor():
+def fake_stixifier_processor(tmpdir):
     mocked_processor = MagicMock()
     mocked_processor.summary = "Summarized post"
     mocked_processor.md_file.open.return_value = io.BytesIO(b"Generated MD File")
     mocked_processor.incident = None
     mocked_processor.txt2stix_data = Txt2StixData.model_validate(fake_txt2stix_data())
     mocked_processor.md_images = []
-    mocked_processor.tmpdir = MagicMock()
+    mocked_processor.tmpdir = Path(tmpdir)
     mocked_processor.filename = "test.md"
     return mocked_processor
 
@@ -76,7 +77,7 @@ def test_process_post_job(stixify_job, fake_stixifier_processor):
     with (
         patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
         patch("stixify.worker.pdf_converter.make_conversion") as mock_convert_pdf,
-        patch.object(models.File, "create_embedding") as mock_create_embedding
+        patch.object(models.File, "create_embedding") as mock_create_embedding,
     ):
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         process_post.si(stixify_job.id).delay()
@@ -211,7 +212,10 @@ def test_process_post_reprocess_with_profile_switch(
     }
     stixify_reprocess_job.save(update_fields=["extra"])
 
-    with (patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls, patch.object(models.File, "create_embedding") as mock_create_embedding):
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
+        patch.object(models.File, "create_embedding") as mock_create_embedding,
+    ):
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         process_post.si(stixify_reprocess_job.id).delay()
         stixify_reprocess_job.file.refresh_from_db()
@@ -224,10 +228,17 @@ def test_process_post_reprocess_with_profile_switch(
 def test_process_post_with_incident(stixify_job, fake_stixifier_processor):
     fake_stixifier_processor.txt2stix_data.content_check.describes_incident = True
 
-    with patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls, patch.object(models.File, "create_embedding") as mock_create_embedding:
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
+        patch.object(models.File, "create_embedding") as mock_create_embedding,
+        patch("stixify.worker.pdf_converter.make_conversion") as mock_convert_pdf,
+
+    ):
+        mock_convert_pdf.side_effect = lambda input_path, output_path: output_path.write_bytes(b"PDF content")
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         new_task(stixify_job)
         mock_create_embedding.assert_called_once_with(include_non_incident=False)
+        mock_convert_pdf.assert_called_once_with("test.md", fake_stixifier_processor.tmpdir/"converted_pdf.pdf")
         file = models.File.objects.get(pk=stixify_job.file_id)
         assert file.ai_describes_incident is True
         assert file.ai_incident_summary == "some explanation"
