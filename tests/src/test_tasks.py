@@ -56,7 +56,7 @@ def fake_stixifier_processor(tmpdir):
     mocked_processor.incident = None
     mocked_processor.txt2stix_data = Txt2StixData.model_validate(fake_txt2stix_data())
     mocked_processor.md_images = []
-    mocked_processor.tmpdir = Path(tmpdir)
+    mocked_processor.tmpdir = MagicMock()
     mocked_processor.filename = "test.md"
     return mocked_processor
 
@@ -225,8 +225,10 @@ def test_process_post_reprocess_with_profile_switch(
 
 
 @pytest.mark.django_db
-def test_process_post_with_incident(stixify_job, fake_stixifier_processor):
+def test_process_post_with_incident(stixify_job, fake_stixifier_processor, tmpdir):
     fake_stixifier_processor.txt2stix_data.content_check.describes_incident = True
+    fake_stixifier_processor.tmpdir = Path(tmpdir)
+
 
     with (
         patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
