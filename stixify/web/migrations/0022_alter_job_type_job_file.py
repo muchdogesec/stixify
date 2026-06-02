@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('stixify_core', '0020_alter_job_type'),
+        ('stixify_core', '0021_remove_objectvalue_stixify_ov_values_concat_idx_and_more'),
     ]
 
     operations = [
