@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.13.4
+aiohttp==3.14.0
     # via llama-index-core
 aiosignal==1.4.0
     # via aiohttp
@@ -608,6 +608,7 @@ txt2stix[llms]==1.6.0
     #   dogesec-commons
 typing-extensions==4.15.0
     # via
+    #   aiohttp
     #   aiosignal
     #   anthropic
     #   anyio
