@@ -35,6 +35,17 @@ services:
             - CLASSIFIER_MODEL_PATH=/opt/clusters/classfier_hdbscan.joblib
         volumes:
             - clusters:/opt/clusters/
+    celery-beat:
+        extends: django_env
+        command: >
+                bash -c "
+                  celery -A stixify.worker beat -l INFO
+                  "
+        depends_on:
+            redis:
+                condition: service_started
+            django_env:
+                condition: service_completed_successfully
     redis:
         image: "redis:alpine"
 

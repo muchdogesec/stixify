@@ -1,12 +1,13 @@
 import logging
 import os
 from django.conf import settings
-from django.db.models.signals import post_delete
+from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from django.db import models
 from django.contrib.postgres.fields import ArrayField
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Upper
+from django.core.cache import cache
 import uuid, typing
 from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.classifier.tasks import compute_embedding_for_document, create_embedding_text
@@ -26,6 +27,8 @@ from pgvector.django import CosineDistance
 if typing.TYPE_CHECKING:
     from .. import settings
 # Create your models here.
+
+STATISTICS_CACHE_KEY = "statistics-cache"
 
 def validate_extractor(types, name):
     pass
@@ -316,6 +319,7 @@ class ObjectValue(models.Model):
             models.Index('modified', Upper(KeyTextTransform('kb_id', 'values')), 'type', name='stixify_ov_kb_id_midx', condition=models.Q(is_dupe=False)),
             models.Index('values_sort', 'id', 'type', name='stixify_ov_values_concat_idx', condition=models.Q(is_dupe=False)),
             models.Index('values_sort', 'id', 'knowledgebase', name='stixify_ov_values_c_kbidx', condition=models.Q(is_dupe=False)),
+            models.Index(fields=['file_id', 'knowledgebase'], name='stixify_ov_kb_stats'),
         ]
 
     def __str__(self) -> str:

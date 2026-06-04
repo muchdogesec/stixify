@@ -1,6 +1,8 @@
+import logging
 import textwrap
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
+from django.core.cache import cache
 from django.utils import timezone
 from django.db.models import Count
 
@@ -27,6 +29,10 @@ STATISTICS_KNOWLEDGEBASES = {
     "atlas": "Top 10 ATLAS Objects",
     "sector": "Top 10 Sectors",
 }
+
+CACHE_KEY = "statistics-cache"
+EXPIRE_MINUTES = 60
+MAX_TIME_BEFORE_REFRESH = 45
 
 
 def _top10(knowledgebase: str, since: datetime, until: datetime):
@@ -55,10 +61,35 @@ def _build_category(category_label: str, knowledgebase: str, now: datetime, days
     }
 
 def _build_categories(now: datetime, days: int, category_labels=STATISTICS_KNOWLEDGEBASES):
-    return [
-        _build_category(STATISTICS_KNOWLEDGEBASES[knowledgebase], knowledgebase, now, days)
+    data = cache.get(CACHE_KEY)
+    if not data:
+        data = build_data_and_add_to_cache(now)
+    return data["time"], [data[days][knowledgebase] for knowledgebase in category_labels]
+
+def ensure_statistics_data(now: datetime):
+    now_ts = now.timestamp()
+    data = cache.get(CACHE_KEY)
+    if not data:
+        return build_data_and_add_to_cache(now)
+    if now_ts - data["time"] > (60 * MAX_TIME_BEFORE_REFRESH):
+        return build_data_and_add_to_cache(now)
+    return data
+
+
+def _build_data_for_categories(now, days, category_labels):
+    return {
+        knowledgebase: _build_category(STATISTICS_KNOWLEDGEBASES[knowledgebase], knowledgebase, now, days)
         for knowledgebase in category_labels
-    ]
+    }
+
+
+def build_data_and_add_to_cache(now: datetime):
+    logging.info("re-Building statistics cache")
+    data_7_days = _build_data_for_categories(now, 7, STATISTICS_KNOWLEDGEBASES)
+    data_30_days = _build_data_for_categories(now, 30, STATISTICS_KNOWLEDGEBASES)
+    data = {7: data_7_days, 30: data_30_days, "time": now.timestamp()}
+    cache.set(CACHE_KEY, data, timeout=60 * EXPIRE_MINUTES)
+    return data
 
 class TrendingEntrySerializer(serializers.Serializer):
     stix_id = serializers.CharField()
@@ -126,11 +157,13 @@ class StatisticsView(viewsets.ViewSet):
             knowledgebases = [kb_filter]
 
         def _period(days):
+            now_ts, value = _build_categories(now, days, category_labels=knowledgebases)
+            cached_now = datetime.fromtimestamp(now_ts, tz=UTC)
             return {
                 "period_days": days,
-                "period_start": now - timedelta(days=days),
-                "period_end": now,
-                "categories": _build_categories(now, days, knowledgebases),
+                "period_start": cached_now - timedelta(days=days),
+                "period_end": cached_now,
+                "categories": value,
             }
 
         data = {

@@ -114,6 +114,19 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+# cache
+
+CELERY_BROKER_URL = os.environ["CELERY_BROKER_URL"]
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': CELERY_BROKER_URL,  # Use the appropriate Redis server URL
+        'OPTIONS': {
+            # 'CLIENT_CLASS': 'django.core.cache.backends.redis.RedisCacheClient',
+        }
+    }
+}
 
 # Storage
 
