@@ -3,10 +3,12 @@ import logging
 import os
 from pathlib import Path
 import uuid
+from django.utils import timezone
 from stixify.web.models import Job, File
 from stixify.web import models
 from celery import shared_task
 from dogesec_commons.stixifier.stixifier import StixifyProcessor, ReportProperties
+from stixify.web.values.statistics import build_data_and_add_to_cache
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from django.core.files.storage import default_storage
@@ -140,6 +142,13 @@ def job_completed_with_error(job_id):
             job.file and job.file.delete()
     Job.objects.filter(pk=job_id).update(state=state, completion_time=datetime.now(UTC))
 
+from celery import signals
+
+
+@signals.worker_ready.connect
+def refresh_statistics_when_program_starts(**kwargs):
+    auto_refresh_statistics_data.delay()
+
 @shared_task
 def update_knowledgebase(job_id):
     job = models.Job.objects.get(pk=job_id)
@@ -148,3 +157,8 @@ def update_knowledgebase(job_id):
     except Exception as e:
         job.error = str(e)
     job.save(update_fields=["error"])
+
+
+@shared_task
+def auto_refresh_statistics_data():
+    build_data_and_add_to_cache(timezone.now())
