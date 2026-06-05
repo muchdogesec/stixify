@@ -451,7 +451,7 @@ class FileView(
         similar_files = obj.similar_posts(visible_to=visible_to)
         return Response(SimilarFileSerializer(similar_files, many=True).data)
     
-    @decorators.action(methods=["PATCH"], detail=True)
+    @decorators.action(methods=["PATCH"], detail=True, parser_classes=[parsers.JSONParser])
     def reprocess(self, request, file_id=None, **kwargs):
         file_obj = self.get_object()
         s = ReprocessSingleFileSerializer(data=request.data)
