@@ -1,10 +1,11 @@
 import json
 
+import typing
 import uuid
 from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.web import models
 from stixify.web.serializers import FileSerializer, JobSerializer
-from stixify.web.views import FileView
+from stixify.web.views import FileView, ReportView
 import pytest
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -26,6 +27,9 @@ from arango.client import ArangoClient
 from tests.src.views import bundles
 from tests.src.views.test_topic_view import VEC1
 from tests.utils import Transport
+
+if typing.TYPE_CHECKING:
+    from stixify import settings
 
 
 def as_arango2stix_db(db_name):
@@ -54,7 +58,7 @@ def make_s2a_uploads(
     database = as_arango2stix_db(database)
     s2a = Stix2Arango(
         database=database,
-        collection="stixify",
+        collection=settings.ARANGODB_COLLECTION,
         file="",
         host_url=settings.ARANGODB_HOST_URL,
         **kwargs,
@@ -114,6 +118,54 @@ def test_list(client, api_schema):
     assert resp.data["total_results_count"] == 2
     assert len(resp.data["objects"]) == 2
     api_schema['/api/v1/reports/']['GET'].validate_response(Transport.get_st_response(resp))
+
+
+@pytest.mark.django_db
+def test_update_report_updates_name_labels_and_sources(client, api_schema):
+    report_id = "report--52d2146c-798a-440f-942f-6fe039fb8995"
+    original_resp = client.get(f"/api/v1/reports/{report_id}/")
+    assert original_resp.status_code == 200, original_resp.content
+
+    original_payload = {
+        "name": original_resp.data["name"],
+        "labels": original_resp.data.get("labels", []),
+        "sources": [
+            ref["url"]
+            for ref in original_resp.data.get("external_references", [])
+            if ref.get("source_name") == "stixify_source"
+        ],
+    }
+
+    payload = {
+        "name": "Updated report name",
+        "labels": ["threat-report", "customer-facing"],
+        "sources": [
+            "https://example.com/report",
+            "https://example.com/notes",
+        ],
+    }
+
+    try:
+        assert ReportView.update_report(report_id, payload) is True
+        time.sleep(1) # wait for it to update view
+
+        resp = client.get(f"/api/v1/reports/{report_id}/")
+        assert resp.status_code == 200, resp.content
+        assert resp.data["name"] == payload["name"]
+        assert resp.data["labels"] == payload["labels"]
+
+        sources = [
+            ref["url"]
+            for ref in resp.data.get("external_references", [])
+            if ref.get("source_name") == "stixify_source"
+        ]
+        assert sources == payload["sources"]
+
+        api_schema['/api/v1/reports/{report_id}/']['GET'].validate_response(
+            Transport.get_st_response(resp)
+        )
+    finally:
+        ReportView.update_report(report_id, original_payload)
 
 
 @pytest.mark.parametrize(

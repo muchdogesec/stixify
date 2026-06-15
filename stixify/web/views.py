@@ -6,6 +6,7 @@ import re
 import textwrap
 import uuid
 from django import forms
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import (
     viewsets,
@@ -54,6 +55,7 @@ from .serializers import (
     AttackNavigatorSerializer,
     BaseJobSerializer,
     FileSerializer,
+    FilePatchSerializer,
     HealthCheckSerializer,
     ImageSerializer,
     JobSerializer,
@@ -138,6 +140,16 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
                 description="The `id` of the File. This will be the same as the UUID part of the STIX report object create from the file. (e.g. `3fa85f64-5717-4562-b3fc-2c963f66afa6`).",
             ),
         ],
+        responses={200: FileSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
+    ),
+    partial_update=extend_schema(
+        summary="Update editable File metadata",
+        description=textwrap.dedent(
+            """
+            Update the editable metadata on a File. This endpoint only supports changing the File `name`, `labels`, and `sources`.
+            """
+        ),
+        request=FilePatchSerializer,
         responses={200: FileSerializer, 400: DEFAULT_400_ERROR, 404: DEFAULT_404_ERROR},
     ),
     destroy=extend_schema(
@@ -283,6 +295,19 @@ class FileView(
         new_task(job_instance)
         return Response(job_serializer.data, status=status.HTTP_201_CREATED)
 
+    @transaction.atomic
+    def partial_update(self, request, *args, **kwargs):
+        file_obj = self.get_object()
+        serializer = FilePatchSerializer(
+            instance=file_obj,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        ReportView.update_report(file_obj.report_id, serializer.validated_data)
+        return Response(FileSerializer(file_obj, context={"request": request}).data)
+
     @extend_schema(
         summary="Get the extractions performed on this File",
         description=textwrap.dedent(
@@ -298,6 +323,13 @@ class FileView(
     def extractions(self, request, file_id=None, **kwargs):
         obj = self.get_object()
         return Response(obj.txt2stix_data or {})
+
+    def get_parsers(self):
+        if not hasattr(self, "action"):
+            return [parsers.JSONParser(), parsers.MultiPartParser()]
+        if self.action == "create":
+            return [parsers.MultiPartParser()]
+        return [parsers.JSONParser()]
 
     @extend_schema(
         responses={
@@ -451,7 +483,7 @@ class FileView(
         similar_files = obj.similar_posts(visible_to=visible_to)
         return Response(SimilarFileSerializer(similar_files, many=True).data)
     
-    @decorators.action(methods=["PATCH"], detail=True, parser_classes=[parsers.JSONParser])
+    @decorators.action(methods=["PATCH"], detail=True)
     def reprocess(self, request, file_id=None, **kwargs):
         file_obj = self.get_object()
         s = ReprocessSingleFileSerializer(data=request.data)
@@ -606,8 +638,12 @@ class ReportView(viewsets.ViewSet):
     def retrieve(self, request, *args, **kwargs):
         report_id = kwargs.get(self.lookup_url_kwarg)
         report_id = self.validate_report_id(report_id)
+        return self.get_report(report_id, request)
+
+    @classmethod
+    def get_report(cls, report_id, request=None):
         return ArangoDBHelper(settings.VIEW_NAME, request).get_objects_by_id(
-            self.fix_report_id(report_id)
+            cls.fix_report_id(report_id)
         )
 
     @extend_schema(
@@ -724,6 +760,39 @@ class ReportView(viewsets.ViewSet):
                 {self.lookup_url_kwarg: f"`{report_id}`: {e}"}
             )
         return report_uuid
+
+    @classmethod
+    def update_report(cls, report_id, validated_data):
+        report = cls.get_report(report_id).data
+        for k in ["name", "labels"]:
+            if k not in validated_data:
+                continue
+            report[k] = validated_data[k]
+        if 'sources' in validated_data:
+            report["external_references"] = [x for x in report.get('external_references', []) if x["source_name"] != "stixify_source"]
+            for source in validated_data['sources']:
+                report["external_references"].append(
+                    dict(
+                        source_name="stixify_source",
+                        url=source,
+                    )
+                )
+
+        helper = ArangoDBHelper(settings.VIEW_NAME, None)
+        returned = helper.execute_query(
+            """
+            FOR doc IN @@collection_vertex
+            FILTER doc.id == @new_report.id
+            UPDATE doc WITH @new_report IN @@collection_vertex OPTIONS { waitForSync: true }
+            RETURN NULL
+            """,
+            bind_vars={
+                "@collection_vertex": settings.ARANGODB_COLLECTION + "_vertex_collection",
+                "new_report": report,
+            },
+            paginate=False,
+        )
+        return returned == [None]
 
     @classmethod
     def remove_report(cls, report_id):

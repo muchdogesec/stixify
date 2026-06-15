@@ -183,6 +183,36 @@ def test_retrieve_file(client, stixify_file, api_schema):
 
 
 @pytest.mark.django_db
+def test_patch_file_metadata(client, stixify_file, api_schema):
+    payload = {
+        "name": "Updated file name",
+        "labels": ["threat-report", "customer-facing"],
+        "sources": ["https://example.com/report", "https://example.com/notes"],
+    }
+    with patch("stixify.web.views.ReportView.update_report") as mock_update_report:
+        resp = client.patch(
+            "/api/v1/files/dcbeb240-8dd6-4892-8e9e-7b6bda30e454/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+
+    assert resp.status_code == 200, resp.content
+    assert resp.data["name"] == payload["name"]
+    assert resp.data["labels"] == payload["labels"]
+    assert resp.data["sources"] == payload["sources"]
+
+    file_obj = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
+    assert file_obj.name == payload["name"]
+    assert file_obj.labels == payload["labels"]
+    assert file_obj.sources == payload["sources"]
+    mock_update_report.assert_called_once_with("report--dcbeb240-8dd6-4892-8e9e-7b6bda30e454", {'name': 'Updated file name', 'labels': ['threat-report', 'customer-facing'], 'sources': ['https://example.com/report', 'https://example.com/notes']})
+    api_schema['/api/v1/files/{file_id}/']['PATCH'].validate_response(
+        Transport.get_st_response(resp)
+    )
+
+
+@pytest.mark.django_db
 def test_list_files(client, stixify_file, more_files, api_schema):
     resp = client.get(
         "/api/v1/files/",

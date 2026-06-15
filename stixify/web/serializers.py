@@ -147,6 +147,18 @@ class FileSerializer(serializers.ModelSerializer):
                 validated_data['pdf_file'] = ContentFile(pdf_bytes, name=pdf_filename)
         return super().create(validated_data)
 
+
+class FilePatchSerializer(FileSerializer):
+    class Meta:
+        model = File
+        fields = ["name", "labels", "sources"]
+    def validate(self, attrs):
+        if not attrs:
+            raise ValidationError(
+                "At least one of `name`, `labels`, or `sources` must be provided."
+            )
+        return super().validate(attrs)
+
 class ImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
     class Meta:
