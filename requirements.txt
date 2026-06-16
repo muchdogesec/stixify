@@ -445,7 +445,7 @@ pydantic-core==2.41.5
     # via pydantic
 pyee==13.0.1
     # via playwright
-pyjwt==2.12.1
+pyjwt==2.13.0
     # via python-arango
 pyparsing==3.3.2
     # via httplib2
