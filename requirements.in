@@ -8,7 +8,7 @@ psycopg2-binary>=2.9.10
 redis
 dogesec_commons
 hyperlink
-django>=5.2.14
+django>=5.2.15
 django-filter>=24.2
 django-cors-headers
 django-storages[s3]
