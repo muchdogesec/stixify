@@ -275,7 +275,7 @@ joblib==1.5.3
     #   hdbscan
     #   nltk
     #   scikit-learn
-json-repair==0.58.6
+json-repair==0.60.1
     # via txt2stix
 jsonpointer==3.0.0
     # via jsonschema
