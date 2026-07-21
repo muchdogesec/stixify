@@ -140,7 +140,7 @@ drf-spectacular==0.29.0
     # via
     #   -r requirements.in
     #   dogesec-commons
-file2txt==1.0.10
+file2txt==1.0.13
     # via
     #   -r requirements.in
     #   dogesec-commons
