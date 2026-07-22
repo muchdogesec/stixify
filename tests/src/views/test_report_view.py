@@ -153,6 +153,7 @@ def test_update_report_updates_name_labels_and_sources(client, api_schema):
         assert resp.status_code == 200, resp.content
         assert resp.data["name"] == payload["name"]
         assert resp.data["labels"] == payload["labels"]
+        assert resp.data["modified"] > original_resp.data["modified"], "Report modified timestamp should be updated"
 
         sources = [
             ref["url"]
