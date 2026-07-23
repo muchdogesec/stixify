@@ -8,6 +8,7 @@ import uuid
 from django import forms
 from django.db import transaction
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import (
     viewsets,
     parsers,
@@ -31,6 +32,7 @@ from django.http.response import HttpResponse
 from drf_spectacular.utils import OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from stix2arango.services import ArangoDBService
+from stix2.utils import format_datetime as stix2_format_datetime
 
 import typing
 from django.conf import settings
@@ -777,7 +779,7 @@ class ReportView(viewsets.ViewSet):
                         url=source,
                     )
                 )
-
+        report["modified"] = stix2_format_datetime(timezone.now())
         helper = ArangoDBHelper(settings.VIEW_NAME, None)
         returned = helper.execute_query(
             """
