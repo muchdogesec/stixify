@@ -84,26 +84,12 @@ def make_conversion(input_file: Path, output_file: Path):
 
 def convert_mhtml_to_pdf(input_file: Path):
     from playwright.sync_api import sync_playwright
-
     input_file = Path(input_file)
-    input_file = Path(input_file)
-
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         page = browser.new_page()
         url = f"file://{input_file.resolve()}"
         page.goto(url, wait_until="domcontentloaded")
-        dimensions = page.evaluate(
-            """
-        function(){
-            const rect = document.body.getBoundingClientRect();
-            return {
-                "width": rect.width.toString(),
-                "height": rect.height.toString(),
-            }
-        }
-        """
-        )
-        pdf_bytes = page.pdf(**dimensions)
+        pdf_bytes = page.pdf(format="A4", margin=dict(top='0px', bottom='0px'), tagged=True, outline=True)
         browser.close()
         return bytes(pdf_bytes)
