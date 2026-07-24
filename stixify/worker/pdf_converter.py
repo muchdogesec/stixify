@@ -78,7 +78,7 @@ def make_conversion(input_file: Path, output_file: Path):
         else:
             raise ConversionError(f"Unsupported file extension: {ext}")
     except Exception as e:
-        raise ConversionError(f"failed to convert {input_file.name}") from e
+        raise ConversionError(f"failed to convert {input_file.name} to pdf: {e}") from e
     return output_file
 
 
