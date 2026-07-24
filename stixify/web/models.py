@@ -106,7 +106,34 @@ class File(CommonSTIXProps):
     mode = models.CharField(max_length=256)
     markdown_file = models.FileField(max_length=1024, upload_to=upload_to_func, null=True)
     pdf_file = models.FileField(max_length=1024, upload_to=upload_to_func, null=True)
-    summary = models.CharField(max_length=65536, null=True, default=None)    
+    summary = models.CharField(max_length=65536, null=True, default=None)
+
+    admiralty_source_reliability = models.CharField(
+        choices=[
+            ("A", "A - Completely reliable"),
+            ("B", "B - Usually reliable"),
+            ("C", "C - Fairly reliable"),
+            ("D", "D - Not usually reliable"),
+            ("E", "E - Unreliable"),
+            ("F", "F - Reliability cannot be judged"),
+        ],
+        max_length=1,
+        null=True,
+        default=None,
+    )
+    admiralty_information_credibility = models.CharField(
+        choices=[
+            ("1", "1 - Confirmed by other sources"),
+            ("2", "2 - Probably true"),
+            ("3", "3 - Possibly true"),
+            ("4", "4 - Doubtful"),
+            ("5", "5 - Improbable"),
+            ("6", "6 - Truth cannot be judged"),
+        ],
+        max_length=1,
+        null=True,
+        default=None,
+    )
     
     # describe incident
     ai_describes_incident = models.BooleanField(default=None, null=True)
