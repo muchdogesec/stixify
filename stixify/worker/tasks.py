@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 import logging
 import os
 from pathlib import Path
+import profile
 import uuid
 from django.utils import timezone
 from stixify.web.models import Job, File
@@ -77,7 +78,11 @@ def process_post(job_id, *args):
             confidence=file.confidence,
             labels=file.labels,
             created=file.created,
-            kwargs=dict(external_references=external_refs),
+            kwargs=dict(
+                external_references=external_refs,
+                admiralty_source_reliability=file.admiralty_source_reliability,
+                admiralty_information_credibility=file.admiralty_information_credibility,
+            ),
         )
         processor.setup(
             report_prop=report_props, extra=dict(_stixify_file_id=str(file.id))
@@ -97,7 +102,7 @@ def process_post(job_id, *args):
             processor.upload_to_arango()
         else:
             processor.process()
-        
+
         with transaction.atomic(): # revert to old file if something goes wrong during processing
             new_profile_id = (job.extra or {}).get("profile_id")
             if new_profile_id:
@@ -114,12 +119,12 @@ def process_post(job_id, *args):
                     models.FileImage.objects.create(
                         report=file, file=DjangoFile(image, image.name), name=image.name
                     )
-
-                converted_file_path = processor.tmpdir / "converted_pdf.pdf"
-                pdf_converter.make_conversion(processor.filename, converted_file_path)
-                file.pdf_file.save(
-                    converted_file_path.name, open(converted_file_path, mode="rb")
-                )
+                if job.profile.generate_pdf:
+                    converted_file_path = processor.tmpdir / "converted_pdf.pdf"
+                    pdf_converter.make_conversion(processor.filename, converted_file_path)
+                    file.pdf_file.save(
+                        converted_file_path.name, open(converted_file_path, mode="rb")
+                    )
                 file.save(update_fields=['markdown_file', 'pdf_file'])
     except Exception as e:
         error = str(e)

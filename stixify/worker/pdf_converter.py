@@ -29,6 +29,23 @@ def convert_with_libreoffice(input_file: Path, output_file: Path):
     if converted_file != output_file:
         converted_file.rename(output_file)
 
+def read_csv(input_file: Path) -> str:
+    """
+    Reads the CSV file and returns its content as a pandas DataFrame. Tries multiple encodings.
+    Raises an ExceptionGroup if none of the encodings work.
+    """
+    encodings = ["utf-8", "utf-8-sig", "cp1252", "latin1"]
+    errors: list[UnicodeDecodeError] = []
+
+    for encoding in encodings:
+        try:
+            return pd.read_csv(input_file, encoding=encoding)
+        except UnicodeError as exc:
+            errors.append(exc)
+    raise ExceptionGroup(
+        f"Unable to decode {input_file!s} using any supported encoding ({encodings})",
+        errors,
+    )
 
 def convert_image_to_pdf(input_file: Path, output_file: Path):
     image = Image.open(input_file).convert("RGB")
@@ -36,7 +53,7 @@ def convert_image_to_pdf(input_file: Path, output_file: Path):
 
 
 def convert_csv_to_pdf(input_file: Path, output_file: Path):
-    df = pd.read_csv(input_file)
+    df = read_csv(input_file)
     html = df.to_html(index=False)
     temp_html = output_file.with_suffix(".step.html")
     temp_html.write_text(html, encoding="utf-8")
@@ -78,7 +95,7 @@ def make_conversion(input_file: Path, output_file: Path):
         else:
             raise ConversionError(f"Unsupported file extension: {ext}")
     except Exception as e:
-        raise ConversionError(f"failed to convert {input_file.name}") from e
+        raise ConversionError(f"failed to convert {input_file.name} to pdf: {e}") from e
     return output_file
 
 
