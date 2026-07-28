@@ -2,6 +2,8 @@ import json
 
 import typing
 import uuid
+from datetime import datetime, timezone as dt_timezone
+from stix2.utils import format_datetime as stix2_format_datetime
 from stixify.classifier.models import Cluster, DocumentEmbedding
 from stixify.web import models
 from stixify.web.serializers import FileSerializer, JobSerializer
@@ -120,8 +122,15 @@ def test_list(client, api_schema):
     api_schema['/api/v1/reports/']['GET'].validate_response(Transport.get_st_response(resp))
 
 
+@pytest.mark.parametrize(
+    'modified_time',
+    [
+        None,
+        datetime(2025, 1, 1, 12, 0, 0, tzinfo=dt_timezone.utc),
+    ],
+)
 @pytest.mark.django_db
-def test_update_report_updates_name_labels_and_sources(client, api_schema):
+def test_update_report_updates_name_labels_and_sources(client, api_schema, modified_time):
     report_id = "report--52d2146c-798a-440f-942f-6fe039fb8995"
     original_resp = client.get(f"/api/v1/reports/{report_id}/")
     assert original_resp.status_code == 200, original_resp.content
@@ -146,14 +155,20 @@ def test_update_report_updates_name_labels_and_sources(client, api_schema):
     }
 
     try:
-        assert ReportView.update_report(report_id, payload) is True
+        assert ReportView.update_report(report_id, payload, modified=modified_time) is True
         time.sleep(1) # wait for it to update view
 
         resp = client.get(f"/api/v1/reports/{report_id}/")
         assert resp.status_code == 200, resp.content
         assert resp.data["name"] == payload["name"]
+        assert resp.data["created"] == original_resp.data["created"], "Report created timestamp should not change"
         assert resp.data["labels"] == payload["labels"]
-        assert resp.data["modified"] > original_resp.data["modified"], "Report modified timestamp should be updated"
+        if modified_time:
+            assert resp.data["modified"] == stix2_format_datetime(modified_time), (
+                "Report modified timestamp should match the passed-in modified value, not now()"
+            )
+        else:
+            assert resp.data["modified"] > original_resp.data["modified"], "Report modified timestamp should be updated"
 
         sources = [
             ref["url"]
@@ -167,7 +182,7 @@ def test_update_report_updates_name_labels_and_sources(client, api_schema):
         )
     finally:
         ReportView.update_report(report_id, original_payload)
-
+        time.sleep(1)  # wait for it to update view before other tests run
 
 @pytest.mark.parametrize(
     "report_id,expected_ids",

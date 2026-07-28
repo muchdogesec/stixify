@@ -42,6 +42,54 @@ def test_create(client, stixifier_profile, api_schema, identity):
 
 
 @pytest.mark.django_db
+def test_create_with_custom_created(client, stixifier_profile, api_schema, identity):
+    custom_created = "2020-05-17T12:30:00Z"
+    payload = dict(
+        file=SimpleUploadedFile(name="name.pdf", content=b"file content"),
+        profile_id=stixifier_profile.id,
+        identity_id=identity.id,
+        mode="md",
+        name="Upload test with custom created",
+        report_id="report--567681d6-2817-4d84-84fb-87b2f059b92e",
+        created=custom_created,
+    )
+    with (
+        patch(
+            "stixify.web.views.JobSerializer", side_effect=JobSerializer
+        ) as mock_job_serializer_cls,
+        patch("stixify.web.views.new_task") as mock_new_task,
+    ):
+        resp = client.post("/api/v1/files/", data=payload)
+        assert resp.status_code == 201, resp.content
+        file = models.File.objects.get(pk="567681d6-2817-4d84-84fb-87b2f059b92e")
+        assert file.created.isoformat() == "2020-05-17T12:30:00+00:00"
+        resp.wsgi_request.FILES.clear()
+        api_schema['/api/v1/files/']['POST'].validate_response(Transport.get_st_response(resp))
+
+
+@pytest.mark.django_db
+def test_patch_file_cannot_change_created(client, stixify_file, api_schema):
+    original_created = stixify_file.created
+    payload = {
+        "name": "Updated name only",
+        "created": "1999-01-01T00:00:00Z",
+    }
+    with patch("stixify.web.views.ReportView.update_report"):
+        resp = client.patch(
+            "/api/v1/files/dcbeb240-8dd6-4892-8e9e-7b6bda30e454/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+
+    assert resp.status_code == 200, resp.content
+    file_obj = models.File.objects.get(pk="dcbeb240-8dd6-4892-8e9e-7b6bda30e454")
+    assert file_obj.created == original_created, "created must not be changed via PATCH"
+    api_schema['/api/v1/files/{file_id}/']['PATCH'].validate_response(
+        Transport.get_st_response(resp)
+    )
+
+
+@pytest.mark.django_db
 def test_create_mhtml_pdf(client, stixifier_profile, api_schema, identity):
     payload = dict(
         file=SimpleUploadedFile(name="name.mhtml", content=b"file content"),
@@ -206,7 +254,7 @@ def test_patch_file_metadata(client, stixify_file, api_schema):
     assert file_obj.name == payload["name"]
     assert file_obj.labels == payload["labels"]
     assert file_obj.sources == payload["sources"]
-    mock_update_report.assert_called_once_with("report--dcbeb240-8dd6-4892-8e9e-7b6bda30e454", {'name': 'Updated file name', 'labels': ['threat-report', 'customer-facing'], 'sources': ['https://example.com/report', 'https://example.com/notes']})
+    mock_update_report.assert_called_once_with("report--dcbeb240-8dd6-4892-8e9e-7b6bda30e454", {'name': 'Updated file name', 'labels': ['threat-report', 'customer-facing'], 'sources': ['https://example.com/report', 'https://example.com/notes']}, file_obj.modified)
     api_schema['/api/v1/files/{file_id}/']['PATCH'].validate_response(
         Transport.get_st_response(resp)
     )

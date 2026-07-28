@@ -307,7 +307,7 @@ class FileView(
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        ReportView.update_report(file_obj.report_id, serializer.validated_data)
+        ReportView.update_report(file_obj.report_id, serializer.validated_data, file_obj.modified)
         return Response(FileSerializer(file_obj, context={"request": request}).data)
 
     @extend_schema(
@@ -764,7 +764,7 @@ class ReportView(viewsets.ViewSet):
         return report_uuid
 
     @classmethod
-    def update_report(cls, report_id, validated_data):
+    def update_report(cls, report_id, validated_data, modified=None):
         report = cls.get_report(report_id).data
         for k in ["name", "labels"]:
             if k not in validated_data:
@@ -779,7 +779,7 @@ class ReportView(viewsets.ViewSet):
                         url=source,
                     )
                 )
-        report["modified"] = stix2_format_datetime(timezone.now())
+        report["modified"] = stix2_format_datetime(modified or timezone.now())
         helper = ArangoDBHelper(settings.VIEW_NAME, None)
         returned = helper.execute_query(
             """

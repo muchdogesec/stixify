@@ -118,6 +118,7 @@ class FileSerializer(serializers.ModelSerializer):
         max_value=100,
         help_text="A value between `0`-`100`. This value is determined by the content check module of the profile used to process the file. If a confidence value is set on the File object, that value will be used instead.",
     )
+    created = serializers.DateTimeField(required=False, help_text="Set the `created` time of the STIX Report object generated for this File. If not passed, the time the File was uploaded will be used. This cannot be changed once the File has been created.")
 
     class Meta:
         model = File
