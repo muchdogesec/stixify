@@ -56,15 +56,16 @@ def stixifier_profile():
 @pytest.fixture
 def identity():
     from dogesec_commons.identity.models import Identity
-
-    identity = Identity.objects.create(
+    identity, _ = Identity.objects.get_or_create(
         id="identity--c5f27ca2-a580-4fee-9bb9-753e2b563a30",
-        created=timezone.now(),
-        modified=timezone.now(),
-        stix=dict(
-            name="dummy identity",
-            identity_class="individual",
-            created_by_ref="identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5",
+        defaults=dict(
+            created=timezone.now(),
+            modified=timezone.now(),
+            stix=dict(
+                name="dummy identity",
+                identity_class="individual",
+                created_by_ref="identity--9779a2db-f98c-5f4b-8d08-8ee04e02dbb5",
+            ),
         ),
     )
     yield identity

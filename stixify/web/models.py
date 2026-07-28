@@ -14,6 +14,7 @@ from stixify.classifier.tasks import compute_embedding_for_document, create_embe
 import txt2stix, txt2stix.extractions
 from django.core.exceptions import ValidationError
 from datetime import UTC, datetime, timezone
+from django.utils import timezone as dj_timezone
 from django.core.files.uploadedfile import InMemoryUploadedFile
 import stix2
 from file2txt.parsers.core import BaseParser
@@ -76,7 +77,7 @@ class CommonSTIXProps(models.Model):
 
     labels = ArrayField(base_field=models.CharField(max_length=256), default=list, help_text="These will be added to the `labels` property of the STIX Report object generated")
     identity = models.JSONField(default=default_identity, validators=[validate_identity], help_text="""This is a full STIX Identity JSON. e.g. `{"type":"identity","spec_version":"2.1","id":"identity--b1ae1a15-6f4b-431e-b990-1b9678f35e15","name":"Dummy Identity"}`. If no value is passed, [the Stixify identity object will be used](https://raw.githubusercontent.com/muchdogesec/stix4doge/refs/heads/main/objects/identity/stixify.json).""")
-    created = models.DateTimeField(auto_now_add=True)
+    created = models.DateTimeField(default=dj_timezone.now, help_text="This will be used as the `created` time of the STIX Report object generated. Defaults to the current time if not passed. This cannot be changed once the File has been created.")
     modified = models.DateTimeField(auto_now=True)
 
     class Meta:
