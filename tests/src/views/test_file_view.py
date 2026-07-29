@@ -368,6 +368,41 @@ def search_files(stixifier_profile, identity):
                 "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
             ],
         ),
+        (
+            dict(admiralty_source_reliability="A"),
+            [
+                "f3848d80-b14d-4aa6-b3a6-94bce54b217e",
+            ],
+        ),
+        (
+            dict(admiralty_source_reliability="B"),
+            [
+                "aadbe23d-192c-488d-8ce9-96aa2613453f",
+                "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
+            ],
+        ),
+        (
+            dict(admiralty_information_credibility="1"),
+            [
+                "f3848d80-b14d-4aa6-b3a6-94bce54b217e",
+                "aadbe23d-192c-488d-8ce9-96aa2613453f",
+            ],
+        ),
+        (
+            dict(admiralty_information_credibility="3"),
+            [
+                "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
+            ],
+        ),
+        (
+            dict(
+                admiralty_source_reliability="B",
+                admiralty_information_credibility="3",
+            ),
+            [
+                "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
+            ],
+        ),
     ],
 )
 @pytest.mark.django_db
