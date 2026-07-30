@@ -68,6 +68,56 @@ def test_create_with_custom_created(client, stixifier_profile, api_schema, ident
 
 
 @pytest.mark.django_db
+def test_create_with_pap_level(client, stixifier_profile, api_schema, identity):
+    payload = dict(
+        file=SimpleUploadedFile(name="name.pdf", content=b"file content"),
+        profile_id=stixifier_profile.id,
+        identity_id=identity.id,
+        mode="md",
+        name="Upload test with PAP level",
+        report_id="report--567681d6-2817-4d84-84fb-87b2f059b92e",
+        pap_level="amber",
+    )
+    with (
+        patch(
+            "stixify.web.views.JobSerializer", side_effect=JobSerializer
+        ) as mock_job_serializer_cls,
+        patch("stixify.web.views.new_task") as mock_new_task,
+    ):
+        resp = client.post("/api/v1/files/", data=payload)
+        assert resp.status_code == 201, resp.content
+        file = models.File.objects.get(pk="567681d6-2817-4d84-84fb-87b2f059b92e")
+        assert file.pap_level == "amber"
+        assert resp.data["file"]["pap_level"] == "amber"
+        resp.wsgi_request.FILES.clear()
+        api_schema['/api/v1/files/']['POST'].validate_response(Transport.get_st_response(resp))
+
+
+@pytest.mark.django_db
+def test_create_without_pap_level(client, stixifier_profile, api_schema, identity):
+    payload = dict(
+        file=SimpleUploadedFile(name="name.pdf", content=b"file content"),
+        profile_id=stixifier_profile.id,
+        identity_id=identity.id,
+        mode="md",
+        name="Upload test without PAP level",
+        report_id="report--567681d6-2817-4d84-84fb-87b2f059b92e",
+    )
+    with (
+        patch(
+            "stixify.web.views.JobSerializer", side_effect=JobSerializer
+        ) as mock_job_serializer_cls,
+        patch("stixify.web.views.new_task") as mock_new_task,
+    ):
+        resp = client.post("/api/v1/files/", data=payload)
+        assert resp.status_code == 201, resp.content
+        file = models.File.objects.get(pk="567681d6-2817-4d84-84fb-87b2f059b92e")
+        assert file.pap_level is None
+        resp.wsgi_request.FILES.clear()
+        api_schema['/api/v1/files/']['POST'].validate_response(Transport.get_st_response(resp))
+
+
+@pytest.mark.django_db
 def test_patch_file_cannot_change_created(client, stixify_file, api_schema):
     original_created = stixify_file.created
     payload = {
@@ -401,6 +451,39 @@ def search_files(stixifier_profile, identity):
             ),
             [
                 "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
+            ],
+        ),
+        (
+            dict(pap_level="clear"),
+            [
+                "f3848d80-b14d-4aa6-b3a6-94bce54b217e",
+            ],
+        ),
+        (
+            dict(pap_level="amber"),
+            [
+                "aadbe23d-192c-488d-8ce9-96aa2613453f",
+                "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
+            ],
+        ),
+        (
+            dict(language="en"),
+            [
+                "f3848d80-b14d-4aa6-b3a6-94bce54b217e",
+                "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
+            ],
+        ),
+        (
+            dict(language="EN"),
+            [
+                "f3848d80-b14d-4aa6-b3a6-94bce54b217e",
+                "bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
+            ],
+        ),
+        (
+            dict(language="fr"),
+            [
+                "aadbe23d-192c-488d-8ce9-96aa2613453f",
             ],
         ),
     ],

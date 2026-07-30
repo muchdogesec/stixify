@@ -52,6 +52,23 @@ TLP_LEVEL_STIX_ID_MAPPING = {
     TLP_Levels.AMBER_STRICT: "marking-definition--939a9414-2ddd-4d32-a0cd-375ea402b003",
 }
 
+
+class PAP_Levels(models.TextChoices):
+    RED = "red"
+    AMBER = "amber"
+    GREEN = "green"
+    CLEAR = "clear"
+    WHITE = "white"
+
+# https://github.com/oasis-open/cti-stix-common-objects/tree/main/extension-definition-specifications/pap-marking-definition-f8d
+PAP_LEVEL_STIX_ID_MAPPING = {
+    PAP_Levels.RED: "marking-definition--740d36e5-7714-4c30-961a-3ae632ceee0e",
+    PAP_Levels.AMBER: "marking-definition--60f8932b-e51e-4458-b265-a2e8be9a80ab",
+    PAP_Levels.GREEN: "marking-definition--c43594d1-4b11-4c59-93ab-1c9b14d53ce9",
+    PAP_Levels.CLEAR: "marking-definition--ad15a0cd-55b6-4588-a14c-a66105329b92",
+    PAP_Levels.WHITE: "marking-definition--a3bea94c-b469-41dc-9cfe-d6e7daba7730",
+}
+
 def create_report_id():
     return ""
 
@@ -72,6 +89,7 @@ def validate_identity(value):
 class CommonSTIXProps(models.Model):
     name = models.CharField(max_length=256, help_text="This will be used as the `name` value of the STIX Report object generated")
     tlp_level = models.CharField(choices=TLP_Levels.choices, default=TLP_Levels.RED, help_text="This will be assigned to all SDOs and SROs created. If no value passed, `TLP:Clear` will be assigned.")
+    pap_level = models.CharField(choices=PAP_Levels.choices, max_length=16, null=True, blank=True, default=None, help_text="This will be assigned to all SDOs and SROs created. If no value passed, no PAP marking will be assigned.")
     confidence = models.IntegerField(default=None, null=True)
 
 
