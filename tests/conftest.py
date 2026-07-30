@@ -115,6 +115,8 @@ def more_files(stixifier_profile, identity):
             ai_describes_incident=True,
             name="First file, special",
             identity=identity,
+            admiralty_source_reliability="A",
+            admiralty_information_credibility="1",
         ),
         models.File.objects.create(
             id="aadbe23d-192c-488d-8ce9-96aa2613453f",
@@ -124,6 +126,8 @@ def more_files(stixifier_profile, identity):
             ai_incident_classification=["other", "apt_group", "data_leak"],
             name="second file, not breakable",
             identity=identity,
+            admiralty_source_reliability="B",
+            admiralty_information_credibility="1",
         ),
         models.File.objects.create(
             id="bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
@@ -136,5 +140,7 @@ def more_files(stixifier_profile, identity):
             ai_incident_classification=["data_leak", "vulnerability"],
             name="Forth file, special, breakable",
             identity=identity,
+            admiralty_source_reliability="B",
+            admiralty_information_credibility="3",
         ),
     ]

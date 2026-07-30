@@ -318,6 +318,20 @@ def test_report_objects_types(client, report_id, types, api_schema):
         (dict(name="oThER"), ["report--ed758a1b-34fe-4fca-8178-0c30d93a03ab"]),
         (dict(tlp_level="clear", name="other"), []),
         (dict(tlp_level="amber"), ["report--ed758a1b-34fe-4fca-8178-0c30d93a03ab"]),
+        (
+            dict(admiralty_source_reliability="A"),
+            ["report--52d2146c-798a-440f-942f-6fe039fb8995"],
+        ),
+        (dict(admiralty_source_reliability="B"), []),
+        (
+            dict(admiralty_information_credibility="2"),
+            ["report--ed758a1b-34fe-4fca-8178-0c30d93a03ab"],
+        ),
+        (dict(admiralty_information_credibility="1"), []),
+        (
+            dict(admiralty_source_reliability="A", name="rig"),
+            ["report--52d2146c-798a-440f-942f-6fe039fb8995"],
+        ),
         (dict(labels="ploit"), ["report--ed758a1b-34fe-4fca-8178-0c30d93a03ab"]),
         (dict(labels="steal"), ["report--52d2146c-798a-440f-942f-6fe039fb8995"]),
         (

@@ -83,6 +83,7 @@ BUNDLE_1 = {
             "object_marking_refs": [
                 "marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487",
                 "marking-definition--f92e15d9-6afc-5ae2-bb3e-85a1fd83a3b5",
+                "marking-definition--cf438540-077a-56c7-b68e-82fcc2bb0208",
             ],
         },
         {
@@ -284,7 +285,8 @@ BUNDLE_2 = {
             ],
             "object_marking_refs": [
                 "marking-definition--55d920b0-5e8b-4f79-9ee9-91f868d9b421",
-                "marking-definition--f92e15d9-6afc-5ae2-bb3e-85a1fd83a3b5"
+                "marking-definition--f92e15d9-6afc-5ae2-bb3e-85a1fd83a3b5",
+                "marking-definition--9cf59b27-57f8-5250-98f4-16c462d5652c"
             ]
         },
         {

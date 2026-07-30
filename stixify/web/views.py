@@ -75,6 +75,25 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from drf_spectacular.views import SpectacularAPIView
 from rest_framework.response import Response
 
+ADMIRALTY_MARKING_MAPPING = {
+    "SOURCE": {
+        "A": "marking-definition--cf438540-077a-56c7-b68e-82fcc2bb0208",
+        "B": "marking-definition--b3cd9dd0-9081-5cbe-84d0-ef5bc11b8b13",
+        "C": "marking-definition--3545f856-c5f5-5d2f-a1ae-102e0b6028b2",
+        "D": "marking-definition--223ecfcc-22ce-5ece-b91c-a05a53a91959",
+        "E": "marking-definition--9eff5f66-33b9-5e54-9868-72179b28ae12",
+        "F": "marking-definition--adebda39-90c9-5ac0-9107-c26d86a6c3d8",
+    },
+    "INFORMATION": {
+        "1": "marking-definition--2462b621-0825-5879-917c-082e0394bcf4",
+        "2": "marking-definition--9cf59b27-57f8-5250-98f4-16c462d5652c",
+        "3": "marking-definition--4c76ec83-d905-5ada-b0bf-8ae2fb9e9f4d",
+        "4": "marking-definition--c36a018d-bc8e-57a4-a39d-9e7e31d1bc17",
+        "5": "marking-definition--0a48adab-e7d5-5354-8a41-abf199fe2628",
+        "6": "marking-definition--2244db4b-ee29-5b8c-bed4-c7ac784c647a",
+    },
+}
+
 
 class SchemaViewCached(SpectacularAPIView):
     _schema = None
@@ -248,6 +267,15 @@ class FileView(
             field_name="job__state",
             help_text="Job state of the file",
             choices=JobState.choices,
+        )
+
+        admiralty_source_reliability = filters.ChoiceFilter(
+            choices=File._meta.get_field("admiralty_source_reliability").choices,
+            help_text="Filter Files by the Admiralty source reliability rating assigned to them (e.g. `A`).",
+        )
+        admiralty_information_credibility = filters.ChoiceFilter(
+            choices=File._meta.get_field("admiralty_information_credibility").choices,
+            help_text="Filter Files by the Admiralty information credibility rating assigned to them (e.g. `1`).",
         )
 
         ai_describes_incident = filters.BooleanFilter(
@@ -670,6 +698,16 @@ class ReportView(viewsets.ViewSet):
                 enum=[f[0] for f in TLP_Levels.choices],
             ),
             OpenApiParameter(
+                "admiralty_source_reliability",
+                description="Filter the results by the Admiralty source reliability marking applied to the Report object (set at file upload time). Checks the `object_marking_refs` of the Report object for the marking definition `id` matching the rating selected.",
+                enum=[f[0] for f in File._meta.get_field("admiralty_source_reliability").choices],
+            ),
+            OpenApiParameter(
+                "admiralty_information_credibility",
+                description="Filter the results by the Admiralty information credibility marking applied to the Report object (set at file upload time). Checks the `object_marking_refs` of the Report object for the marking definition `id` matching the rating selected.",
+                enum=[f[0] for f in File._meta.get_field("admiralty_information_credibility").choices],
+            ),
+            OpenApiParameter(
                 "description",
                 description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc.",
             ),
@@ -866,6 +904,14 @@ class ReportView(viewsets.ViewSet):
         if tlp_level := helper.query.get("tlp_level"):
             bind_vars["tlp_level_stix_id"] = TLP_LEVEL_STIX_ID_MAPPING.get(tlp_level)
             filters.append("FILTER @tlp_level_stix_id IN doc.object_marking_refs")
+
+        if rating := helper.query.get("admiralty_source_reliability"):
+            bind_vars["admiralty_source_reliability_stix_id"] = ADMIRALTY_MARKING_MAPPING["SOURCE"].get(rating)
+            filters.append("FILTER @admiralty_source_reliability_stix_id IN doc.object_marking_refs")
+
+        if rating := helper.query.get("admiralty_information_credibility"):
+            bind_vars["admiralty_information_credibility_stix_id"] = ADMIRALTY_MARKING_MAPPING["INFORMATION"].get(rating)
+            filters.append("FILTER @admiralty_information_credibility_stix_id IN doc.object_marking_refs")
 
         if q := helper.query.get("name"):
             bind_vars["name"] = q.lower()
