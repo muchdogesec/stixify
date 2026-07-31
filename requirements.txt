@@ -424,6 +424,8 @@ psycopg2-binary==2.9.11
     # via
     #   -r requirements.in
     #   dogesec-commons
+py3langid==0.3.0
+    # via txt2stix
 pyasn1==0.6.4
     # via pyasn1-modules
 pyasn1-modules==0.4.2
@@ -604,7 +606,7 @@ tqdm==4.67.3
     #   transformers
 transformers==4.57.6
     # via llama-index-llms-openai-like
-txt2stix[llms]==1.7.0
+txt2stix[llms]==1.7.1
     # via
     #   -r requirements.in
     #   dogesec-commons

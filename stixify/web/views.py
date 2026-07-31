@@ -44,11 +44,13 @@ from stixify.web.autoschema import DEFAULT_400_ERROR, DEFAULT_404_ERROR
 if typing.TYPE_CHECKING:
     from stixify import settings
 from .models import (
+    PAP_LEVEL_STIX_ID_MAPPING,
     TLP_LEVEL_STIX_ID_MAPPING,
     File,
     FileImage,
     Job,
     JobType,
+    PAP_Levels,
     TLP_Levels,
     JobState,
 )
@@ -276,6 +278,15 @@ class FileView(
         admiralty_information_credibility = filters.ChoiceFilter(
             choices=File._meta.get_field("admiralty_information_credibility").choices,
             help_text="Filter Files by the Admiralty information credibility rating assigned to them (e.g. `1`).",
+        )
+        pap_level = filters.ChoiceFilter(
+            choices=PAP_Levels.choices,
+            help_text="Filter Files by the PAP (Permissible Actions Protocol) marking assigned to them (e.g. `clear`).",
+        )
+        language = filters.CharFilter(
+            field_name="txt2stix_data__language",
+            lookup_expr="iexact",
+            help_text="Filter Files by the ISO 639-1 language code detected for the File content (found at `txt2stix_data.language`). e.g. `en`.",
         )
 
         ai_describes_incident = filters.BooleanFilter(
@@ -708,6 +719,15 @@ class ReportView(viewsets.ViewSet):
                 enum=[f[0] for f in File._meta.get_field("admiralty_information_credibility").choices],
             ),
             OpenApiParameter(
+                "pap_level",
+                description="Filter the results by PAP (Permissible Actions Protocol) marking of the Report object (set at file upload time). Checks the `object_marking_refs` of the Report object for the marking definition `id` matching the level selected.",
+                enum=[f[0] for f in PAP_Levels.choices],
+            ),
+            OpenApiParameter(
+                "lang",
+                description="Filter the results by the `lang` property of the Report object. This is the ISO 639-1 language code detected for the report content (e.g. `en`).",
+            ),
+            OpenApiParameter(
                 "description",
                 description="Filter by the content in a report `description` (which contains the markdown version of the report). Will search for descriptions that contain the value entered. Search is wildcard so `exploit` will match `exploited`, `exploits`, etc.",
             ),
@@ -912,6 +932,14 @@ class ReportView(viewsets.ViewSet):
         if rating := helper.query.get("admiralty_information_credibility"):
             bind_vars["admiralty_information_credibility_stix_id"] = ADMIRALTY_MARKING_MAPPING["INFORMATION"].get(rating)
             filters.append("FILTER @admiralty_information_credibility_stix_id IN doc.object_marking_refs")
+
+        if pap_level := helper.query.get("pap_level"):
+            bind_vars["pap_level_stix_id"] = PAP_LEVEL_STIX_ID_MAPPING.get(pap_level)
+            filters.append("FILTER @pap_level_stix_id IN doc.object_marking_refs")
+
+        if q := helper.query.get("lang"):
+            bind_vars["lang"] = q.lower()
+            filters.append("FILTER LOWER(doc.lang) == @lang")
 
         if q := helper.query.get("name"):
             bind_vars["name"] = q.lower()

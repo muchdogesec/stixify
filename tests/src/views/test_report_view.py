@@ -332,6 +332,24 @@ def test_report_objects_types(client, report_id, types, api_schema):
             dict(admiralty_source_reliability="A", name="rig"),
             ["report--52d2146c-798a-440f-942f-6fe039fb8995"],
         ),
+        (
+            dict(pap_level="clear"),
+            ["report--52d2146c-798a-440f-942f-6fe039fb8995"],
+        ),
+        (
+            dict(pap_level="amber"),
+            ["report--ed758a1b-34fe-4fca-8178-0c30d93a03ab"],
+        ),
+        (dict(pap_level="red"), []),
+        (
+            dict(lang="en"),
+            ["report--52d2146c-798a-440f-942f-6fe039fb8995"],
+        ),
+        (
+            dict(lang="FR"),
+            ["report--ed758a1b-34fe-4fca-8178-0c30d93a03ab"],
+        ),
+        (dict(lang="de"), []),
         (dict(labels="ploit"), ["report--ed758a1b-34fe-4fca-8178-0c30d93a03ab"]),
         (dict(labels="steal"), ["report--52d2146c-798a-440f-942f-6fe039fb8995"]),
         (

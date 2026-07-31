@@ -56,6 +56,7 @@ BUNDLE_1 = {
             "modified": "2022-08-11T15:18:11.499288Z",
             "name": "The original report",
             "description": "aexample.com.ng (13.59.11.21), located in Nigeria is compromised to Gather Victim Host Information",
+            "lang": "en",
             "published": "2022-08-11T15:18:11.499288Z",
             "object_refs": [
                 "indicator--dd695028-06bc-5a67-8f4c-b572916f925e",
@@ -84,6 +85,7 @@ BUNDLE_1 = {
                 "marking-definition--94868c89-83c2-464b-929b-a1a8aa3c8487",
                 "marking-definition--f92e15d9-6afc-5ae2-bb3e-85a1fd83a3b5",
                 "marking-definition--cf438540-077a-56c7-b68e-82fcc2bb0208",
+                "marking-definition--ad15a0cd-55b6-4588-a14c-a66105329b92",
             ],
         },
         {
@@ -259,6 +261,7 @@ BUNDLE_2 = {
             "modified": "2025-06-17T15:26:48.932465Z",
             "name": "This is another report",
             "description": "T1120 is followed by T1123. \nTarget is located in Nigeria and the red team of ak99za hacked the hospital using CVE-2025-19123\nncsc.gov.uk",
+            "lang": "fr",
             "published": "2025-06-17T15:26:48.932465Z",
             "object_refs": [
                 "indicator--21c8753d-a681-5159-949d-72d6b1fefb89",
@@ -286,7 +289,8 @@ BUNDLE_2 = {
             "object_marking_refs": [
                 "marking-definition--55d920b0-5e8b-4f79-9ee9-91f868d9b421",
                 "marking-definition--f92e15d9-6afc-5ae2-bb3e-85a1fd83a3b5",
-                "marking-definition--9cf59b27-57f8-5250-98f4-16c462d5652c"
+                "marking-definition--9cf59b27-57f8-5250-98f4-16c462d5652c",
+                "marking-definition--60f8932b-e51e-4458-b265-a2e8be9a80ab"
             ]
         },
         {

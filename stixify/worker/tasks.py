@@ -82,6 +82,7 @@ def process_post(job_id, *args):
                 external_references=external_refs,
                 admiralty_source_reliability=file.admiralty_source_reliability,
                 admiralty_information_credibility=file.admiralty_information_credibility,
+                pap_level=file.pap_level,
             ),
         )
         processor.setup(

@@ -117,6 +117,8 @@ def more_files(stixifier_profile, identity):
             identity=identity,
             admiralty_source_reliability="A",
             admiralty_information_credibility="1",
+            pap_level="clear",
+            txt2stix_data={"language": "en"},
         ),
         models.File.objects.create(
             id="aadbe23d-192c-488d-8ce9-96aa2613453f",
@@ -128,6 +130,8 @@ def more_files(stixifier_profile, identity):
             identity=identity,
             admiralty_source_reliability="B",
             admiralty_information_credibility="1",
+            pap_level="amber",
+            txt2stix_data={"language": "fr"},
         ),
         models.File.objects.create(
             id="bd5c8992-e1f2-42ef-8ad2-8003bc4fcedb",
@@ -142,5 +146,7 @@ def more_files(stixifier_profile, identity):
             identity=identity,
             admiralty_source_reliability="B",
             admiralty_information_credibility="3",
+            pap_level="amber",
+            txt2stix_data={"language": "en"},
         ),
     ]
