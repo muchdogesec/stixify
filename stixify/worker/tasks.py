@@ -3,8 +3,10 @@ import logging
 import os
 from pathlib import Path
 import profile
+import time
 import uuid
 from django.utils import timezone
+from txt2stix import txt2stixBundler
 from stixify.web.models import Job, File
 from stixify.web import models
 from celery import shared_task
@@ -16,6 +18,7 @@ from django.core.files.storage import default_storage
 from django.core.files.base import File as DjangoFile
 from django.core.files.base import File as DjangoFile
 from django.db import transaction
+from django.core.cache import cache
 import stix2
 
 from stixify.worker import helpers, pdf_converter
@@ -24,6 +27,42 @@ from txt2stix.txt2stix import Txt2StixData
 
 
 POLL_INTERVAL = 1
+ARANGO_UPLOAD_COUNTER_KEY = "arango_upload_active_count"
+MAX_CONCURRENT_UPLOADS = 1
+LOCK_TIMEOUT = 300
+
+
+def acquire_upload_lock(job_id, wait_timeout=LOCK_TIMEOUT):
+    lock_key = f"arango_upload_lock:{job_id}"
+    logging.info(f"Attempting to acquire upload lock: {lock_key}")
+    lock_acquired_at = cache.get(lock_key)
+
+    if lock_acquired_at is not None:
+        raise RuntimeError(f"Upload lock already held for job {job_id}")
+
+    start_time = time.time()
+    while True:
+        active_count = cache.get(ARANGO_UPLOAD_COUNTER_KEY, 0)
+        if active_count < MAX_CONCURRENT_UPLOADS:
+            cache.set(ARANGO_UPLOAD_COUNTER_KEY, active_count + 1, LOCK_TIMEOUT)
+            cache.set(lock_key, time.time(), LOCK_TIMEOUT)
+            logging.info(f"Acquired upload lock for job {job_id} (active: {active_count + 1}/{MAX_CONCURRENT_UPLOADS})")
+            return
+
+        if time.time() - start_time > wait_timeout:
+            raise TimeoutError(f"Timeout waiting for arango upload slot after {wait_timeout}s")
+
+        time.sleep(0.1)
+
+
+def release_upload_lock(job_id):
+    lock_key = f"arango_upload_lock:{job_id}"
+    if cache.get(lock_key) is not None:
+        cache.delete(lock_key)
+        active_count = cache.get(ARANGO_UPLOAD_COUNTER_KEY, 0)
+        if active_count > 0:
+            cache.set(ARANGO_UPLOAD_COUNTER_KEY, active_count - 1, LOCK_TIMEOUT)
+        logging.info(f"Released upload lock for job {job_id} (active: {max(0, active_count - 1)}/{MAX_CONCURRENT_UPLOADS})")
 
 
 def new_task(job: Job):
@@ -42,6 +81,25 @@ def create_reprocessing_job(file: File, options: dict = None):
     )
     new_task(job)
     return job
+
+def _process_file(processor, job, file):
+    skip_extraction = bool((job.extra or {}).get("skip_extraction"))
+    is_reprocess = job.type == models.JobType.REPROCESS_POSTS
+
+    if is_reprocess and skip_extraction:
+        processor.output_md = file.markdown_file.open().read().decode()
+        if not file.txt2stix_data:
+            raise Exception("no existing extraction data to use for reprocess with skip_extraction=true")
+        txt2stix_data = Txt2StixData.model_validate(file.txt2stix_data)
+        processor.txt2stix(txt2stix_data)
+    else:
+        logging.info(f"running file2txt on {processor.task_name}")
+        processor.file2txt()
+        logging.info(f"running txt2stix on {processor.task_name}")
+        processor.txt2stix()
+
+    processor.write_bundle(processor.bundler)
+
 
 @shared_task
 def process_post(job_id, *args):
@@ -88,23 +146,18 @@ def process_post(job_id, *args):
         processor.setup(
             report_prop=report_props, extra=dict(_stixify_file_id=str(file.id))
         )
-        skip_extraction = bool((job.extra or {}).get("skip_extraction"))
 
-        # remove existing values for this file that are not in the new upload (handles deletions and modifications)
         models.ObjectValue.objects.filter(file_id=file.id).delete()
-        if job.type == models.JobType.REPROCESS_POSTS and skip_extraction:
-            processor.output_md = file.markdown_file.open().read().decode()
-            txt2stix_data = None
-            if not file.txt2stix_data:
-                raise Exception("no existing extraction data to use for reprocess with skip_extraction=true")
-            txt2stix_data = Txt2StixData.model_validate(file.txt2stix_data)
-            processor.txt2stix(txt2stix_data)
-            processor.write_bundle(processor.bundler)
-            processor.upload_to_arango()
-        else:
-            processor.process()
+        _process_file(processor, job, file)
 
-        with transaction.atomic(): # revert to old file if something goes wrong during processing
+        acquire_upload_lock(job.id)
+        try:
+            logging.info(f"uploading {processor.task_name} to arangodb via stix2arango")
+            processor.upload_to_arango()
+        finally:
+            release_upload_lock(job.id)
+
+        with transaction.atomic():
             new_profile_id = (job.extra or {}).get("profile_id")
             if new_profile_id:
                 file.profile_id = new_profile_id
@@ -112,9 +165,9 @@ def process_post(job_id, *args):
             file.set_txt2stix_data(processor.txt2stix_data)
             file.create_embedding(include_non_incident=settings.CREATE_EMBEDDING_INCLUDE_NON_INCIDENT)
 
-            if job.type == models.JobType.IMPORT_FILE: # only update files for import jobs, reprocess jobs should keep the same file references
+            if job.type == models.JobType.IMPORT_FILE:
                 file.markdown_file.save("markdown.md", processor.md_file.open(), save=True)
-                models.FileImage.objects.filter(report=file).delete()  # remove old references
+                models.FileImage.objects.filter(report=file).delete()
 
                 for image in processor.md_images:
                     models.FileImage.objects.create(
