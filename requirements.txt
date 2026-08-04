@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.14.1
+aiohttp==3.14.3
     # via llama-index-core
 aiosignal==1.4.0
     # via aiohttp
@@ -367,6 +367,7 @@ numpy==2.4.3
     #   llama-index-core
     #   pandas
     #   pgvector
+    #   py3langid
     #   scikit-learn
     #   scipy
     #   transformers
