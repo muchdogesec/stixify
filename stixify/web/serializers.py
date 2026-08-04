@@ -157,13 +157,6 @@ class FilePatchSerializer(FileSerializer):
         model = File
         fields = ["name", "labels", "sources"]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if 'labels' in self.fields:
-            self.fields['labels'] = CharacterSeparatedField(required=False, allow_null=True, help_text="Labels must contain only lowercase letters, numbers, and hyphens. Separate multiple labels with commas.", child=serializers.CharField(max_length=256, validators=[validate_label]))
-        if 'sources' in self.fields:
-            self.fields['sources'] = CharacterSeparatedField(required=False, allow_null=True, help_text="Sources must be valid URLs. Separate multiple sources with commas.", child=serializers.URLField(max_length=1024))
-
     def validate(self, attrs):
         if not attrs:
             raise ValidationError(
