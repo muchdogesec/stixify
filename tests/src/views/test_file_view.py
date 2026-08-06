@@ -8,6 +8,7 @@ from stixify.web.views import FileView
 import pytest
 from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.files.base import ContentFile
 import io
 from stixify.web.md_helper import MarkdownImageReplacer
 from tests.utils import Transport

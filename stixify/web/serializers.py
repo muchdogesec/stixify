@@ -130,8 +130,8 @@ class FileSerializer(serializers.ModelSerializer):
     ai_incident_classification = serializers.ListField(required=False, read_only=True, allow_null=True)
     summary = serializers.CharField(read_only=True, required=False, allow_null=True)
     archived_pdf = serializers.FileField(use_url=True, read_only=True, allow_null=True)
-    labels = CharacterSeparatedField(required=False, help_text="Labels must contain only lowercase letters, numbers, and hyphens. Separate multiple labels with commas.", child=LabelField(max_length=256), max_length=32)
-    sources = CharacterSeparatedField(required=False, help_text="You can use this to add one or more sources to the `external_references` property of the Report object created. Sources must be valid URLs. Separate multiple sources with commas.", child=serializers.URLField(max_length=1024), max_length=32)
+    labels = CharacterSeparatedField(required=False, allow_null=True, default=list, help_text="Labels must contain only lowercase letters, numbers, and hyphens. Separate multiple labels with commas.", child=LabelField(max_length=256), max_length=32)
+    sources = CharacterSeparatedField(required=False, allow_null=True, help_text="You can use this to add one or more sources to the `external_references` property of the Report object created. Sources must be valid URLs. Separate multiple sources with commas.", child=serializers.URLField(max_length=1024), max_length=32)
     confidence = serializers.IntegerField(
         required=False,
         allow_null=True,
