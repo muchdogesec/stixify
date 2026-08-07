@@ -183,12 +183,68 @@ def test_process_post_reprocess_skip_extraction_uses_existing_data(
     ):
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         new_task(stixify_reprocess_job)
-        fake_stixifier_processor.process.assert_not_called()
+        fake_stixifier_processor.file2txt.assert_not_called()
         fake_stixifier_processor.txt2stix.assert_called_once()
         fake_stixifier_processor.write_bundle.assert_called_once()
         fake_stixifier_processor.upload_to_arango.assert_called_once()
         mock_convert_pdf.assert_not_called()
         mock_create_embedding.assert_called_once()
+
+
+
+@pytest.mark.django_db
+def test_process_post_reprocess_skip_extraction_acquires_lock(
+    stixify_reprocess_job, fake_stixifier_processor
+):
+    from django.core.cache import cache
+    from stixify.worker.tasks import ARANGO_UPLOAD_COUNTER_KEY
+
+    file = stixify_reprocess_job.file
+    file.markdown_file.save("test.md", io.BytesIO(b"test content"))
+    file.save(update_fields=["markdown_file", "txt2stix_data"])
+    stixify_reprocess_job.extra = {"skip_extraction": True}
+    stixify_reprocess_job.save(update_fields=["extra"])
+
+    cache.clear()
+
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
+        patch.object(models.File, "create_embedding") as mock_create_embedding,
+    ):
+        mock_stixify_processor_cls.return_value = fake_stixifier_processor
+        process_post.si(stixify_reprocess_job.id).delay()
+
+        lock_key = f"arango_upload_lock:{stixify_reprocess_job.id}"
+        assert cache.get(lock_key) is None, "Lock should be released after upload"
+        assert cache.get(ARANGO_UPLOAD_COUNTER_KEY, 0) == 0, "Counter should be 0 after upload"
+        fake_stixifier_processor.upload_to_arango.assert_called_once()
+
+
+@pytest.mark.django_db
+def test_process_post_concurrent_uploads_limited(
+    stixify_reprocess_job, fake_stixifier_processor
+):
+    from django.core.cache import cache
+    from stixify.worker.tasks import ARANGO_UPLOAD_COUNTER_KEY, MAX_CONCURRENT_UPLOADS
+
+    file = stixify_reprocess_job.file
+    file.markdown_file.save("test.md", io.BytesIO(b"test content"))
+    file.save(update_fields=["markdown_file", "txt2stix_data"])
+
+    cache.clear()
+
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as mock_stixify_processor_cls,
+        patch.object(models.File, "create_embedding") as mock_create_embedding,
+    ):
+        mock_stixify_processor_cls.return_value = fake_stixifier_processor
+
+        cache.set(ARANGO_UPLOAD_COUNTER_KEY, MAX_CONCURRENT_UPLOADS, 300)
+
+        from stixify.worker.tasks import acquire_upload_lock
+        with pytest.raises(TimeoutError):
+            acquire_upload_lock(stixify_reprocess_job.id, wait_timeout=0.1)
+
 
 
 @pytest.mark.django_db
@@ -219,7 +275,8 @@ def test_process_post_reprocess_with_profile_switch(
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         process_post.si(stixify_reprocess_job.id).delay()
         stixify_reprocess_job.file.refresh_from_db()
-        fake_stixifier_processor.process.assert_called_once()
+        fake_stixifier_processor.file2txt.assert_called_once()
+        fake_stixifier_processor.txt2stix.assert_called_once()
         assert str(stixify_reprocess_job.file.profile_id) == str(new_profile.pk)
         mock_create_embedding.assert_called_once()
 
@@ -274,11 +331,13 @@ def test_process_post__creates_embedding(
 
 @pytest.mark.django_db
 def test_process_post_full(stixify_job):
-    process_post.si(stixify_job.id).delay()
-    file = models.File.objects.get(pk=stixify_job.file_id)
-    stixify_job.refresh_from_db()
-    assert stixify_job.error == None, stixify_job.error
-    assert tuple(file.archived_pdf.read(4)) == (0x25, 0x50, 0x44, 0x46)
+    with patch("stixify.worker.pdf_converter.make_conversion") as mock_convert_pdf:
+        mock_convert_pdf.side_effect = lambda input_path, output_path: output_path.write_bytes(b"%PDF-1.4")
+        process_post.si(stixify_job.id).delay()
+        file = models.File.objects.get(pk=stixify_job.file_id)
+        stixify_job.refresh_from_db()
+        assert stixify_job.error == None, stixify_job.error
+        assert tuple(file.archived_pdf.read(4)) == (0x25, 0x50, 0x44, 0x46)
 
 
 @pytest.mark.django_db

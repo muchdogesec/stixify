@@ -1,5 +1,8 @@
 from enum import StrEnum, auto
 import logging
+import re
+from django.core.validators import RegexValidator
+from urllib.parse import urlparse
 from rest_framework import serializers, validators
 from dogesec_commons.utils.serializers import JSONSchemaSerializer
 
@@ -94,6 +97,23 @@ class ReportIDField(serializers.CharField):
     def to_representation(self, value):
         return "report--"+serializers.UUIDField().to_representation(value)
 
+class LabelField(serializers.CharField):
+    default_error_messages = {
+        "invalid": _(
+            "Enter a valid label. Each label segment may contain only letters, numbers, "
+            "underscores, or hyphens, and nested labels must be separated by periods "
+            '(for example, "label" or "parent.child").'
+        ),
+    }
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+        validator = RegexValidator(
+            re.compile(r"^[-a-zA-Z0-9_]+(?:\.[-a-zA-Z0-9_]+)*$"),
+            message=self.error_messages["invalid"],
+        )
+        self.validators.append(validator)
+
 class FileSerializer(serializers.ModelSerializer):
     id = serializers.UUIDField(read_only=True)
     report_id = ReportIDField(source='id', help_text="If you want to define the UUID of the STIX Report object you can use this property. Pass the entire report id, e.g. `report--26dd4dcb-0ebc-4a71-8d37-ffd88faed163`. The UUID part will also be used for the file ID. If not passed, this UUID will be randomly generated. Must be unique.", validators=[
@@ -110,7 +130,8 @@ class FileSerializer(serializers.ModelSerializer):
     ai_incident_classification = serializers.ListField(required=False, read_only=True, allow_null=True)
     summary = serializers.CharField(read_only=True, required=False, allow_null=True)
     archived_pdf = serializers.FileField(use_url=True, read_only=True, allow_null=True)
-    sources = CharacterSeparatedField(required=False, allow_null=True, help_text="You can use this to add one or more sources to the `external_references` property of the Report object created. Useful for tracking locations (i.e. URLs) where the report was sourced.", child=serializers.CharField(max_length=1024))
+    labels = CharacterSeparatedField(required=False, default=list, help_text="Labels must contain only lowercase letters, numbers, and hyphens. Separate multiple labels with commas.", child=LabelField(max_length=256), max_length=32)
+    sources = CharacterSeparatedField(required=False, allow_null=True, help_text="You can use this to add one or more sources to the `external_references` property of the Report object created. Sources must be valid URLs. Separate multiple sources with commas.", child=serializers.URLField(max_length=1024), max_length=32)
     confidence = serializers.IntegerField(
         required=False,
         allow_null=True,
@@ -153,6 +174,7 @@ class FilePatchSerializer(FileSerializer):
     class Meta:
         model = File
         fields = ["name", "labels", "sources"]
+
     def validate(self, attrs):
         if not attrs:
             raise ValidationError(
