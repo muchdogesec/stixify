@@ -10,6 +10,8 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.files.base import ContentFile
 import io
+from datetime import timedelta
+from django.utils import timezone
 from stixify.web.md_helper import MarkdownImageReplacer
 from tests.utils import Transport
 
@@ -585,3 +587,164 @@ def test_file_pdf_with_pdf(client, stixify_file, api_schema):
     assert re.match(r'attachment; filename="dcbeb240-8dd6-4892-8e9e-7b6bda30e454_archived_*[\w]*.pdf"', resp.headers["Content-Disposition"])
     assert resp.getvalue() == b"pdf content"
     api_schema['/api/v1/files/{file_id}/pdf/']['GET'].validate_response(Transport.get_st_response(resp))
+
+
+@pytest.mark.django_db
+def test_reprocess_single_file_creates_detached_job(
+    client, stixify_file, api_schema
+):
+    stixify_file.txt2stix_data = {"existing": True}
+    stixify_file.save(update_fields=["txt2stix_data"])
+
+    with patch("stixify.worker.tasks.new_task") as mock_new_task:
+        response = client.patch(
+            f"/api/v1/files/{stixify_file.id}/reprocess/",
+            data=json.dumps({"skip_extraction": True}),
+            content_type="application/json",
+        )
+
+    assert response.status_code == 201, response.content
+    job = models.Job.objects.get(pk=response.data["id"])
+    assert job.file is None
+    assert job.type == models.JobType.REPROCESS_FILES
+    assert job.extra["file_ids"] == [str(stixify_file.id)]
+    assert job.extra["progress"]["total_items"] == 1
+    mock_new_task.assert_called_once_with(job)
+    api_schema["/api/v1/files/{file_id}/reprocess/"]["PATCH"].validate_response(
+        Transport.get_st_response(response)
+    )
+
+
+@pytest.mark.django_db
+def test_reprocess_files_creates_one_detached_job(
+    client, more_files, api_schema
+):
+    requested_ids = [
+        str(more_files[1].id),
+        str(more_files[0].id),
+        str(more_files[1].id),
+    ]
+    with patch("stixify.worker.tasks.new_task") as mock_new_task:
+        response = client.patch(
+            "/api/v1/files/reprocess/",
+            data=json.dumps(
+                {"file_ids": requested_ids, "skip_extraction": True}
+            ),
+            content_type="application/json",
+        )
+
+    assert response.status_code == 201, response.content
+    job = models.Job.objects.get(pk=response.data["id"])
+    assert job.file is None
+    assert job.extra["file_ids"] == requested_ids[:2]
+    assert job.extra["progress"]["total_items"] == 2
+    assert job.extra["progress"]["unprocessed_items"] == 2
+    mock_new_task.assert_called_once_with(job)
+    api_schema["/api/v1/files/reprocess/"]["PATCH"].validate_response(
+        Transport.get_st_response(response)
+    )
+
+
+@pytest.mark.django_db
+def test_reprocess_files_filters_identity_by_added_date(client, more_files, identity):
+    now = timezone.now()
+    models.File.objects.filter(pk=more_files[0].pk).update(
+        added=now - timedelta(days=2)
+    )
+    models.File.objects.filter(pk=more_files[1].pk).update(added=now)
+    models.File.objects.filter(pk=more_files[2].pk).update(
+        added=now + timedelta(days=2)
+    )
+
+    with patch("stixify.worker.tasks.new_task"):
+        response = client.patch(
+            "/api/v1/files/reprocess/",
+            data=json.dumps(
+                {
+                    "identity_id": str(identity.id),
+                    "added_after": (now - timedelta(days=1)).isoformat(),
+                    "added_before": (now + timedelta(days=1)).isoformat(),
+                    "skip_extraction": True,
+                }
+            ),
+            content_type="application/json",
+        )
+
+    assert response.status_code == 201, response.content
+    assert response.data["extra"]["file_ids"] == [str(more_files[1].id)]
+    assert response.data["extra"]["added_after"] == (
+        now - timedelta(days=1)
+    ).isoformat()
+
+
+@pytest.mark.django_db
+def test_reprocess_files_requires_selector(client):
+    response = client.patch(
+        "/api/v1/files/reprocess/",
+        data=json.dumps({"skip_extraction": True}),
+        content_type="application/json",
+    )
+    assert response.status_code == 400
+    assert "non_field_errors" in json.loads(response.content)["details"]
+
+
+@pytest.mark.django_db
+def test_jobs_file_id_filter_includes_detached_reprocessing_job(
+    client, stixify_file
+):
+    attached = models.Job.objects.create(file=stixify_file)
+    detached = models.Job.objects.create(
+        type=models.JobType.REPROCESS_FILES,
+        extra={"file_ids": [str(stixify_file.id)]},
+    )
+
+    response = client.get(
+        "/api/v1/jobs/", query_params={"file_id": str(stixify_file.id)}
+    )
+
+    assert response.status_code == 200, response.content
+    assert {str(job["id"]) for job in response.data["jobs"]} == {
+        str(attached.id),
+        str(detached.id),
+    }
+
+
+@pytest.mark.django_db
+def test_reprocess_files_rejects_unknown_file_ids(client):
+    unknown_file_id = str(uuid.uuid4())
+    response = client.patch(
+        "/api/v1/files/reprocess/",
+        data=json.dumps(
+            {"file_ids": [unknown_file_id], "skip_extraction": True}
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert unknown_file_id in str(
+        json.loads(response.content)["details"]["file_ids"]
+    )
+
+
+@pytest.mark.django_db
+def test_reprocess_files_validates_skip_extraction_for_entire_batch(
+    client, more_files
+):
+    more_files[1].txt2stix_data = None
+    more_files[1].save(update_fields=["txt2stix_data"])
+
+    response = client.patch(
+        "/api/v1/files/reprocess/",
+        data=json.dumps(
+            {
+                "file_ids": [str(file.id) for file in more_files[:2]],
+                "skip_extraction": True,
+            }
+        ),
+        content_type="application/json",
+    )
+
+    assert response.status_code == 400
+    assert str(more_files[1].id) in str(
+        json.loads(response.content)["details"]["file_ids"]
+    )

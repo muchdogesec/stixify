@@ -63,6 +63,7 @@ from .serializers import (
     HealthCheckSerializer,
     ImageSerializer,
     JobSerializer,
+    ReprocessFilesSerializer,
     ReprocessSingleFileSerializer,
 )
 from .topics import SimilarFileSerializer
@@ -202,6 +203,7 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
         ),
     ),
     reprocess=extend_schema(
+        operation_id="v1_files_reprocess_single",
         summary="Reprocess an uploaded File",
         description=textwrap.dedent(
             """
@@ -220,6 +222,24 @@ ATTACK_DOMAINS = ["ics", "mobile", "enterprise"]
             400: DEFAULT_400_ERROR,
         },
         request=ReprocessSingleFileSerializer,
+    ),
+    reprocess_files=extend_schema(
+        operation_id="v1_files_reprocess_multiple",
+        summary="Reprocess uploaded Files",
+        description=textwrap.dedent(
+            """
+            Reprocess multiple Files selected by `file_ids`, `identity_id`, or both.
+
+            `added_after` and `added_before` can be used to restrict the resolved Files
+            by their immutable `added` timestamp. The response is one detached Job whose
+            `extra.file_ids` contains the complete resolved set of Files.
+            """
+        ),
+        responses={
+            201: JobSerializer,
+            400: DEFAULT_400_ERROR,
+        },
+        request=ReprocessFilesSerializer,
     ),
 )
 class FileView(
@@ -536,7 +556,110 @@ class FileView(
             raise exceptions.ValidationError(
                 {"error": "Cannot skip extraction on unprocessed file"}
             )
-        job = tasks.create_reprocessing_job(file_obj, s.validated_data)
+        job = tasks.create_reprocessing_job(
+            [file_obj.id], self._reprocess_options(s.validated_data)
+        )
+        return Response(
+            JobSerializer(job, context={"request": request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @staticmethod
+    def _reprocess_options(validated_data):
+        options = {}
+        for key in (
+            "identity_id",
+            "profile_id",
+            "skip_extraction",
+            "added_after",
+            "added_before",
+        ):
+            if key not in validated_data:
+                continue
+            value = validated_data[key]
+            if hasattr(value, "isoformat"):
+                value = value.isoformat()
+            elif value is not None:
+                value = str(value)
+            options[key] = value
+        return options
+
+    @decorators.action(
+        methods=["PATCH"], detail=False, url_path="reprocess"
+    )
+    def reprocess_files(self, request, **kwargs):
+        serializer = ReprocessFilesSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        requested_ids = [str(file_id) for file_id in data.get("file_ids", [])]
+        existing_ids = {
+            str(file_id)
+            for file_id in File.objects.filter(pk__in=requested_ids).values_list(
+                "pk", flat=True
+            )
+        }
+        missing_ids = [
+            file_id for file_id in requested_ids if file_id not in existing_ids
+        ]
+        if missing_ids:
+            raise exceptions.ValidationError(
+                {"file_ids": [f"Unknown File IDs: {', '.join(missing_ids)}"]}
+            )
+
+        files = File.objects.all()
+        if data.get("added_after"):
+            files = files.filter(added__gte=data["added_after"])
+        if data.get("added_before"):
+            files = files.filter(added__lte=data["added_before"])
+
+        eligible_explicit_ids = {
+            str(file_id)
+            for file_id in files.filter(pk__in=requested_ids).values_list("pk", flat=True)
+        }
+        resolved_ids = []
+        seen = set()
+        for file_id in requested_ids:
+            if file_id in eligible_explicit_ids and file_id not in seen:
+                resolved_ids.append(file_id)
+                seen.add(file_id)
+
+        if identity_id := data.get("identity_id"):
+            identity_file_ids = files.filter(identity_id=identity_id).order_by(
+                "added", "id"
+            ).values_list("pk", flat=True)
+            for file_id in identity_file_ids:
+                file_id = str(file_id)
+                if file_id not in seen:
+                    resolved_ids.append(file_id)
+                    seen.add(file_id)
+
+        if not resolved_ids:
+            raise exceptions.ValidationError(
+                {"file_ids": ["No Files matched the supplied selectors"]}
+            )
+
+        if data["skip_extraction"]:
+            unprocessed_ids = [
+                str(file_id)
+                for file_id, extraction_data in File.objects.filter(
+                    pk__in=resolved_ids
+                ).values_list("pk", "txt2stix_data")
+                if not extraction_data
+            ]
+            if unprocessed_ids:
+                raise exceptions.ValidationError(
+                    {
+                        "file_ids": [
+                            "Cannot skip extraction for unprocessed Files: "
+                            + ", ".join(unprocessed_ids)
+                        ]
+                    }
+                )
+
+        job = tasks.create_reprocessing_job(
+            resolved_ids, self._reprocess_options(data)
+        )
         return Response(
             JobSerializer(job, context={"request": request}).data,
             status=status.HTTP_201_CREATED,
@@ -589,10 +712,17 @@ class JobView(
         return Job.objects.all()
 
     class filterset_class(FilterSet):
-        file_id = Filter("file_id", label="Filter Jobs by File `id`")
+        file_id = filters.UUIDFilter(
+            method="filter_file_id", label="Filter Jobs by File `id`"
+        )
         state = filters.BaseCSVFilter(
             help_text="Filter Jobs by their state.", lookup_expr="in"
         )
+
+        def filter_file_id(self, queryset, name, value):
+            return queryset.filter(
+                Q(file_id=value) | Q(extra__file_ids__contains=[str(value)])
+            )
 
 
 @extend_schema_view(

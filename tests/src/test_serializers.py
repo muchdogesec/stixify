@@ -1,6 +1,10 @@
 import pytest
 from django.core.files.base import ContentFile
-from stixify.web.serializers import FileSerializer, FilePatchSerializer
+from stixify.web.serializers import (
+    FilePatchSerializer,
+    FileSerializer,
+    ReprocessFilesSerializer,
+)
 
 
 @pytest.mark.django_db
@@ -199,3 +203,37 @@ class TestFileSerializerSources:
         serializer = FileSerializer(data=data)
         assert not serializer.is_valid()
         assert "sources" in serializer.errors
+
+
+@pytest.mark.django_db
+class TestReprocessFilesSerializer:
+    def test_requires_file_ids_or_identity_id(self):
+        serializer = ReprocessFilesSerializer(data={"skip_extraction": True})
+
+        assert not serializer.is_valid()
+        assert "non_field_errors" in serializer.errors
+
+    def test_rejects_reversed_added_range(self, stixify_file):
+        serializer = ReprocessFilesSerializer(
+            data={
+                "file_ids": [str(stixify_file.id)],
+                "skip_extraction": True,
+                "added_after": "2026-08-02T00:00:00Z",
+                "added_before": "2026-08-01T00:00:00Z",
+            }
+        )
+
+        assert not serializer.is_valid()
+        assert "non_field_errors" in serializer.errors
+
+    def test_accepts_file_ids_and_added_range(self, stixify_file):
+        serializer = ReprocessFilesSerializer(
+            data={
+                "file_ids": [str(stixify_file.id)],
+                "skip_extraction": True,
+                "added_after": "2026-08-01T00:00:00Z",
+                "added_before": "2026-08-02T00:00:00Z",
+            }
+        )
+
+        assert serializer.is_valid(), serializer.errors

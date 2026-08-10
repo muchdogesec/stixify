@@ -9,8 +9,9 @@ from django.utils import timezone
 from txt2stix import txt2stixBundler
 from stixify.web.models import Job, File
 from stixify.web import models
-from celery import shared_task
+from celery import chain, shared_task
 from dogesec_commons.stixifier.stixifier import StixifyProcessor, ReportProperties
+from dogesec_commons.stixifier.models import Profile
 from stixify.web.values.statistics import build_data_and_add_to_cache
 
 from django.core.files.uploadedfile import InMemoryUploadedFile
@@ -66,16 +67,41 @@ def release_upload_lock(job_id):
 
 
 def new_task(job: Job):
-    (process_post.s(job.id) | job_completed_with_error.si(job.id)).apply_async(
+    if job.type == models.JobType.REPROCESS_FILES and (job.extra or {}).get("file_ids"):
+        task = chain(
+            *[
+                process_post.si(job.id, file_id)
+                for file_id in job.extra["file_ids"]
+            ],
+            job_completed_with_error.si(job.id),
+        )
+    else:
+        task = process_post.s(job.id) | job_completed_with_error.si(job.id)
+    task.apply_async(
         countdown=POLL_INTERVAL, root_id=str(job.id), task_id=str(job.id)
     )
 
-def create_reprocessing_job(file: File, options: dict = None):
-    options = options or {}
-    job  = models.Job.objects.create(
+def create_reprocessing_job(file_ids, options: dict = None):
+    file_ids = [str(file_id) for file_id in file_ids]
+    options = dict(options or {})
+    options.update(
+        file_ids=file_ids,
+        progress=dict(
+            total_items=len(file_ids),
+            processed_items=0,
+            failed_processes=0,
+            unprocessed_items=len(file_ids),
+            current_file_id=None,
+            current_index=None,
+            stopped_early=False,
+            stop_reason=None,
+            errors=[],
+        ),
+    )
+    job = models.Job.objects.create(
         id=uuid.uuid4(),
-        type=models.JobType.REPROCESS_POSTS,
-        file=file,
+        type=models.JobType.REPROCESS_FILES,
+        file=None,
         state=models.JobState.PENDING,
         extra=options,
     )
@@ -84,7 +110,7 @@ def create_reprocessing_job(file: File, options: dict = None):
 
 def _process_file(processor, job, file):
     skip_extraction = bool((job.extra or {}).get("skip_extraction"))
-    is_reprocess = job.type == models.JobType.REPROCESS_POSTS
+    is_reprocess = job.type == models.JobType.REPROCESS_FILES
 
     if is_reprocess and skip_extraction:
         processor.output_md = file.markdown_file.open().read().decode()
@@ -101,16 +127,79 @@ def _process_file(processor, job, file):
     processor.write_bundle(processor.bundler)
 
 
+def _object_value_backup(file_id):
+    return list(
+        models.ObjectValue.objects.filter(file_id=file_id).values(
+            "id",
+            "stix_id",
+            "type",
+            "knowledgebase",
+            "values",
+            "created",
+            "modified",
+            "is_dupe",
+        )
+    )
+
+
+def _restore_object_values(file_id, backup):
+    models.ObjectValue.objects.filter(file_id=file_id).delete()
+    models.ObjectValue.objects.bulk_create(
+        [models.ObjectValue(file_id=file_id, **values) for values in backup]
+    )
+
+
+def _update_reprocess_progress(job, file_id, error=None):
+    progress = job.extra["progress"]
+    if error is None:
+        progress["processed_items"] += 1
+    else:
+        progress["failed_processes"] += 1
+        progress["errors"].append(
+            {"file_id": str(file_id), "message": error}
+        )
+        if progress["failed_processes"] >= settings.REPROCESS_MAX_FAILED_PROCESSES:
+            progress["stopped_early"] = True
+            progress["stop_reason"] = "failure_limit_reached"
+    progress["unprocessed_items"] = max(
+        0,
+        progress["total_items"]
+        - progress["processed_items"]
+        - progress["failed_processes"],
+    )
+
+
 @shared_task
-def process_post(job_id, *args):
+def process_post(job_id, file_id=None, *args):
     job = Job.objects.get(id=job_id)
-    file = job.file
+    detached_reprocess = (
+        job.type == models.JobType.REPROCESS_FILES and file_id is not None
+    )
+    if detached_reprocess:
+        progress = job.extra["progress"]
+        if progress["failed_processes"] >= settings.REPROCESS_MAX_FAILED_PROCESSES:
+            return job_id
+        progress["current_file_id"] = str(file_id)
+        progress["current_index"] = (
+            progress["processed_items"] + progress["failed_processes"]
+        )
+        file = None
+    else:
+        file = job.file
+    object_values_backup = None
     try:
+        if detached_reprocess:
+            file = File.objects.get(pk=file_id)
         job.state = models.JobState.PROCESSING
         job.save()
+        processing_profile = file.profile
+        if job.type == models.JobType.REPROCESS_FILES and (job.extra or {}).get(
+            "profile_id"
+        ):
+            processing_profile = Profile.objects.get(pk=job.extra["profile_id"])
         processor = StixifyProcessor(
             file.process_file,
-            job.profile,
+            processing_profile,
             job_id=job.id,
             file2txt_mode=file.process_mode,
             report_id=file.id,
@@ -118,7 +207,7 @@ def process_post(job_id, *args):
         external_refs = [
             dict(
                 source_name="stixify_profile_id",
-                external_id=str(job.profile.id),
+                external_id=str(processing_profile.id),
             )
         ]
         for source in file.sources or []:
@@ -147,8 +236,11 @@ def process_post(job_id, *args):
             report_prop=report_props, extra=dict(_stixify_file_id=str(file.id))
         )
 
-        models.ObjectValue.objects.filter(file_id=file.id).delete()
         _process_file(processor, job, file)
+
+        if job.type == models.JobType.REPROCESS_FILES:
+            object_values_backup = _object_value_backup(file.id)
+        models.ObjectValue.objects.filter(file_id=file.id).delete()
 
         acquire_upload_lock(job.id)
         try:
@@ -173,7 +265,7 @@ def process_post(job_id, *args):
                     models.FileImage.objects.create(
                         report=file, file=DjangoFile(image, image.name), name=image.name
                     )
-                if job.profile.generate_pdf:
+                if processing_profile.generate_pdf:
                     converted_file_path = processor.tmpdir / "converted_pdf.pdf"
                     pdf_converter.make_conversion(processor.filename, converted_file_path)
                     file.pdf_file.save(
@@ -182,11 +274,23 @@ def process_post(job_id, *args):
                 file.save(update_fields=['markdown_file', 'pdf_file'])
     except Exception as e:
         error = str(e)
-        job.error = "failed to process report"
+        job.error = "failed to process file"
         if error:
             job.error += f": {error}"
+        if object_values_backup is not None and file is not None:
+            try:
+                _restore_object_values(file.id, object_values_backup)
+            except Exception:
+                logging.exception(
+                    "failed to restore ObjectValue data for File %s", file.id
+                )
+        if detached_reprocess:
+            _update_reprocess_progress(job, file_id, job.error)
         logging.error(job.error)
         logging.exception(e)
+    else:
+        if detached_reprocess:
+            _update_reprocess_progress(job, file_id)
     job.save()
     return job_id
 
@@ -195,11 +299,30 @@ def process_post(job_id, *args):
 def job_completed_with_error(job_id):
     job = Job.objects.get(pk=job_id)
     state = models.JobState.COMPLETED
+    if job.type == models.JobType.REPROCESS_FILES and (job.extra or {}).get("progress"):
+        progress = job.extra["progress"]
+        progress["current_file_id"] = None
+        progress["current_index"] = None
+        progress["unprocessed_items"] = max(
+            0,
+            progress["total_items"]
+            - progress["processed_items"]
+            - progress["failed_processes"],
+        )
+        if progress["failed_processes"]:
+            job.error = (
+                f"failed to reprocess {progress['failed_processes']} file(s)"
+            )
     if job.error:
         state = models.JobState.FAILED
         if job.type == models.JobType.IMPORT_FILE:
             job.file and job.file.delete()
-    Job.objects.filter(pk=job_id).update(state=state, completion_time=datetime.now(UTC))
+    Job.objects.filter(pk=job_id).update(
+        state=state,
+        error=job.error,
+        extra=job.extra,
+        completion_time=datetime.now(UTC),
+    )
 
 from celery import signals
 
