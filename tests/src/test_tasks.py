@@ -8,6 +8,7 @@ from stixify.web import models
 from dogesec_commons.stixifier.stixifier import StixifyProcessor
 from dogesec_commons.stixifier.models import Profile
 from django.core.files.base import ContentFile
+from django.test import override_settings
 from txt2stix.txt2stix import Txt2StixData
 
 from stixify.worker import tasks
@@ -32,6 +33,41 @@ def test_new_task(stixify_job):
 
 
 @pytest.mark.django_db
+def test_new_task_detached_reprocesses_each_file(stixify_file):
+    file_ids = [str(stixify_file.id), str(stixify_file.id)]
+    job = models.Job.objects.create(
+        type=models.JobType.REPROCESS_FILES,
+        extra={
+            "file_ids": file_ids,
+            "progress": {
+                "total_items": 2,
+                "processed_items": 0,
+                "failed_processes": 0,
+                "unprocessed_items": 2,
+                "current_file_id": None,
+                "current_index": None,
+                "stopped_early": False,
+                "stop_reason": None,
+                "errors": [],
+            },
+        },
+    )
+    with (
+        patch("stixify.worker.tasks.process_post.run") as mock_process_file,
+        patch(
+            "stixify.worker.tasks.job_completed_with_error.run"
+        ) as mock_completed,
+    ):
+        new_task(job)
+
+    assert mock_process_file.call_args_list == [
+        call(job.id, file_ids[0]),
+        call(job.id, file_ids[1]),
+    ]
+    mock_completed.assert_called_once_with(job.id)
+
+
+@pytest.mark.django_db
 def test_process_post_job__fails(stixify_job):
     with (
         patch(
@@ -40,12 +76,12 @@ def test_process_post_job__fails(stixify_job):
     ):
         process_post.si(stixify_job.id).delay()
         stixify_job.refresh_from_db()
-        assert stixify_job.error == "failed to process report"
+        assert stixify_job.error == "failed to process file"
 
         mock_stixify_processor_cls.side_effect = ValueError("some error")
         process_post.si(stixify_job.id).delay()
         stixify_job.refresh_from_db()
-        assert stixify_job.error == "failed to process report: some error"
+        assert stixify_job.error == "failed to process file: some error"
 
 
 @pytest.fixture
@@ -63,7 +99,7 @@ def fake_stixifier_processor(tmpdir):
 
 @pytest.fixture
 def stixify_reprocess_job(stixify_job):
-    stixify_job.type = models.JobType.REPROCESS_POSTS
+    stixify_job.type = models.JobType.REPROCESS_FILES
     stixify_job.extra = {}
     stixify_job.save(update_fields=["type", "extra"])
     stixify_job.file.set_txt2stix_data(fake_txt2stix_data())
@@ -244,6 +280,7 @@ def test_process_post_concurrent_uploads_limited(
         from stixify.worker.tasks import acquire_upload_lock
         with pytest.raises(TimeoutError):
             acquire_upload_lock(stixify_reprocess_job.id, wait_timeout=0.1)
+        cache.clear()
 
 
 
@@ -278,6 +315,7 @@ def test_process_post_reprocess_with_profile_switch(
         fake_stixifier_processor.file2txt.assert_called_once()
         fake_stixifier_processor.txt2stix.assert_called_once()
         assert str(stixify_reprocess_job.file.profile_id) == str(new_profile.pk)
+        assert mock_stixify_processor_cls.call_args.args[1] == new_profile
         mock_create_embedding.assert_called_once()
 
 
@@ -362,3 +400,128 @@ def test_job_completed_with_error__success(stixify_job):
     assert stixify_job.file.pk == file_id
     assert stixify_job.state == models.JobState.COMPLETED
     assert stixify_job.completion_time != None
+
+
+def detached_reprocess_job(file_ids, **options):
+    progress = {
+        "total_items": len(file_ids),
+        "processed_items": 0,
+        "failed_processes": 0,
+        "unprocessed_items": len(file_ids),
+        "current_file_id": None,
+        "current_index": None,
+        "stopped_early": False,
+        "stop_reason": None,
+        "errors": [],
+    }
+    return models.Job.objects.create(
+        type=models.JobType.REPROCESS_FILES,
+        extra={"file_ids": file_ids, "progress": progress, **options},
+    )
+
+
+@pytest.mark.django_db
+def test_detached_reprocess_updates_progress(
+    stixify_file, fake_stixifier_processor
+):
+    job = detached_reprocess_job([str(stixify_file.id)], skip_extraction=False)
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as processor_class,
+        patch.object(models.File, "create_embedding"),
+    ):
+        processor_class.return_value = fake_stixifier_processor
+        process_post(job.id, stixify_file.id)
+
+    job.refresh_from_db()
+    assert job.extra["progress"] == {
+        "total_items": 1,
+        "processed_items": 1,
+        "failed_processes": 0,
+        "unprocessed_items": 0,
+        "current_file_id": str(stixify_file.id),
+        "current_index": 0,
+        "stopped_early": False,
+        "stop_reason": None,
+        "errors": [],
+    }
+
+
+@pytest.mark.django_db
+@override_settings(REPROCESS_MAX_FAILED_PROCESSES=10)
+def test_detached_reprocess_stops_after_ten_failures(stixify_file):
+    file_ids = [str(stixify_file.id)] * 11
+    job = detached_reprocess_job(file_ids, skip_extraction=False)
+
+    with patch(
+        "stixify.worker.tasks.StixifyProcessor", side_effect=ValueError("bad file")
+    ) as processor_class:
+        for file_id in file_ids:
+            process_post(job.id, file_id)
+
+    job.refresh_from_db()
+    progress = job.extra["progress"]
+    assert processor_class.call_count == 10
+    assert progress["processed_items"] == 0
+    assert progress["failed_processes"] == 10
+    assert progress["unprocessed_items"] == 1
+    assert progress["stopped_early"] is True
+    assert progress["stop_reason"] == "failure_limit_reached"
+    assert len(progress["errors"]) == 10
+    assert set(progress["errors"][0]) == {"file_id", "message"}
+
+    job_completed_with_error(job.id)
+    job.refresh_from_db()
+    assert job.state == models.JobState.FAILED
+    assert job.error == "failed to reprocess 10 file(s)"
+    assert job.extra["progress"]["current_file_id"] is None
+
+
+@pytest.mark.django_db
+def test_detached_reprocess_is_failed_when_one_file_fails(
+    stixify_file, fake_stixifier_processor
+):
+    file_ids = [str(stixify_file.id), str(stixify_file.id)]
+    job = detached_reprocess_job(file_ids, skip_extraction=False)
+
+    with (
+        patch(
+            "stixify.worker.tasks.StixifyProcessor",
+            side_effect=[ValueError("bad file"), fake_stixifier_processor],
+        ),
+        patch.object(models.File, "create_embedding"),
+    ):
+        for file_id in file_ids:
+            process_post(job.id, file_id)
+    job_completed_with_error(job.id)
+
+    job.refresh_from_db()
+    assert job.state == models.JobState.FAILED
+    assert job.extra["progress"]["processed_items"] == 1
+    assert job.extra["progress"]["failed_processes"] == 1
+    assert job.extra["progress"]["unprocessed_items"] == 0
+
+
+@pytest.mark.django_db
+def test_reprocess_restores_object_values_after_failure(
+    stixify_file, fake_stixifier_processor
+):
+    original = models.ObjectValue.objects.create(
+        file=stixify_file,
+        stix_id="indicator--11111111-1111-4111-8111-111111111111",
+        type="indicator",
+        values={"name": "original"},
+    )
+    job = detached_reprocess_job([str(stixify_file.id)], skip_extraction=False)
+    fake_stixifier_processor.upload_to_arango.side_effect = RuntimeError("upload failed")
+
+    with (
+        patch("stixify.worker.tasks.StixifyProcessor") as processor_class,
+        patch.object(models.File, "create_embedding"),
+    ):
+        processor_class.return_value = fake_stixifier_processor
+        process_post(job.id, stixify_file.id)
+
+    restored = models.ObjectValue.objects.get(
+        file=stixify_file, stix_id=original.stix_id
+    )
+    assert restored.values == {"name": "original"}

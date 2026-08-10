@@ -144,7 +144,7 @@ class FileSerializer(serializers.ModelSerializer):
     class Meta:
         model = File
         exclude = ['profile', "markdown_file", "txt2stix_data", "pdf_file", "identity", "embedding"]
-        read_only_fields = []
+        read_only_fields = ["added", "updated"]
 
     def validate(self, attrs):
         return super().validate(attrs)
@@ -238,6 +238,50 @@ class ReprocessSingleFileSerializer(serializers.Serializer):
                 }
             )
         return super().validate(attrs)
+
+
+class ReprocessFilesSerializer(ReprocessSingleFileSerializer):
+    file_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        help_text="IDs of the Files to reprocess.",
+    )
+    identity_id = IdentityIDField(
+        required=False,
+        help_text="Reprocess Files owned by this Identity.",
+    )
+    added_after = serializers.DateTimeField(
+        required=False,
+        help_text="Only reprocess Files added at or after this time.",
+    )
+    added_before = serializers.DateTimeField(
+        required=False,
+        help_text="Only reprocess Files added at or before this time.",
+    )
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if not attrs.get("file_ids") and not attrs.get("identity_id"):
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        "At least one of file_ids or identity_id must be provided"
+                    ]
+                }
+            )
+        if (
+            attrs.get("added_after")
+            and attrs.get("added_before")
+            and attrs["added_after"] > attrs["added_before"]
+        ):
+            raise serializers.ValidationError(
+                {
+                    "non_field_errors": [
+                        "added_after cannot be later than added_before"
+                    ]
+                }
+            )
+        return attrs
 
 
 class AttackNavigatorDomainSerializer(JSONSchemaSerializer):
