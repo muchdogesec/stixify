@@ -118,6 +118,8 @@ def validate_file(file: InMemoryUploadedFile, mode: str):
 
 class File(CommonSTIXProps):
     id = models.UUIDField(unique=True, max_length=64, primary_key=True, default=uuid.uuid4)
+    added = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
     file = models.FileField(max_length=1024, upload_to=upload_to_func)
     identity = models.ForeignKey(Identity, on_delete=models.CASCADE, default=None)
     profile = models.ForeignKey(Profile, on_delete=models.PROTECT)
@@ -174,6 +176,12 @@ class File(CommonSTIXProps):
     def clean(self) -> None:
         validate_file(self.file, self.mode)
         return super().clean()
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None:
+            kwargs["update_fields"] = set(update_fields) | {"updated"}
+        return super().save(*args, **kwargs)
     
     def __str__(self) -> str:
         return f"File(id={self.id})"
@@ -298,7 +306,7 @@ class JobState(models.TextChoices):
 
 class JobType(models.TextChoices):
     IMPORT_FILE = "import-file"
-    REPROCESS_POSTS = "reprocess-posts"
+    REPROCESS_FILES = "reprocess-files"
     SYNC_KNOWLEDGEBASE = "sync-knowledgebase"
     BUILD_CLUSTERS = "build-clusters"
     BUILD_EMBEDDINGS = "build-embeddings"
