@@ -19,7 +19,7 @@ services:
                         "
     django:
         extends: django_env
-        command: gunicorn stixify.wsgi:application --bind 0.0.0.0:8004 --reload
+        command: gunicorn stixify.wsgi:application --bind 0.0.0.0:8004 --preload -w 4
         ports:
             - 8004:8004
         depends_on:
@@ -27,7 +27,7 @@ services:
                 condition: service_started
     celery:
         extends: django_env
-        command: celery -A stixify.worker worker -l INFO
+        command: celery -A stixify.worker worker -l INFO --autoscale 8,2 --pool=prefork
         depends_on:
             - django
             - redis
@@ -39,7 +39,7 @@ services:
         extends: django_env
         command: >
                 bash -c "
-                  celery -A stixify.worker beat -l INFO
+                  celery -A stixify.worker.beat beat -l INFO
                   "
         depends_on:
             redis:

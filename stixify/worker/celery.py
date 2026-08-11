@@ -1,4 +1,3 @@
-from datetime import timedelta
 import os
 from celery import Celery
 # Set the default Django settings module for the 'celery' program.
@@ -10,12 +9,11 @@ app = Celery('stixify')
 
 app.config_from_object('os:environ', namespace='CELERY')
 
+app.conf.imports = (
+    "stixify.worker.process_post",
+    "stixify.classifier.tasks",
+    "stixify.worker.tasks",
+)
+
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
-
-app.conf.beat_schedule = {
-    "auto_refresh_statistics_data": {
-        "task": "stixify.worker.tasks.auto_refresh_statistics_data",
-        "schedule": timedelta(minutes=10),
-    }
-}

@@ -135,7 +135,7 @@ def test_run_topic_clusters_job_success():
         state=models.JobState.PROCESSING,
     )
 
-    with patch("stixify.worker.topics.classifier_tasks.run_clustering") as mock_clustering:
+    with patch("stixify.classifier.tasks.run_clustering") as mock_clustering:
         run_topic_clusters_job(job.id, force=True)
 
     job.refresh_from_db()
@@ -156,7 +156,7 @@ def test_run_topic_clusters_job_clustering_cancelled():
     )
 
     with patch(
-        "stixify.worker.topics.classifier_tasks.run_clustering",
+        "stixify.classifier.tasks.run_clustering",
         side_effect=classifier_tasks.ClusteringCancelled,
     ):
         run_topic_clusters_job(job.id, force=False)
