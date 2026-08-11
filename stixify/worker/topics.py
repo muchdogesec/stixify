@@ -2,7 +2,6 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging, typing
 from django.conf import settings
-from stixify.classifier import tasks as classifier_tasks
 from celery import shared_task
 from stixify.web import models
 from django.utils import timezone
@@ -85,9 +84,10 @@ def run_topic_embeddings_job(
         job.save(update_fields=["extra", "completion_time"])
 
 def run_topic_clusters_job(job_id, force=False):
+    from stixify.classifier.tasks import run_clustering
     job = models.Job.objects.get(pk=job_id)
     try:
-        classifier_tasks.run_clustering(
+        run_clustering(
             force=force,
             workers=settings.CLASSIFIER_CONCURRENCY,
         )

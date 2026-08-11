@@ -158,7 +158,7 @@ def test_create_mhtml_pdf(client, stixifier_profile, api_schema, identity):
         ) as mock_job_serializer_cls,
         patch("stixify.web.views.new_task") as mock_new_task,
         patch(
-            "stixify.web.serializers.pdf_converter.convert_mhtml_to_pdf",
+            "stixify.worker.pdf_converter.convert_mhtml_to_pdf",
             return_value=b"pdf bytes",
         ) as mock_convert_mhtml_to_pdf,
     ):
@@ -564,6 +564,38 @@ def test_file_similar_files_visible_to_passed_to_similar_posts(
     api_schema["/api/v1/files/{file_id}/similar_files/"]["GET"].validate_response(
         Transport.get_st_response(resp)
     )
+
+
+@pytest.mark.django_db
+def test_similar_posts_uses_annotated_cosine_distance(more_files):
+    dimensions = 512
+    more_files[0].embedding = DocumentEmbedding.objects.create(
+        id=more_files[0].id,
+        text="seed",
+        embedding=[1.0] + [0.0] * (dimensions - 1),
+    )
+    more_files[0].save(update_fields=["embedding"])
+    more_files[1].embedding = DocumentEmbedding.objects.create(
+        id=more_files[1].id,
+        text="same direction",
+        embedding=[1.0] + [0.0] * (dimensions - 1),
+    )
+    more_files[1].save(update_fields=["embedding"])
+    more_files[2].embedding = DocumentEmbedding.objects.create(
+        id=more_files[2].id,
+        text="orthogonal",
+        embedding=[0.0, 1.0] + [0.0] * (dimensions - 2),
+    )
+    more_files[2].save(update_fields=["embedding"])
+
+    similar = more_files[0].similar_posts()
+
+    assert [item["id"] for item in similar] == [
+        uuid.UUID(more_files[1].id),
+        uuid.UUID(more_files[2].id),
+    ]
+    assert similar[0]["score"] == pytest.approx(1.0)
+    assert similar[1]["score"] == pytest.approx(0.0)
 
 @pytest.mark.django_db
 def test_file_pdf_no_pdf(client, stixify_file, api_schema):

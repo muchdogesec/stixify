@@ -10,8 +10,6 @@ from django.db.models.functions import Upper
 from django.core.cache import cache
 import uuid, typing
 from stixify.classifier.models import Cluster, DocumentEmbedding
-from stixify.classifier.tasks import compute_embedding_for_document, create_embedding_text
-import txt2stix, txt2stix.extractions
 from django.core.exceptions import ValidationError
 from datetime import UTC, datetime, timezone
 from django.utils import timezone as dj_timezone
@@ -21,9 +19,11 @@ from file2txt.parsers.core import BaseParser
 from dogesec_commons.stixifier.models import Profile
 from dogesec_commons.identity.models import Identity
 
-from sklearn.metrics.pairwise import cosine_similarity
 from pgvector.django import CosineDistance
-
+from stixify.classifier.utils import (
+    compute_embedding_for_document,
+    create_embedding_text,
+)
 
 if typing.TYPE_CHECKING:
     from .. import settings
@@ -33,8 +33,6 @@ STATISTICS_CACHE_KEY = "statistics-cache"
 
 def validate_extractor(types, name):
     pass
-
-
 
 
 class TLP_Levels(models.TextChoices):
@@ -100,7 +98,6 @@ class CommonSTIXProps(models.Model):
 
     class Meta:
         abstract = True
-
 
 
 def upload_to_func(instance: 'File|FileImage', filename):
@@ -206,7 +203,7 @@ class File(CommonSTIXProps):
         return self.mode
     
     def set_txt2stix_data(self, txt2stix_data):
-        from txt2stix.txt2stix import Txt2StixData
+        from txt2stix.utils import Txt2StixData
         if txt2stix_data is None:
             return
 
@@ -233,6 +230,7 @@ class File(CommonSTIXProps):
         )
         
     def similar_posts(file, visible_to=None):
+
         if not file.embedding:
             return []
 
@@ -253,15 +251,11 @@ class File(CommonSTIXProps):
                 continue
             if len(results) >= 5:
                 break
-            similarity_score = cosine_similarity(
-                file.embedding.embedding.reshape(1, -1),
-                sfile.embedding.embedding.reshape(1, -1),
-            )[0][0]
             results.append(
                 {
                     "id": sfile.id,
                     "name": sfile.name,  # or get from related file
-                    "score": similarity_score,
+                    "score": 1 - sfile.distance,
                     "tlp_level": sfile.tlp_level,
                     "owner": sfile.identity_id,
                     "added": sfile.created,

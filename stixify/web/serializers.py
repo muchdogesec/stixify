@@ -14,7 +14,6 @@ from drf_spectacular.utils import extend_schema_field
 import file2txt.parsers.core as f2t_core
 from rest_framework.exceptions import ValidationError
 from django.utils.translation import gettext_lazy
-from stixify.worker import pdf_converter
 from django.core.files.base import ContentFile
 import tempfile
 from pathlib import Path
@@ -156,6 +155,8 @@ class FileSerializer(serializers.ModelSerializer):
 
         # Handle mhtml-pdf conversion
         if mode == 'mhtml-pdf':
+            from stixify.worker import pdf_converter
+
             # Save uploaded file to temporary location
             with tempfile.NamedTemporaryFile(delete=True, suffix='.mhtml') as temp_file:
                 for chunk in uploaded_file.chunks():
