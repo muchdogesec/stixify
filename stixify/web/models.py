@@ -297,6 +297,7 @@ class JobState(models.TextChoices):
     PROCESSING = "processing"
     FAILED = "failed"
     COMPLETED = "completed"
+    CANCELED = "canceled"
 
 class JobType(models.TextChoices):
     IMPORT_FILE = "import-file"
