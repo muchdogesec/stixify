@@ -35,3 +35,15 @@ You can then execute these tests as follows;
 ```shell
 act -W .github/workflows/schemathesis_test.yml --secret-file secrets.env
 ```
+
+## Upload mutex tests
+
+The test Compose stack supplies Redis on port 16379. Run the mutex tests alone with:
+
+```shell
+STIXIFY_TEST_REDIS_URL=redis://localhost:16379/15 python -m pytest --noconftest -p no:django tests/src/test_upload_lock.py
+```
+
+These tests use unique, expiring Redis keys and do not flush the database. Without
+`STIXIFY_TEST_REDIS_URL`, the Redis integration cases are skipped; CI sets it in
+`tests/tests.env`.
