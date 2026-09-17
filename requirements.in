@@ -18,7 +18,7 @@ playwright==1.58.0
 
 ## dogesec
 file2txt>=1.1.0
-txt2stix[llms]>=1.7.2
+txt2stix[llms]>=1.7.3
 dogesec_commons[stixifier]>=1.5.1
 stix2arango
 
