@@ -136,13 +136,13 @@ djangorestframework==3.16.1
     #   drf-spectacular
 docstring-parser==0.17.0
     # via anthropic
-dogesec-commons[stixifier]==1.5.0
+dogesec-commons[stixifier]==1.5.1
     # via -r requirements.in
 drf-spectacular==0.29.0
     # via
     #   -r requirements.in
     #   dogesec-commons
-file2txt==1.0.13
+file2txt==1.1.0
     # via
     #   -r requirements.in
     #   dogesec-commons
@@ -387,7 +387,7 @@ pathvalidate==3.3.1
     # via txt2stix
 pgvector==0.4.2
     # via -r requirements.in
-phonenumbers==9.0.26
+phonenumberslite==9.0.26
     # via txt2stix
 pillow==10.4.0
     # via
@@ -607,7 +607,7 @@ tqdm==4.67.3
     #   transformers
 transformers==4.57.6
     # via llama-index-llms-openai-like
-txt2stix[llms]==1.7.1
+txt2stix[llms]==1.7.3
     # via
     #   -r requirements.in
     #   dogesec-commons

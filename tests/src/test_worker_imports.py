@@ -17,7 +17,7 @@ def _run_in_clean_process(code):
     )
 
 
-def test_django_and_task_imports_do_not_load_worker_dependencies():
+def test_web_routes_and_profile_validation_do_not_load_worker_dependencies():
     _run_in_clean_process(
         """
         import django
@@ -28,16 +28,33 @@ def test_django_and_task_imports_do_not_load_worker_dependencies():
             django.setup()
 
         import stixify.worker.tasks
+        import stixify.wsgi
+        import stixify.urls
+        from django.test import Client
+        from dogesec_commons.stixifier.serializers import (
+            validate_model, validate_extractor, uses_ai, Txt2stixExtractorSerializer,
+        )
 
-        # assert not any(
-        #     name == "txt2stix" or name.startswith("txt2stix.")
-        #     for name in sys.modules
-        # )
-        assert "stixify.worker.process_post" not in sys.modules
-        assert "stixify.worker.pdf_converter" not in sys.modules
-        assert "stixify.classifier.tasks" not in sys.modules
-        assert "sklearn.metrics.pairwise" not in sys.modules
-        assert "joblib" not in sys.modules
+        assert Client().get('/api/healthcheck/').status_code == 204
+        assert Txt2stixExtractorSerializer.all_extractors(('pattern',))
+        validate_extractor('extractor', ['pattern'], 'pattern_ipv4_address_only')
+        uses_ai(['pattern_ipv4_address_only'])
+        for provider in ('openai', 'anthropic', 'gemini', 'deepseek', 'openrouter'):
+            assert validate_model(provider) == provider
+            assert validate_model(provider + ':example-model') == provider + ':example-model'
+
+        forbidden = (
+            'stixify.worker.process_post', 'stixify.worker.pdf_converter',
+            'stixify.classifier.tasks', 'txt2stix.txt2stix', 'txt2stix.bundler',
+            'txt2stix.indicator', 'txt2stix.pattern', 'llama_index',
+            'transformers', 'torch', 'pandas', 'sklearn', 'joblib',
+            'openai', 'anthropic', 'google.genai', 'phonenumbers.geodata',
+        )
+        loaded = [
+            name for name in sys.modules
+            if any(name == prefix or name.startswith(prefix + '.') for prefix in forbidden)
+        ]
+        assert not loaded, loaded
         """
     )
 
