@@ -129,7 +129,7 @@ django-filter==25.2
     #   dogesec-commons
 django-storages[s3]==1.14.6
     # via -r requirements.in
-djangorestframework==3.16.1
+djangorestframework==3.17.2
     # via
     #   -r requirements.in
     #   dogesec-commons
