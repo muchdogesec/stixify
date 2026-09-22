@@ -56,6 +56,7 @@ jobs:
 
           echo ARANGODB_HOST_URL="http://${{ steps.get_ip.outputs.IP_ADDRESS }}:18529" >> tests/tests.env
           echo POSTGRES_HOST="${{ steps.get_ip.outputs.IP_ADDRESS }}" >> tests/tests.env
+          echo STIXIFY_TEST_REDIS_URL="redis://${{ steps.get_ip.outputs.IP_ADDRESS }}:16379/15" >> tests/tests.env
           echo DJANGO_WWW_PATH=$PWD/django_www_path/ >> tests/tests.env
           echo PYTHONPATH=. >> tests/tests.env
 

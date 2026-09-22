@@ -1,8 +1,6 @@
 import logging
-import time
 
 from django.conf import settings
-from django.core.cache import cache
 from django.core.files.base import File as DjangoFile
 from django.db import transaction
 from dogesec_commons.stixifier.models import Profile
@@ -12,44 +10,7 @@ from txt2stix.utils import Txt2StixData
 from stixify.web import models
 from stixify.web.models import File, Job
 from stixify.worker import pdf_converter
-
-
-ARANGO_UPLOAD_COUNTER_KEY = "arango_upload_active_count"
-MAX_CONCURRENT_UPLOADS = 1
-LOCK_TIMEOUT = 300
-
-
-def acquire_upload_lock(job_id, wait_timeout=LOCK_TIMEOUT):
-    lock_key = f"arango_upload_lock:{job_id}"
-    logging.info(f"Attempting to acquire upload lock: {lock_key}")
-    lock_acquired_at = cache.get(lock_key)
-
-    if lock_acquired_at is not None:
-        raise RuntimeError(f"Upload lock already held for job {job_id}")
-
-    start_time = time.time()
-    while True:
-        active_count = cache.get(ARANGO_UPLOAD_COUNTER_KEY, 0)
-        if active_count < MAX_CONCURRENT_UPLOADS:
-            cache.set(ARANGO_UPLOAD_COUNTER_KEY, active_count + 1, LOCK_TIMEOUT)
-            cache.set(lock_key, time.time(), LOCK_TIMEOUT)
-            logging.info(f"Acquired upload lock for job {job_id} (active: {active_count + 1}/{MAX_CONCURRENT_UPLOADS})")
-            return
-
-        if time.time() - start_time > wait_timeout:
-            raise TimeoutError(f"Timeout waiting for arango upload slot after {wait_timeout}s")
-
-        time.sleep(0.1)
-
-
-def release_upload_lock(job_id):
-    lock_key = f"arango_upload_lock:{job_id}"
-    if cache.get(lock_key) is not None:
-        cache.delete(lock_key)
-        active_count = cache.get(ARANGO_UPLOAD_COUNTER_KEY, 0)
-        if active_count > 0:
-            cache.set(ARANGO_UPLOAD_COUNTER_KEY, active_count - 1, LOCK_TIMEOUT)
-        logging.info(f"Released upload lock for job {job_id} (active: {max(0, active_count - 1)}/{MAX_CONCURRENT_UPLOADS})")
+from stixify.worker.upload_lock import upload_lock
 
 
 def _object_value_backup(file_id):
@@ -114,13 +75,21 @@ def _process_file(processor, job, file):
 
 
 def process_post_impl(job_id, file_id=None, *args):
+    from stixify.worker.tasks import TERMINAL_STATES, finish_job
+
     job = Job.objects.get(id=job_id)
+    if job.state in TERMINAL_STATES:
+        return job_id
     detached_reprocess = (
         job.type == models.JobType.REPROCESS_FILES and file_id is not None
     )
     if detached_reprocess:
         progress = job.extra["progress"]
         if progress["failed_processes"] >= settings.REPROCESS_MAX_FAILED_PROCESSES:
+            progress["stopped_early"] = True
+            progress["stop_reason"] = "failure_limit_reached"
+            job.save(update_fields=["extra"])
+            finish_job(job_id)
             return job_id
         progress["current_file_id"] = str(file_id)
         progress["current_index"] = (
@@ -185,12 +154,9 @@ def process_post_impl(job_id, file_id=None, *args):
             object_values_backup = _object_value_backup(file.id)
         models.ObjectValue.objects.filter(file_id=file.id).delete()
 
-        acquire_upload_lock(job.id)
-        try:
+        with upload_lock(job.id):
             logging.info(f"uploading {processor.task_name} to arangodb via stix2arango")
             processor.upload_to_arango()
-        finally:
-            release_upload_lock(job.id)
 
         with transaction.atomic():
             new_profile_id = (job.extra or {}).get("profile_id")
@@ -234,5 +200,11 @@ def process_post_impl(job_id, file_id=None, *args):
     else:
         if detached_reprocess:
             _update_reprocess_progress(job, file_id)
-    job.save()
+    job.save(update_fields=["error", "extra"])
+    if (
+        not detached_reprocess
+        or job.extra["progress"]["unprocessed_items"] == 0
+        or job.extra["progress"]["stopped_early"]
+    ):
+        finish_job(job_id)
     return job_id

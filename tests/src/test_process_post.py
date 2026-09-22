@@ -19,6 +19,13 @@ def always_eager(celery_eager):
     yield
 
 
+@pytest.fixture(autouse=True)
+def mock_upload_lock():
+    # Redis ownership and contention are covered in test_upload_lock.py.
+    with patch("stixify.worker.process_post.upload_lock") as lock:
+        yield lock
+
+
 @pytest.mark.django_db
 def test_new_task(stixify_job):
     with (
@@ -29,7 +36,7 @@ def test_new_task(stixify_job):
     ):
         new_task(stixify_job)
         mock_process_post.assert_called_once_with(stixify_job.id)
-        mock_job_completed_with_error.assert_called_once_with(stixify_job.id)
+        mock_job_completed_with_error.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -64,24 +71,22 @@ def test_new_task_detached_reprocesses_each_file(stixify_file):
         call(job.id, file_ids[0]),
         call(job.id, file_ids[1]),
     ]
-    mock_completed.assert_called_once_with(job.id)
+    mock_completed.assert_not_called()
 
 
 @pytest.mark.django_db
-def test_process_post_job__fails(stixify_job):
+@pytest.mark.parametrize("error", ["", "some error"])
+def test_process_post_job__fails(stixify_job, error):
     with (
         patch(
-            "stixify.worker.process_post.StixifyProcessor", side_effect=ValueError
+            "stixify.worker.process_post.StixifyProcessor", side_effect=ValueError(error)
         ) as mock_stixify_processor_cls,
     ):
         process_post.si(stixify_job.id).delay()
         stixify_job.refresh_from_db()
-        assert stixify_job.error == "failed to process file"
-
-        mock_stixify_processor_cls.side_effect = ValueError("some error")
-        process_post.si(stixify_job.id).delay()
-        stixify_job.refresh_from_db()
-        assert stixify_job.error == "failed to process file: some error"
+        assert stixify_job.error == "failed to process file" + (f": {error}" if error else "")
+        assert stixify_job.state == models.JobState.FAILED
+        assert stixify_job.completion_time is not None
 
 
 @pytest.fixture
@@ -119,6 +124,8 @@ def test_process_post_job(stixify_job, fake_stixifier_processor):
         process_post.si(stixify_job.id).delay()
         stixify_job.refresh_from_db()
         file.refresh_from_db()
+        assert stixify_job.state == models.JobState.COMPLETED
+        assert stixify_job.completion_time is not None
         mock_convert_pdf.assert_called_once()
         mock_stixify_processor_cls.assert_called_once()
         mock_stixify_processor_cls.return_value.setup.assert_called_once()
@@ -230,18 +237,13 @@ def test_process_post_reprocess_skip_extraction_uses_existing_data(
 
 @pytest.mark.django_db
 def test_process_post_reprocess_skip_extraction_acquires_lock(
-    stixify_reprocess_job, fake_stixifier_processor
+    stixify_reprocess_job, fake_stixifier_processor, mock_upload_lock
 ):
-    from django.core.cache import cache
-    from stixify.worker.process_post import ARANGO_UPLOAD_COUNTER_KEY
-
     file = stixify_reprocess_job.file
     file.markdown_file.save("test.md", io.BytesIO(b"test content"))
     file.save(update_fields=["markdown_file", "txt2stix_data"])
     stixify_reprocess_job.extra = {"skip_extraction": True}
     stixify_reprocess_job.save(update_fields=["extra"])
-
-    cache.clear()
 
     with (
         patch("stixify.worker.process_post.StixifyProcessor") as mock_stixify_processor_cls,
@@ -250,24 +252,18 @@ def test_process_post_reprocess_skip_extraction_acquires_lock(
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
         process_post.si(stixify_reprocess_job.id).delay()
 
-        lock_key = f"arango_upload_lock:{stixify_reprocess_job.id}"
-        assert cache.get(lock_key) is None, "Lock should be released after upload"
-        assert cache.get(ARANGO_UPLOAD_COUNTER_KEY, 0) == 0, "Counter should be 0 after upload"
+        mock_upload_lock.assert_called_once_with(uuid.UUID(str(stixify_reprocess_job.id)))
+        mock_upload_lock.return_value.__exit__.assert_called_once_with(None, None, None)
         fake_stixifier_processor.upload_to_arango.assert_called_once()
 
 
 @pytest.mark.django_db
-def test_process_post_concurrent_uploads_limited(
-    stixify_reprocess_job, fake_stixifier_processor
+def test_process_post_lock_timeout_fails_job(
+    stixify_reprocess_job, fake_stixifier_processor, mock_upload_lock
 ):
-    from django.core.cache import cache
-    from stixify.worker.process_post import ARANGO_UPLOAD_COUNTER_KEY, MAX_CONCURRENT_UPLOADS
-
     file = stixify_reprocess_job.file
     file.markdown_file.save("test.md", io.BytesIO(b"test content"))
     file.save(update_fields=["markdown_file", "txt2stix_data"])
-
-    cache.clear()
 
     with (
         patch("stixify.worker.process_post.StixifyProcessor") as mock_stixify_processor_cls,
@@ -275,12 +271,14 @@ def test_process_post_concurrent_uploads_limited(
     ):
         mock_stixify_processor_cls.return_value = fake_stixifier_processor
 
-        cache.set(ARANGO_UPLOAD_COUNTER_KEY, MAX_CONCURRENT_UPLOADS, 300)
+        mock_upload_lock.return_value.__enter__.side_effect = TimeoutError("upload slot busy")
+        process_post(stixify_reprocess_job.id)
 
-        from stixify.worker.process_post import acquire_upload_lock
-        with pytest.raises(TimeoutError):
-            acquire_upload_lock(stixify_reprocess_job.id, wait_timeout=0.1)
-        cache.clear()
+    stixify_reprocess_job.refresh_from_db()
+    assert stixify_reprocess_job.state == models.JobState.FAILED
+    assert stixify_reprocess_job.completion_time is not None
+    assert "upload slot busy" in stixify_reprocess_job.error
+    fake_stixifier_processor.upload_to_arango.assert_not_called()
 
 
 
@@ -438,8 +436,8 @@ def test_detached_reprocess_updates_progress(
         "processed_items": 1,
         "failed_processes": 0,
         "unprocessed_items": 0,
-        "current_file_id": str(stixify_file.id),
-        "current_index": 0,
+        "current_file_id": None,
+        "current_index": None,
         "stopped_early": False,
         "stop_reason": None,
         "errors": [],
@@ -503,7 +501,7 @@ def test_detached_reprocess_is_failed_when_one_file_fails(
 
 @pytest.mark.django_db
 def test_reprocess_restores_object_values_after_failure(
-    stixify_file, fake_stixifier_processor
+    stixify_file, fake_stixifier_processor, mock_upload_lock
 ):
     original = models.ObjectValue.objects.create(
         file=stixify_file,
@@ -525,3 +523,115 @@ def test_reprocess_restores_object_values_after_failure(
         file=stixify_file, stix_id=original.stix_id
     )
     assert restored.values == {"name": "original"}
+    assert mock_upload_lock.return_value.__exit__.call_args.args[0] is RuntimeError
+    job.refresh_from_db()
+    assert job.state == models.JobState.FAILED
+    assert job.completion_time is not None
+
+
+@pytest.mark.django_db
+def test_processing_failure_survives_cleanup_failure(stixify_job):
+    from requests.exceptions import SSLError
+
+    def failed_cleanup(report_id):
+        # Status is durable before the signal tries to delete external data.
+        stixify_job.refresh_from_db()
+        assert stixify_job.state == models.JobState.FAILED
+        assert stixify_job.completion_time is not None
+        raise RuntimeError("Arango is unavailable")
+
+    with (
+        patch("stixify.worker.process_post.StixifyProcessor", side_effect=SSLError("unexpected EOF")),
+        patch("stixify.web.views.ReportView.remove_report", side_effect=failed_cleanup),
+    ):
+        result = process_post.apply(args=(stixify_job.id,))
+
+    stixify_job.refresh_from_db()
+    assert result.successful()
+    assert stixify_job.state == models.JobState.FAILED
+    assert stixify_job.completion_time is not None
+    assert stixify_job.error == "failed to process file: unexpected EOF"
+
+
+@pytest.mark.django_db
+def test_unexpected_task_failure_finishes_job(stixify_reprocess_job):
+    with patch("stixify.worker.process_post.process_post_impl", side_effect=RuntimeError("worker setup failed")):
+        result = process_post.apply(kwargs={"job_id": stixify_reprocess_job.id}, throw=False)
+
+    stixify_reprocess_job.refresh_from_db()
+    assert result.failed()
+    assert stixify_reprocess_job.state == models.JobState.FAILED
+    assert stixify_reprocess_job.completion_time is not None
+    assert "worker setup failed" in stixify_reprocess_job.error
+    assert stixify_reprocess_job.file is not None
+
+
+@pytest.mark.django_db
+def test_broker_submission_failure_finishes_job(stixify_reprocess_job):
+    with patch.object(process_post, "apply_async", side_effect=ConnectionError("broker offline")):
+        with pytest.raises(ConnectionError, match="broker offline"):
+            new_task(stixify_reprocess_job)
+
+    stixify_reprocess_job.refresh_from_db()
+    assert stixify_reprocess_job.state == models.JobState.FAILED
+    assert stixify_reprocess_job.completion_time is not None
+    assert "broker offline" in stixify_reprocess_job.error
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("state", [models.JobState.COMPLETED, models.JobState.FAILED, models.JobState.CANCELED])
+def test_terminal_job_is_not_processed_or_finalized_again(stixify_reprocess_job, state):
+    error = None if state == models.JobState.COMPLETED else "terminal reason"
+    stixify_reprocess_job.state = state
+    stixify_reprocess_job.error = error
+    stixify_reprocess_job.completion_time = tasks.timezone.now()
+    stixify_reprocess_job.save()
+    completion_time = stixify_reprocess_job.completion_time
+
+    with patch("stixify.worker.process_post.StixifyProcessor") as processor:
+        process_post(stixify_reprocess_job.id)
+        job_completed_with_error(stixify_reprocess_job.id)
+        tasks.record_task_failure((stixify_reprocess_job.id,), {}, RuntimeError("late callback"))
+
+    processor.assert_not_called()
+    stixify_reprocess_job.refresh_from_db()
+    assert stixify_reprocess_job.state == state
+    assert stixify_reprocess_job.completion_time == completion_time
+    assert stixify_reprocess_job.error == error
+
+
+@pytest.mark.django_db
+def test_unexpected_batch_failure_stops_remaining_files(stixify_file):
+    job = detached_reprocess_job([str(stixify_file.id)] * 2)
+    with patch("stixify.worker.process_post.process_post_impl", side_effect=RuntimeError("setup failed")) as process_impl:
+        with pytest.raises(RuntimeError, match="setup failed"):
+            new_task(job)
+
+    process_impl.assert_called_once()
+    job.refresh_from_db()
+    assert job.state == models.JobState.FAILED
+    assert job.completion_time is not None
+    assert job.extra["progress"]["stopped_early"] is True
+    assert job.extra["progress"]["stop_reason"] == "task_failed"
+    assert job.extra["progress"]["unprocessed_items"] == 2
+
+
+@pytest.mark.django_db
+@override_settings(REPROCESS_MAX_FAILED_PROCESSES=1)
+def test_resumed_batch_at_failure_limit_finishes(stixify_file):
+    job = detached_reprocess_job([str(stixify_file.id)] * 2)
+    job.state = models.JobState.PROCESSING
+    job.extra["progress"]["failed_processes"] = 1
+    job.error = "failed to process file: bad file"
+    job.save()
+
+    with patch("stixify.worker.process_post.StixifyProcessor") as processor:
+        process_post(job.id, stixify_file.id)
+
+    processor.assert_not_called()
+    job.refresh_from_db()
+    assert job.state == models.JobState.FAILED
+    assert job.completion_time is not None
+    assert job.extra["progress"]["stopped_early"] is True
+    assert job.extra["progress"]["stop_reason"] == "failure_limit_reached"
+    assert job.extra["progress"]["unprocessed_items"] == 1

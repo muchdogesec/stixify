@@ -1,9 +1,6 @@
 import os
 from typing import List
 
-import openai
-
-
 from .models import DocumentEmbedding
 
 
@@ -12,6 +9,8 @@ class ClusteringCancelled(Exception):
 
 
 def _openai_client():
+    import openai
+
     openai.api_key = os.getenv("OPENAI_API_KEY")
     return openai.Client()
 
