@@ -20,7 +20,7 @@ anthropic[bedrock,vertex]==0.85.0
     # via llama-index-llms-anthropic
 antlr4-python3-runtime==4.13.2
     # via stix2-patterns
-anyio==4.12.1
+anyio==4.14.2
     # via
     #   anthropic
     #   google-genai
