@@ -6,7 +6,7 @@
 #
 aiohappyeyeballs==2.6.1
     # via aiohttp
-aiohttp==3.14.3
+aiohttp==3.14.4
     # via llama-index-core
 aiosignal==1.4.0
     # via aiohttp
@@ -676,7 +676,7 @@ xlrd==2.0.2
     # via
     #   -r requirements.in
     #   file2txt
-yarl==1.23.0
+yarl==1.25.1
     # via aiohttp
 
 # The following packages are considered to be unsafe in a requirements file:
